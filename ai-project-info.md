@@ -36,14 +36,167 @@ Displays connect via a URL that includes the name of the display.
 
 ## Technical Details
 
-* Python for the backend server
+### Backend Architecture
+* **Web Framework**: Flask for the backend server
+* **Database**: SQLite3 initially, designed for easy migration to MariaDB or PostgreSQL
+* **Database Migrations**: Flask-Migrate (Alembic) for schema versioning and upgrades
+* **ORM**: SQLAlchemy for database abstraction and future database engine flexibility
+
+### Frontend Architecture (Hybrid Approach)
+* **Display Interface**: Server-side rendering with Jinja2 templates
+  * Simpler and more reliable for kiosk devices with limited processing power
+  * Minimal JavaScript dependencies for better stability
+  * Basic JavaScript for slideshow transitions and Server-Sent Events (SSE) for real-time updates
+  * Optimized for consistent rendering across different browsers and devices
+* **User Management Interface**: React Single Page Application (SPA)
+  * Rich interactive experience for complex operations (drag-and-drop, file uploads)
+  * Real-time updates and dynamic content management
+  * Responsive design for various screen sizes
+  * Advanced form handling and validation
+
+### URL Structure and Routing
+* **Display Routes**: `/display/<display_name>` → Jinja2 templates for kiosk displays
+* **User Management Routes**: `/admin/*` → React SPA for user interface
+* **API Routes**: `/api/*` → REST API endpoints for React frontend communication
+* **Static File Routes**: `/uploads/*` → Served uploaded media files
+* **Authentication Routes**: `/auth/*` → Login/logout endpoints
+
+### API Design
+* **REST API**: JSON-based API for React frontend communication
+* **Endpoints Structure**:
+  * `/api/slideshows/` - CRUD operations for slideshows
+  * `/api/slideshow-items/` - CRUD operations for slideshow items
+  * `/api/displays/` - Display management and assignment
+  * `/api/uploads/` - File upload handling
+  * `/api/auth/` - Authentication endpoints
+* **Traditional Flask Routes**: For display rendering and file serving
+* **API Versioning**: `/api/v1/` prefix for future API evolution
+
+### Real-time Communication
+* **Server-Sent Events (SSE)** for real-time updates:
+  * **Display Updates**: `/api/display/<display_name>/events` - Notify displays of slideshow changes
+  * **Dashboard Updates**: `/api/admin/events` - Real-time display status and system notifications
+  * **Change Propagation**: Updates take effect at the end of current slideshow cycle
+* **Fallback Polling**: For clients that don't support SSE
+
+### File Storage and Management
+* **Storage Location**: Local filesystem with organized directory structure
+* **Directory Structure**: 
+  ```
+  uploads/
+  ├── images/
+  │   └── <user_id>/
+  │       └── <slideshow_id>/
+  └── videos/
+      └── <user_id>/
+          └── <slideshow_id>/
+  ```
+* **File Serving**: Flask serves uploaded files with proper MIME types and caching headers
+* **Supported Formats**:
+  * **Images**: JPEG, PNG, GIF, WebP
+  * **Videos**: MP4, WebM, AVI (with size limitations)
+* **File Size Limits**: 
+  * Images: 50MB max
+  * Videos: 500MB max
+* **File Cleanup**: Automatic cleanup of orphaned files when slideshows/items are deleted
+
+### Security Considerations
+* **File Upload Security**:
+  * File type validation based on content, not just extension
+  * Filename sanitization to prevent directory traversal
+  * Virus scanning integration point for future enhancement
+* **Content Security Policy**: Strict CSP headers for admin interface, relaxed for display interface to allow embedded content
+* **Web Page Embedding**: 
+  * Use `<iframe>` with sandbox attributes for external URLs
+  * Document limitations: some sites block iframe embedding (X-Frame-Options)
+  * Fallback to screenshot capture for problematic sites (future enhancement)
+* **HTTPS Enforcement**: Configurable HTTPS redirect for production deployments
+* **Session Security**: Secure session cookies with appropriate flags
+* **Input Validation**: Comprehensive validation for all user inputs and API endpoints
+
+### Error Handling and Resilience
+* **Display Error Handling**:
+  * **Network Failures**: Displays should gracefully handle connectivity loss
+  * **Media Loading Failures**: Skip failed items with user-configurable retry attempts
+  * **Fallback Content**: Continue with available content
+* **File Upload Error Handling**:
+  * Progress indicators with error recovery
+  * Partial upload resumption capability
+  * Clear error messages for file format/size issues
+* **Database Error Handling**: 
+  * Connection pooling and retry logic
+  * Graceful degradation for read-only operations during maintenance
+* **API Error Responses**: Consistent JSON error format with appropriate HTTP status codes
+
+### Configuration Management
+* **Environment-based Configuration**: Separate configs for development, testing, production
+* **Configuration Sources**: Environment variables
+* **Key Configuration Options**:
+  * Database connection string
+  * File upload directory and size limits
+  * Session secret key
+  * HTTPS enforcement
+  * Default slideshow timeout
+  * Debug mode settings
+
+### Performance and Monitoring
+* **Caching Strategy**: 
+  * Static file caching with appropriate headers
+  * Database query optimization with SQLAlchemy
+  * Optional Redis integration for session storage and caching
+* **Logging and Monitoring**:
+  * Structured logging with JSON format
+  * Request/response logging for debugging
+  * Performance metrics collection points
+  * Display heartbeat monitoring
+* **Resource Management**:
+  * File size monitoring and cleanup
+  * Database connection pooling
+  * Memory usage optimization for large file uploads
+
+### Development and Deployment
 * Dependencies managed with `poetry`
 * Tests run via `nox` and written with pytest
 * Formatting/style via `black`; linting and style checking via `pycodestyle` and `flake8`.
 * Designed to run either as a local Python application (installed as a Python package via `pip`, from PyPI) or as a Docker container
+* **Docker Configuration**: Multi-stage builds for optimized production images
+* **Environment Setup**: Docker Compose for development environment
 * Database schema migrations to allow easy upgrades between versions
 * Semantic versioning
+* **CI/CD Integration Points**: GitHub Actions workflow templates
 * All code MUST be readable, maintainable, and well-written, adhering to the relevant style and formatting guidelines.
 * All code must be well commented, with comments intended for both human and AI readers.
 * Comprehensive documentation must be generated in addition to code.
 * All implementation milestones must also include complete test coverage with all tests passing, as well as comprehensive documentation.
+
+## Implementation Phases
+
+### Phase 1: Core Backend and Basic Display
+* Flask application setup with basic routing
+* SQLAlchemy models and database schema
+* Basic authentication system (permissive initial implementation)
+* Simple slideshow display with Jinja2 templates
+* Basic CRUD operations for slideshows and items
+* Comprehensive testing and documentation of these items
+
+### Phase 2: User Management Interface
+* React SPA setup and build integration
+* REST API implementation
+* File upload functionality
+* Advanced slideshow management (drag-and-drop reordering)
+* User dashboard with display management
+* Comprehensive testing and documentation of these items
+
+### Phase 3: Real-time Features and Polish
+* Server-Sent Events implementation
+* Real-time display updates
+* Enhanced error handling and resilience
+* Performance optimization and caching
+* Comprehensive testing and documentation
+
+### Phase 4: Production Readiness
+* Security hardening
+* Docker containerization
+* Production deployment documentation
+* Monitoring and logging enhancements
+* Package distribution setup (PyPI)
