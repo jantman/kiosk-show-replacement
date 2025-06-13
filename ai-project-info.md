@@ -34,6 +34,81 @@ Displays connect via a URL that includes the name of the display.
 * Displays connect to the system by using a display name in the URL. Upon first connection, a new display name will be automatically registered as an available display and, until configured for a specific slideshow, will show either a page prompting for it to be configured appropriately (including its display name and the URL to the server) or a default slideshow if configured.
 * We will initially use the SQLite3 database but should implement with the assumption that a database engine such as MariaDB or Postgresql will be used in the future.
 
+## Data Model & Business Rules
+
+### Core Data Model
+The application centers around four main entities with the following relationships:
+
+* **Users**: Store authentication and audit information
+  * `id` (primary key)
+  * `username` (unique)
+  * `created_at`, `last_login`
+  * Initially, any username/password combination is accepted
+
+* **Displays**: Represent connected kiosk devices
+  * `id` (primary key)
+  * `name` (unique, derived from URL)
+  * `resolution_width`, `resolution_height` (detected on first connection)
+  * `assigned_slideshow_id` (foreign key to Slideshows, nullable)
+  * `created_by` (foreign key to Users)
+  * `created_at`, `modified_at`, `modified_by`
+  * `last_seen` (for heartbeat monitoring)
+
+* **Slideshows**: Collections of slideshow items
+  * `id` (primary key)
+  * `name` (unique per user)
+  * `default_item_duration` (seconds, default: 5)
+  * `transition_effect` (nullable, for future implementation)
+  * `is_default` (boolean, system-wide default slideshow)
+  * `created_by` (foreign key to Users)
+  * `created_at`, `modified_at`, `modified_by`
+
+* **Slideshow Items**: Individual content items within slideshows
+  * `id` (primary key)
+  * `slideshow_id` (foreign key to Slideshows)
+  * `order_index` (integer, for ordering within slideshow)
+  * `content_type` (enum: 'image_url', 'image_file', 'video_url', 'video_file', 'web_page')
+  * `content_source` (URL or file path)
+  * `duration_override` (seconds, nullable - uses slideshow default if null)
+  * `created_at`, `modified_at`, `modified_by`
+
+### User Isolation and Multi-tenancy Rules
+* **Shared System Model**: This is a single-tenant system where all users share the same data space
+* **User Visibility**: All users can see and edit all slideshows and displays (initially - RBAC hooks provided for future enhancement)
+* **Ownership Tracking**: While users can access all content, ownership is tracked via `created_by` fields for audit purposes
+* **Display Sharing**: Displays are shared resources - any user can assign any slideshow to any display
+* **Future Isolation**: The data model includes user foreign keys to enable future multi-tenant or RBAC implementations
+
+### Default Slideshow Management
+* **System Default**: Only one slideshow can be marked as `is_default = true` at a time
+* **Auto-Assignment**: New displays are automatically assigned the default slideshow upon first connection
+* **No Default Scenario**: If no default slideshow exists, new displays show a configuration prompt page with:
+  * Display name
+  * Server URL for admin access
+  * Instructions for configuring the display
+* **Default Changes**: When a different slideshow is set as default, existing displays keep their current assignments (only new displays get the new default)
+* **Default Deletion**: If the default slideshow is deleted, the system automatically selects the oldest remaining slideshow as the new default (or shows config prompt if no slideshows exist)
+
+### Display Resolution and Content Scaling
+* **Resolution Detection**: Display resolution is detected via JavaScript on first connection and stored in the database
+* **Static Resolution Assumption**: Once set, display resolution is assumed to remain constant (as per user requirements)
+* **Content Scaling Strategy**:
+  * **Images**: Scaled to "best fit" the display resolution while maintaining aspect ratio (CSS `object-fit: contain`)
+  * **Videos**: Same scaling strategy as images, centered with letterboxing/pillarboxing as needed
+  * **Web Pages**: Displayed at native resolution within iframe, with CSS scaling if the page exceeds display dimensions
+* **Resolution Change Handling**: If a display's resolution changes, the user must delete the display from the admin interface and restart the display device to trigger re-detection
+* **Responsive Design**: The admin interface (React SPA) is responsive and adapts to different screen sizes, but display content is optimized for the detected resolution
+
+### Video Playback Requirements
+* **Audio Policy**: All videos play muted by default to comply with browser autoplay policies and kiosk environment expectations
+* **Autoplay**: Videos must autoplay when their turn comes in the slideshow rotation
+* **Loop Behavior**: Videos play once and then the slideshow advances to the next item (no video looping within the slideshow timing)
+* **Duration Handling**: Video duration is controlled by the slideshow item duration setting, not the video's natural length
+  * If item duration < video length: video is stopped and slideshow advances
+  * If item duration > video length: video ends and slideshow waits for remaining time before advancing
+* **Format Support**: Support modern web-compatible formats (MP4, WebM) with H.264/VP8+ codecs for maximum compatibility
+* **Fallback Handling**: If a video fails to load or play, the slideshow skips to the next item after a brief timeout
+
 ## Technical Details
 
 ### Backend Architecture
