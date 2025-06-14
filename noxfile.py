@@ -57,6 +57,7 @@ def test(session):
         "--cov-report=term-missing",
         "--cov-report=html:htmlcov",
         "--cov-fail-under=30",
+        "-v",
         *session.posargs,
     )
 
