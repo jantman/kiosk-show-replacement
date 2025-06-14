@@ -11,12 +11,6 @@ This module contains REST API endpoints and related functionality for:
 The API follows RESTful principles with JSON request/response format
 and proper HTTP status codes. All endpoints include comprehensive
 input validation and error handling.
-"""
-
-__all__ = []
-
-"""
-API Blueprint for kiosk-show-replacement.
 
 This module provides REST API endpoints for managing slideshows and slide items.
 """
@@ -25,6 +19,8 @@ from flask import Blueprint, jsonify, request
 
 from ..app import db
 from ..models import SlideItem, Slideshow
+
+__all__ = []
 
 bp = Blueprint("api", __name__)
 
@@ -71,7 +67,8 @@ def get_slideshow(slideshow_id):
 @bp.route("/slideshows/<int:slideshow_id>/slides", methods=["POST"])
 def add_slide(slideshow_id):
     """Add a new slide to a slideshow."""
-    slideshow = Slideshow.query.get_or_404(slideshow_id)
+    # Verify slideshow exists (will raise 404 if not found)
+    Slideshow.query.get_or_404(slideshow_id)
     data = request.get_json()
 
     if not data or not data.get("content_type"):

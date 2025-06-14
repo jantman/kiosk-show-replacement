@@ -11,12 +11,6 @@ This module handles slideshow-related functionality including:
 
 Provides both API endpoints and utilities for slideshow operations
 with comprehensive validation and error handling.
-"""
-
-__all__ = []
-
-"""
-Slideshow Management Blueprint.
 
 This module provides web interface for managing slideshows and slides.
 """
@@ -25,6 +19,8 @@ from flask import Blueprint, flash, redirect, render_template, request, url_for
 
 from ..app import db
 from ..models import SlideItem, Slideshow
+
+__all__ = []
 
 bp = Blueprint("slideshow", __name__)
 

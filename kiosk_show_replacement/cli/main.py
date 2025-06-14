@@ -26,10 +26,6 @@ cli.add_command(init_db_command, name="init-db")
 def create_tables():
     """Create database tables without sample data (deprecated - use init-db)."""
     from ..app import db
-    from ..models import (  # Import models to ensure they're registered
-        SlideItem,
-        Slideshow,
-    )
 
     click.echo("⚠️  This command is deprecated. Use 'init-db' instead.")
     db.create_all()

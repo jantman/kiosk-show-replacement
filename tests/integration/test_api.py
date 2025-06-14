@@ -7,9 +7,6 @@ including proper HTTP status codes, JSON responses, and database integration.
 
 import json
 
-import pytest
-
-from kiosk_show_replacement.app import db
 from kiosk_show_replacement.models import SlideItem, Slideshow
 
 

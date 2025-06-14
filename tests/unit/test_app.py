@@ -5,8 +5,6 @@ Tests application creation, configuration loading,
 and basic application setup.
 """
 
-import pytest
-
 from kiosk_show_replacement.app import create_app, db
 
 

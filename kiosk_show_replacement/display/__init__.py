@@ -11,12 +11,6 @@ This module handles display-related functionality including:
 
 Optimized for reliability and performance on kiosk hardware with
 minimal JavaScript dependencies and graceful error handling.
-"""
-
-__all__ = []
-
-"""
-Display Blueprint for kiosk-show-replacement.
 
 This module provides the main display interface for viewing slideshows
 in kiosk mode.
@@ -26,6 +20,8 @@ from flask import Blueprint, jsonify, render_template, request
 
 from ..app import db
 from ..models import SlideItem, Slideshow
+
+__all__ = []
 
 bp = Blueprint("display", __name__)
 

@@ -20,6 +20,9 @@ This package is designed for collaborative human-AI development with comprehensi
 testing, documentation, and deployment automation.
 """
 
+# Import main application factory and database for convenience
+from .app import create_app, db
+
 __version__ = "0.1.0"
 __author__ = "Jason Antman"
 __email__ = "jason@jasonantman.com"
@@ -32,9 +35,6 @@ __url__ = "https://github.com/jantman/kiosk-show-replacement"
 
 # Version information tuple for easy comparison
 VERSION_INFO = tuple(int(x) for x in __version__.split("."))
-
-# Import main application factory and database for convenience
-from .app import create_app, db
 
 # Define public API
 __all__ = [

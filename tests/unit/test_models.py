@@ -4,23 +4,23 @@ Comprehensive unit tests for database models.
 Tests all model methods, properties, validators, relationships, and business logic.
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
-from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
-from werkzeug.security import check_password_hash
 
 from kiosk_show_replacement import create_app, db
-from kiosk_show_replacement.models import User, Display, Slideshow, SlideshowItem
+from kiosk_show_replacement.models import Display, Slideshow, SlideshowItem, User
 
 
 @pytest.fixture
 def app():
     """Create application for testing."""
     app = create_app()
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-    app.config['WTF_CSRF_ENABLED'] = False
-    
+    app.config["TESTING"] = True
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+    app.config["WTF_CSRF_ENABLED"] = False
+
     with app.app_context():
         db.create_all()
         yield app
@@ -38,20 +38,17 @@ def sample_user(app):
     """Create a sample user for testing."""
     # Store the user ID instead of the user object to avoid detached instance issues
     with app.app_context():
-        user = User(
-            username="testuser",
-            email="test@example.com"
-        )
+        user = User(username="testuser", email="test@example.com")
         user.set_password("testpassword")
         db.session.add(user)
         db.session.commit()
         user_id = user.id
-        
+
     # Return a function that creates a fresh user instance
     def get_user():
         with app.app_context():
             return db.session.get(User, user_id)
-    
+
     return get_user
 
 
@@ -65,16 +62,16 @@ def sample_display(app, sample_user):
             location="Test Location",
             resolution_width=1920,
             resolution_height=1080,
-            owner_id=user.id
+            owner_id=user.id,
         )
         db.session.add(display)
         db.session.commit()
         display_id = display.id
-        
+
     def get_display():
         with app.app_context():
             return db.session.get(Display, display_id)
-    
+
     return get_display
 
 
@@ -87,11 +84,11 @@ def sample_slideshow(app, sample_user):
             name="Test Slideshow",
             description="A slideshow for testing",
             default_item_duration=30,
-            owner_id=user.id
+            owner_id=user.id,
         )
         db.session.add(slideshow)
         db.session.commit()
-        
+
         # Add some slideshow items using proper fields
         items = [
             SlideshowItem(
@@ -99,34 +96,34 @@ def sample_slideshow(app, sample_user):
                 content_type="image",
                 content_url="https://example.com/image1.jpg",
                 display_duration=30,
-                order_index=0
+                order_index=0,
             ),
             SlideshowItem(
                 slideshow_id=slideshow.id,
                 content_type="url",
                 content_url="https://example.com/page1",
                 display_duration=45,
-                order_index=1
+                order_index=1,
             ),
             SlideshowItem(
                 slideshow_id=slideshow.id,
                 content_type="text",
                 content_text="Test text content",
                 display_duration=20,
-                order_index=2
-            )
+                order_index=2,
+            ),
         ]
-        
+
         for item in items:
             db.session.add(item)
-        
+
         db.session.commit()
         slideshow_id = slideshow.id
-        
+
     def get_slideshow():
         with app.app_context():
             return db.session.get(Slideshow, slideshow_id)
-    
+
     return get_slideshow
 
 
@@ -136,10 +133,7 @@ class TestUserModel:
     def test_create_user(self, app):
         """Test creating a new user."""
         with app.app_context():
-            user = User(
-                username="testuser",
-                email="test@example.com"
-            )
+            user = User(username="testuser", email="test@example.com")
             user.set_password("testpassword")
             db.session.add(user)
             db.session.commit()
@@ -159,7 +153,7 @@ class TestUserModel:
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
             user.set_password("testpassword")
-            
+
             assert user.check_password("testpassword") is True
             assert user.check_password("wrongpassword") is False
 
@@ -196,7 +190,9 @@ class TestUserModel:
 
             # Invalid usernames should be caught by SQLAlchemy validators
             # Testing short username
-            with pytest.raises(ValueError, match="Username must be at least 2 characters long"):
+            with pytest.raises(
+                ValueError, match="Username must be at least 2 characters long"
+            ):
                 user2 = User(username="a", email="test2@example.com")
                 user2.set_password("testpass")
                 db.session.add(user2)
@@ -233,7 +229,7 @@ class TestUserModel:
             db.session.add(user2)
             with pytest.raises(IntegrityError):
                 db.session.commit()
-            
+
             db.session.rollback()
 
             # Try to create user with same email
@@ -255,7 +251,7 @@ class TestDisplayModel:
                 location="Test Location",
                 resolution_width=1920,
                 resolution_height=1080,
-                owner_id=user.id
+                owner_id=user.id,
             )
             db.session.add(display)
             db.session.commit()
@@ -299,12 +295,12 @@ class TestDisplayModel:
             assert display.is_online is False
 
             # Set recent heartbeat
-            display.last_seen_at = datetime.utcnow()
+            display.last_seen_at = datetime.now(UTC)
             db.session.commit()
             assert display.is_online is True
 
             # Set old heartbeat (more than 5 minutes ago)
-            display.last_seen_at = datetime.utcnow() - timedelta(minutes=10)
+            display.last_seen_at = datetime.now(UTC) - timedelta(minutes=10)
             db.session.commit()
             assert display.is_online is False
 
@@ -313,11 +309,11 @@ class TestDisplayModel:
         with app.app_context():
             display = sample_display()  # Get fresh display instance
             initial_heartbeat = display.last_seen_at
-            
+
             # Update heartbeat
             display.update_heartbeat()
             db.session.commit()
-            
+
             assert display.last_seen_at is not None
             assert display.last_seen_at != initial_heartbeat
             assert display.is_online is True
@@ -334,7 +330,7 @@ class TestDisplayModel:
             # Try to create second display with same name and owner
             display2 = Display(name="Unique Display", owner_id=user.id)
             db.session.add(display2)
-            
+
             with pytest.raises(IntegrityError):
                 db.session.commit()
 
@@ -361,7 +357,7 @@ class TestSlideshowModel:
                 name="Test Slideshow",
                 description="A test slideshow",
                 default_item_duration=30,
-                owner_id=user.id
+                owner_id=user.id,
             )
             db.session.add(slideshow)
             db.session.commit()
@@ -448,7 +444,7 @@ class TestSlideshowModel:
             # Try to create second slideshow with same name and owner
             slideshow2 = Slideshow(name="Unique Slideshow", owner_id=user.id)
             db.session.add(slideshow2)
-            
+
             with pytest.raises(IntegrityError):
                 db.session.commit()
 
@@ -476,7 +472,7 @@ class TestSlideshowItemModel:
                 content_type="image",
                 content_url="https://example.com/image.jpg",
                 display_duration=60,
-                order_index=10
+                order_index=10,
             )
             db.session.add(item)
             db.session.commit()
@@ -498,7 +494,7 @@ class TestSlideshowItemModel:
             item = SlideshowItem(
                 slideshow_id=slideshow.id,
                 content_type="image",
-                content_url="https://example.com/image.jpg"
+                content_url="https://example.com/image.jpg",
             )
             assert repr(item) == "<SlideshowItem image>"
 
@@ -542,7 +538,7 @@ class TestSlideshowItemModel:
             item1 = SlideshowItem(
                 slideshow_id=slideshow.id,
                 content_type="image",
-                content_url="https://example.com/image.jpg"
+                content_url="https://example.com/image.jpg",
             )
             db.session.add(item1)
             db.session.commit()
@@ -552,7 +548,7 @@ class TestSlideshowItemModel:
                 item2 = SlideshowItem(
                     slideshow_id=slideshow.id,
                     content_type="invalid_type",
-                    content_url="some content"
+                    content_url="some content",
                 )
                 db.session.add(item2)
                 db.session.commit()
@@ -565,7 +561,7 @@ class TestSlideshowItemModel:
             item1 = SlideshowItem(
                 slideshow_id=slideshow.id,
                 content_type="url",
-                content_url="https://example.com/page"
+                content_url="https://example.com/page",
             )
             db.session.add(item1)
             db.session.commit()
@@ -575,7 +571,7 @@ class TestSlideshowItemModel:
                 item2 = SlideshowItem(
                     slideshow_id=slideshow.id,
                     content_type="url",
-                    content_url="not-a-valid-url"
+                    content_url="not-a-valid-url",
                 )
                 db.session.add(item2)
                 db.session.commit()
@@ -610,10 +606,10 @@ class TestModelRelationships:
             assert SlideshowItem.query.filter_by(slideshow_id=slideshow_id).count() == 0
 
     def test_cascade_delete_user_displays(self, app, sample_user, sample_display):
-        """Test that deleting a user deletes their displays.""" 
+        """Test that deleting a user deletes their displays."""
         with app.app_context():
             user = sample_user()  # Get fresh user instance
-            display = sample_display()  # Get fresh display instance
+            sample_display()  # Create display for the user
             user_id = user.id
 
             # Verify display exists
@@ -672,26 +668,26 @@ class TestModelRelationships:
         """Test foreign key constraints."""
         with app.app_context():
             # Enable foreign key constraints for SQLite
-            if 'sqlite' in str(db.engine.url):
-                db.session.execute(db.text('PRAGMA foreign_keys=ON'))
-            
+            if "sqlite" in str(db.engine.url):
+                db.session.execute(db.text("PRAGMA foreign_keys=ON"))
+
             # Try to create display with invalid owner_id
             display = Display(name="Invalid Display", owner_id=99999)
             db.session.add(display)
-            
+
             with pytest.raises(IntegrityError):
                 db.session.commit()
-            
+
             db.session.rollback()
 
             # Try to create slideshow item with invalid slideshow_id
             item = SlideshowItem(
                 slideshow_id=99999,
                 content_type="image",
-                content_url="https://example.com/image.jpg"
+                content_url="https://example.com/image.jpg",
             )
             db.session.add(item)
-            
+
             with pytest.raises(IntegrityError):
                 db.session.commit()
 
@@ -703,7 +699,7 @@ class TestDatabaseUtilityMethods:
         """Test user password utility methods."""
         with app.app_context():
             user = User(username="testuser", email="test@example.com")
-            
+
             # Test password setting and checking
             user.set_password("mypassword")
             assert user.password_hash is not None
@@ -720,18 +716,20 @@ class TestDatabaseUtilityMethods:
             assert display.last_seen_at is not None
             assert display.is_online is True
 
-    def test_model_serialization(self, app, sample_user, sample_display, sample_slideshow):
+    def test_model_serialization(
+        self, app, sample_user, sample_display, sample_slideshow
+    ):
         """Test that all models can be serialized to dict."""
         with app.app_context():
             user = sample_user()  # Get fresh user instance
             display = sample_display()  # Get fresh display instance
             slideshow = sample_slideshow()  # Get fresh slideshow instance
-            
+
             # Re-query to ensure objects are in session
             user = db.session.get(User, user.id)
             display = db.session.get(Display, display.id)
             slideshow = db.session.get(Slideshow, slideshow.id)
-            
+
             # Test all models have to_dict method and return dict
             user_dict = user.to_dict()
             display_dict = display.to_dict()
@@ -746,18 +744,20 @@ class TestDatabaseUtilityMethods:
             # Test that sensitive information is not included
             assert "password_hash" not in user_dict
 
-    def test_model_string_representations(self, app, sample_user, sample_display, sample_slideshow):
+    def test_model_string_representations(
+        self, app, sample_user, sample_display, sample_slideshow
+    ):
         """Test that all models have proper string representations."""
         with app.app_context():
             user = sample_user()  # Get fresh user instance
             display = sample_display()  # Get fresh display instance
             slideshow = sample_slideshow()  # Get fresh slideshow instance
-            
+
             # Re-query to ensure objects are in session
             user = db.session.get(User, user.id)
             display = db.session.get(Display, display.id)
             slideshow = db.session.get(Slideshow, slideshow.id)
-            
+
             assert "testuser" in repr(user)
             assert "Test Display" in repr(display)
             assert "Test Slideshow" in repr(slideshow)

@@ -5,10 +5,7 @@ These tests simulate real user interactions with the application,
 testing complete workflows from start to finish.
 """
 
-import pytest
-
-from kiosk_show_replacement.app import db
-from kiosk_show_replacement.models import SlideItem, Slideshow
+from kiosk_show_replacement.models import Slideshow
 
 
 class TestSlideshowCreationWorkflow:

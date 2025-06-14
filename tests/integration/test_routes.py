@@ -5,9 +5,6 @@ Tests the HTML interfaces for slideshow management and display,
 including form handling and template rendering.
 """
 
-import pytest
-
-from kiosk_show_replacement.app import db
 from kiosk_show_replacement.models import Slideshow
 
 
