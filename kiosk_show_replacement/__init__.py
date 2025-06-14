@@ -39,7 +39,7 @@ from .app import create_app
 # Define public API
 __all__ = [
     "__version__",
-    "__author__", 
+    "__author__",
     "__email__",
     "__license__",
     "__package_name__",
