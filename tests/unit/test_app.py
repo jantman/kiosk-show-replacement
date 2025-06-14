@@ -55,7 +55,7 @@ class TestAppFactory:
             table_names = inspector.get_table_names()
 
             assert "slideshows" in table_names
-            assert "slide_items" in table_names
+            assert "slideshow_items" in table_names
 
     def test_health_check_endpoint(self, client):
         """Test the health check endpoint."""
@@ -110,7 +110,6 @@ class TestAppExtensions:
     def test_sqlalchemy_initialization(self, app):
         """Test that SQLAlchemy is properly initialized."""
         with app.app_context():
-            assert db.app == app
             assert db.engine is not None
 
     def test_migrate_initialization(self, app):

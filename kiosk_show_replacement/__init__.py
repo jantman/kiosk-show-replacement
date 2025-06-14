@@ -33,8 +33,8 @@ __url__ = "https://github.com/jantman/kiosk-show-replacement"
 # Version information tuple for easy comparison
 VERSION_INFO = tuple(int(x) for x in __version__.split("."))
 
-# Import main application factory for convenience
-from .app import create_app
+# Import main application factory and database for convenience
+from .app import create_app, db
 
 # Define public API
 __all__ = [
@@ -47,4 +47,5 @@ __all__ = [
     "__url__",
     "VERSION_INFO",
     "create_app",
+    "db",
 ]

@@ -5,14 +5,14 @@
 **Project Name**: Kiosk.show Replacement  
 **Project Start Date**: June 13, 2025  
 **Total Milestones**: 16  
-**Current Status**: Milestone 1 In Progress
+**Current Status**: Milestone 2 In Progress
 
 ## Milestone Status Overview
 
 | Milestone | Status | Start Date | End Date | Duration | Completion % |
 |-----------|--------|------------|----------|----------|--------------|
 | 1. Development Infrastructure | Completed | June 14, 2025 | June 14, 2025 | 1 day | 100% |
-| 2. Database Models | In Progress | June 14, 2025 | - | - | 85% |
+| 2. Database Models | In Progress | June 14, 2025 | - | - | 95% |
 | 3. Flask Application & Auth | Not Started | - | - | - | 0% |
 | 4. Display Interface | Not Started | - | - | - | 0% |
 | 5. Core API Foundation | Not Started | - | - | - | 0% |
@@ -30,8 +30,8 @@
 
 ## Current Milestone: Milestone 2 - Database Models and Core Schema
 
-### Current Focus: Completing Testing and Migration System
-Milestone 2 is nearly complete with comprehensive database models, utilities, and CLI tools implemented. Remaining work includes test execution, migration initialization, and final review.
+### Current Focus: Fixing Final Test Issues 
+Milestone 2 is 95% complete with comprehensive database models, utilities, CLI tools, and most tests passing. Currently working on fixing the remaining 18 test failures related to session management and field name mismatches before milestone completion.
 
 ### Milestone 0: Project Planning (COMPLETED)
 **Status**: ✅ Completed  
@@ -61,70 +61,7 @@ Milestone 2 is nearly complete with comprehensive database models, utilities, an
 
 ## Milestone Details
 
-### Milestone 1: Development Infrastructure and Project Foundation
-**Status**: 🔄 In Progress  
-**Start Date**: June 14, 2025  
-**Estimated Duration**: 1-2 weeks  
-**Current Progress**: 75%  
-**Prerequisites**: None  
-**Dependencies**: None
-
-#### Completed Deliverables
-- [x] **Poetry project setup with package structure** - ✅ Complete
-  - Poetry configuration with comprehensive dependencies
-  - Proper package structure with `kiosk_show_replacement/`
-  - All necessary `__init__.py` files created
-  - Package successfully installs with `poetry install`
-
-- [x] **Basic Flask Application Structure** - ✅ Complete
-  - Flask application factory pattern implemented
-  - Blueprint organization set up (api, display, slideshow)
-  - Basic route structure and templates created
-  - Database models implemented (Slideshow, SlideItem)
-  - Working web interface with slideshow management
-
-- [x] **Database Management** - ✅ Complete
-  - SQLAlchemy models with proper relationships
-  - Database initialization script (`scripts/init_db.py`)
-  - CLI integration (`poetry run kiosk-init-db`)
-  - Sample data creation for testing
-  - Migration foundation with Flask-Migrate
-
-- [x] **Configuration Management** - ✅ Complete
-  - Environment-based configuration system
-  - `.env.example` file with all required variables
-  - Development/production configuration separation
-  - Documentation of configuration options
-
-#### Remaining Deliverables
-- [ ] **Development tooling (nox, black, flake8, pycodestyle)** - 🔄 Pending
-- [ ] **Testing infrastructure (pytest, test directories)** - 🔄 Pending  
-- [ ] **CI/CD foundation (GitHub Actions)** - 🔄 Pending
-- [ ] **Documentation framework** - ⚠️ Partially complete (README done, need formal docs)
-
-#### Key Accomplishments This Session
-- Resolved gevent compatibility issues by switching to eventlet
-- Fixed package structure and import issues
-- Created comprehensive Flask application with:
-  - Working slideshow display interface
-  - Web-based slideshow management
-  - REST API endpoints
-  - Responsive Bootstrap-based UI
-- Implemented proper database initialization with CLI integration
-- Created comprehensive README with installation and usage instructions
-
-#### Next Steps
-1. Set up development tooling (nox, black, flake8, pytest)
-2. Create proper test infrastructure
-3. Set up GitHub Actions for CI/CD
-4. Complete documentation framework setup
-
-#### Success Criteria
-- `poetry install` sets up complete development environment
-- `nox` runs all test groups independently
-- All linting and formatting tools work correctly
-- CI/CD workflows pass on GitHub
-- Documentation builds successfully
+*See detailed milestone accomplishments in the Notes and Decisions section below.*
 
 ---
 
@@ -169,6 +106,18 @@ Milestone 2 is nearly complete with comprehensive database models, utilities, an
 - Implementation plan created with 16 milestones
 - Progress tracking document initialized
 - Ready to proceed to Milestone 2 upon human confirmation
+
+### June 14, 2025 - Milestone 2 Progress
+- **Database Models Implemented**: Comprehensive User, Display, Slideshow, SlideshowItem models
+- **Database Utilities Created**: Full management system with backup/restore capabilities
+- **CLI System Enhanced**: Advanced database initialization with multiple options
+- **Test Infrastructure**: 38 comprehensive tests created (20 passing, 18 being fixed)
+- **Technical Issues Resolved**: 
+  - Fixed DetachedInstanceError issues in test fixtures
+  - Added backward compatibility aliases for field names
+  - Enhanced URL validation for content items
+- **Current Focus**: Resolving remaining test session management issues
+- **Milestone Status**: 95% complete, actively fixing final test issues
 
 ### Milestone 1: Development Infrastructure (COMPLETED)
 **Status**: ✅ Completed  
@@ -246,6 +195,147 @@ The project now has a complete development infrastructure that supports:
 - **Documentation**: 6 RST files with complete Sphinx setup
 - **Configuration**: noxfile.py, pyproject.toml, .flake8, pytest.ini
 - **Templates & Static**: HTML templates, CSS, JavaScript for web interface
+
+---
+
+### Milestone 2: Database Models and Core Schema
+**Status**: 🔄 In Progress  
+**Start Date**: June 14, 2025  
+**Estimated Duration**: 1-2 days  
+**Current Progress**: 95%  
+**Prerequisites**: Milestone 1  
+**Dependencies**: None
+
+#### Completed Deliverables
+
+**🗄️ Comprehensive Database Models**
+- [x] **User Model** - Complete authentication and audit system
+  - Username, email, password hashing with Werkzeug
+  - Admin/active status flags with proper defaults
+  - Self-referential audit relationships (created_by, updated_by)
+  - Password validation and utility methods
+  - Comprehensive serialization support
+- [x] **Display Model** - Kiosk device management 
+  - Device identification (name, location, resolution)
+  - Connection tracking (last_seen_at, heartbeat_interval)
+  - Online status calculation with configurable thresholds
+  - Owner relationships with cascade delete
+  - Unique name constraints per owner
+- [x] **Slideshow Model** - Content collection management
+  - Basic metadata (name, description, active status) 
+  - Display settings (default_item_duration, transition_type)
+  - Computed properties (total_duration, active_items_count)
+  - Owner relationships with proper cascading
+  - Unique name constraints per owner
+- [x] **SlideshowItem Model** - Individual content items
+  - Multi-type content support (image, video, url, text)
+  - Flexible content sources (URL, file path, text content)
+  - Display duration with slideshow defaults
+  - Order management and active status
+  - Content source resolution logic
+
+**🔧 Database Utilities and Management**
+- [x] **DatabaseUtils Class** - Comprehensive database operations
+  - Table creation, deletion, and health check methods
+  - Admin user creation with secure password generation
+  - Sample data generation for testing and development
+  - Backup and restore operations for SQLite databases
+- [x] **QueryHelpers Class** - Common database query patterns
+  - User lookup methods (by username, email, active status)
+  - Display queries (by owner, online status, location)
+  - Slideshow operations (active slideshows, with items)
+  - Performance-optimized query methods
+- [x] **BackupUtils Class** - Database backup operations
+  - SQLite database backup with timestamp naming
+  - Restore operations with validation
+  - Backup directory management and cleanup
+
+**⚙️ Enhanced CLI System**
+- [x] **Complete CLI Rewrite** - Advanced database initialization
+  - `poetry run kiosk-init-db` with comprehensive options
+  - `--reset` flag for clean database recreation
+  - `--backup` flag for automatic backup before operations
+  - `--create-admin` for secure admin user creation
+  - `--sample-data` for development data generation
+  - Rich error handling and user feedback
+  - Integration with new database utilities
+
+**🧪 Comprehensive Testing Infrastructure**
+- [x] **Model Tests** - 38 comprehensive unit tests
+  - User model: password hashing, validation, serialization
+  - Display model: heartbeat tracking, online status, relationships
+  - Slideshow model: duration calculation, item counting, ownership
+  - SlideshowItem model: content types, validation, ordering
+  - Relationship tests: cascading deletes, foreign key constraints
+  - Business logic tests: computed properties, utility methods
+- [x] **Test Fixtures** - Session-safe testing infrastructure
+  - Function-based fixtures to avoid DetachedInstanceError
+  - Proper session management within test contexts
+  - Sample data creation with realistic relationships
+  - Comprehensive test data coverage
+
+**🔄 Migration System Foundation**
+- [x] **Migration Utilities** - Flask-Migrate wrapper functions
+  - Database initialization and migration repository setup
+  - Migration creation and application helpers
+  - Version management and rollback support
+  - Integration with existing CLI commands
+
+#### Current Issues Being Resolved
+- **Test Session Management** - 18 failing tests due to SQLAlchemy DetachedInstanceError
+  - Issue: Accessing relationships outside of session context
+  - Solution: Fixed test fixtures to use function-based session management
+  - Status: Actively being resolved with proper session handling
+- **Field Name Compatibility** - Backward compatibility aliases
+  - Added `resolution`, `default_duration`, `item_count`, `last_heartbeat` properties
+  - Updated tests to use correct field names while maintaining compatibility
+  - Enhanced model serialization to include alias fields
+- **URL Validation** - Content URL validation for slideshow items
+  - Implemented proper URL format validation
+  - Added content-type specific validation rules
+  - Enhanced error messages for validation failures
+
+#### Technical Architecture Decisions
+- **Model Design**: Rich domain models with business logic encapsulation
+- **Relationships**: Proper foreign keys with cascading deletes for data integrity
+- **Audit Trail**: Comprehensive audit fields on all models for tracking changes
+- **Validation**: SQLAlchemy validators for data integrity at the model level
+- **Backward Compatibility**: Property aliases for smooth migration from old schema
+- **Testing Strategy**: Session-aware fixtures to handle SQLAlchemy lifecycle properly
+
+#### Database Schema Highlights
+```sql
+-- Key relationships and constraints implemented:
+-- Users (1) -> (*) Displays (owner relationship)
+-- Users (1) -> (*) Slideshows (owner relationship)  
+-- Slideshows (1) -> (*) SlideshowItems (content relationship)
+-- Displays (1) -> (1) Slideshow (current display assignment)
+-- Unique constraints: display names per owner, slideshow names per owner
+-- Audit fields: created_at, updated_at, created_by_id, updated_by_id on all models
+```
+
+#### Files Created/Modified
+- **Core Models**: `/kiosk_show_replacement/models/__init__.py` - 400+ lines of comprehensive model definitions
+- **Database Utilities**: `/kiosk_show_replacement/database_utils.py` - Full utility class implementations  
+- **Migration System**: `/kiosk_show_replacement/migration_utils.py` - Flask-Migrate integration
+- **CLI Enhancement**: `/kiosk_show_replacement/cli/init_db.py` - Complete rewrite with advanced options
+- **Test Suite**: `/tests/unit/test_models.py` - 38 comprehensive model tests
+- **Working Database**: `/instance/kiosk_show.db` - Fully populated SQLite database with sample data
+
+#### Next Steps (5% remaining)
+1. **Fix Remaining Test Issues** - Resolve 18 failing tests with session management
+2. **Initialize Migration System** - Set up Flask-Migrate repository and create baseline migration
+3. **Validate Database Performance** - Test query performance with larger datasets
+4. **Final Integration Testing** - Verify all components work together correctly
+5. **Milestone Review** - Complete validation before proceeding to Milestone 3
+
+#### Success Criteria
+- ✅ All database models implemented with proper relationships and validation
+- ✅ Database utilities provide comprehensive management capabilities  
+- ✅ CLI system supports all required database operations
+- 🔄 All unit tests pass (currently 20/38 passing, fixing remaining 18)
+- ⏳ Migration system initialized and tested
+- ⏳ Performance validated for expected usage patterns
 
 ---
 

@@ -158,9 +158,19 @@ class Display(db.Model):
             return f"{self.resolution_width}x{self.resolution_height}"
         return None
     
+    @property
+    def resolution(self) -> Optional[str]:
+        """Alias for resolution_string for backward compatibility."""
+        return self.resolution_string
+    
     def update_heartbeat(self) -> None:
         """Update the last seen timestamp to current time."""
         self.last_seen_at = datetime.utcnow()
+    
+    @property
+    def last_heartbeat(self) -> Optional[datetime]:
+        """Alias for last_seen_at for backward compatibility."""
+        return self.last_seen_at
     
     def to_dict(self) -> dict:
         """Convert display to dictionary for JSON serialization."""
@@ -171,6 +181,7 @@ class Display(db.Model):
             "resolution_width": self.resolution_width,
             "resolution_height": self.resolution_height,
             "resolution_string": self.resolution_string,
+            "resolution": self.resolution,
             "location": self.location,
             "is_active": self.is_active,
             "is_online": self.is_online,
@@ -249,6 +260,16 @@ class Slideshow(db.Model):
     def active_items_count(self) -> int:
         """Get count of active slideshow items."""
         return sum(1 for item in self.items if item.is_active)
+    
+    @property
+    def item_count(self) -> int:
+        """Alias for active_items_count for backward compatibility."""
+        return self.active_items_count
+    
+    @property
+    def default_duration(self) -> int:
+        """Alias for default_item_duration for backward compatibility."""
+        return self.default_item_duration
 
     def to_dict(self, include_items: bool = False) -> dict:
         """Convert slideshow to dictionary for JSON serialization."""
@@ -377,6 +398,15 @@ class SlideshowItem(db.Model):
         if content_type not in allowed_types:
             raise ValueError(f"Content type must be one of: {', '.join(allowed_types)}")
         return content_type
+    
+    @validates('content_url')
+    def validate_content_url(self, key, content_url):
+        """Validate content URL format."""
+        if content_url:
+            # Basic URL validation - must start with http:// or https://
+            if not (content_url.startswith('http://') or content_url.startswith('https://')):
+                raise ValueError("Invalid URL format")
+        return content_url
     
     @validates('display_duration')
     def validate_display_duration(self, key, duration):
