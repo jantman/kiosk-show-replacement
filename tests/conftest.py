@@ -5,10 +5,12 @@ This module provides common test fixtures and configuration
 for unit, integration, and end-to-end tests.
 """
 
+import gc
 import os
 import tempfile
 
 import pytest
+from sqlalchemy.pool import NullPool
 
 from kiosk_show_replacement.app import create_app, db
 from kiosk_show_replacement.models import SlideItem, Slideshow
@@ -17,14 +19,19 @@ from kiosk_show_replacement.models import SlideItem, Slideshow
 @pytest.fixture
 def app():
     """Create application for testing."""
-    # Create a temporary database file
-    db_fd, db_path = tempfile.mkstemp()
-
     app = create_app()
     app.config.update(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+            "SQLALCHEMY_ENGINE_OPTIONS": {
+                "pool_recycle": -1,
+                "pool_pre_ping": True,
+                "echo": False,
+                "connect_args": {
+                    "check_same_thread": False,
+                },
+            },
             "WTF_CSRF_ENABLED": False,
             "SECRET_KEY": "test-secret-key",
         }
@@ -33,10 +40,21 @@ def app():
     with app.app_context():
         db.create_all()
         yield app
-        db.drop_all()
 
-    os.close(db_fd)
-    os.unlink(db_path)
+        # Ensure clean shutdown
+        try:
+            # Close all sessions
+            db.session.rollback()
+            db.session.close()
+            db.session.remove()
+            # Drop all tables
+            db.drop_all()
+            # Dispose of all connections in the pool
+            db.engine.dispose()
+            # Force garbage collection
+            gc.collect()
+        except Exception:
+            pass
 
 
 @pytest.fixture
@@ -93,7 +111,24 @@ def sample_slideshow(app):
             db.session.add(slide)
 
         db.session.commit()
-        return slideshow
+
+        # Refresh the slideshow to ensure all relationships are loaded
+        db.session.refresh(slideshow)
+
+        yield slideshow
+
+        # Cleanup after test
+        try:
+            # Get a fresh instance and delete it
+            fresh_slideshow = db.session.get(Slideshow, slideshow.id)
+            if fresh_slideshow:
+                db.session.delete(fresh_slideshow)
+                db.session.commit()
+        except Exception:
+            # If there's an error, just roll back
+            db.session.rollback()
+        finally:
+            db.session.close()
 
 
 @pytest.fixture
