@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ slideshow.name }} - Kiosk Display</title>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .slideshow-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .slide {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .slide img {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+        }
+        
+        .slide iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        
+        .slide .text-content {
+            padding: 2rem;
+            text-align: center;
+            font-size: 2rem;
+            line-height: 1.4;
+            max-width: 80%;
+        }
+        
+        .slide .title {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            font-weight: bold;
+        }
+        
+        .slide-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #007bff;
+            transition: width linear;
+        }
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="slideshow-container" id="slideshowContainer">
+        <!-- Loading state -->
+        <div class="loading" id="loading">
+            Loading slideshow...
+        </div>
+        
+        <!-- Slides will be dynamically inserted here -->
+    </div>
+    
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progressBar"></div>
+    
+    <!-- Slide info -->
+    <div class="slide-info" id="slideInfo">
+        <span id="slideCounter">1 / 1</span> | 
+        <span id="slideshowName">{{ slideshow.name }}</span>
+    </div>
+
+    <script>
+        class SlideshowPlayer {
+            constructor() {
+                this.slides = {{ slides | tojson }};
+                this.currentSlideIndex = 0;
+                this.container = document.getElementById('slideshowContainer');
+                this.progressBar = document.getElementById('progressBar');
+                this.slideCounter = document.getElementById('slideCounter');
+                this.loading = document.getElementById('loading');
+                this.slideInterval = null;
+                this.progressInterval = null;
+                
+                this.init();
+            }
+            
+            init() {
+                if (this.slides.length === 0) {
+                    this.showMessage('No slides available');
+                    return;
+                }
+                
+                this.loading.style.display = 'none';
+                this.createSlideElements();
+                this.showSlide(0);
+                this.startSlideshow();
+            }
+            
+            createSlideElements() {
+                this.slides.forEach((slide, index) => {
+                    const slideElement = document.createElement('div');
+                    slideElement.className = 'slide';
+                    slideElement.id = `slide-${index}`;
+                    
+                    let content = '';
+                    
+                    switch(slide.content_type) {
+                        case 'image':
+                            content = `<img src="${slide.content_url}" alt="${slide.title || 'Slide'}">`;
+                            break;
+                        case 'url':
+                            content = `<iframe src="${slide.content_url}"></iframe>`;
+                            break;
+                        case 'text':
+                            content = `
+                                <div class="text-content">
+                                    ${slide.title ? `<div class="title">${slide.title}</div>` : ''}
+                                    <div>${slide.content_text || ''}</div>
+                                </div>
+                            `;
+                            break;
+                    }
+                    
+                    slideElement.innerHTML = content;
+                    this.container.appendChild(slideElement);
+                });
+            }
+            
+            showSlide(index) {
+                // Hide all slides
+                document.querySelectorAll('.slide').forEach(slide => {
+                    slide.classList.remove('active');
+                });
+                
+                // Show current slide
+                const currentSlide = document.getElementById(`slide-${index}`);
+                if (currentSlide) {
+                    currentSlide.classList.add('active');
+                }
+                
+                // Update counter
+                this.slideCounter.textContent = `${index + 1} / ${this.slides.length}`;
+                
+                // Start progress bar animation
+                this.animateProgressBar(this.slides[index].display_duration * 1000);
+            }
+            
+            nextSlide() {
+                this.currentSlideIndex = (this.currentSlideIndex + 1) % this.slides.length;
+                this.showSlide(this.currentSlideIndex);
+            }
+            
+            startSlideshow() {
+                if (this.slides.length <= 1) return;
+                
+                const showNextSlide = () => {
+                    this.nextSlide();
+                    const duration = this.slides[this.currentSlideIndex].display_duration * 1000;
+                    this.slideInterval = setTimeout(showNextSlide, duration);
+                };
+                
+                const initialDuration = this.slides[0].display_duration * 1000;
+                this.slideInterval = setTimeout(showNextSlide, initialDuration);
+            }
+            
+            animateProgressBar(duration) {
+                this.progressBar.style.width = '0%';
+                this.progressBar.style.transition = 'none';
+                
+                setTimeout(() => {
+                    this.progressBar.style.transition = `width ${duration}ms linear`;
+                    this.progressBar.style.width = '100%';
+                }, 10);
+            }
+            
+            showMessage(message) {
+                this.container.innerHTML = `
+                    <div class="loading">
+                        ${message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Start the slideshow when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new SlideshowPlayer();
+        });
+        
+        // Handle keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                window.history.back();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ slideshow.name }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Edit Slideshow: {{ slideshow.name }}</h1>
+            <div class="btn-group">
+                <a href="{{ url_for('display.display_slideshow', slideshow_id=slideshow.id) }}" 
+                   class="btn btn-success">
+                    <i class="bi bi-play-fill"></i> Preview
+                </a>
+                <a href="{{ url_for('slideshow.list_slideshows') }}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Slideshow Details</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ slideshow.name }}</h6>
+                <p class="text-muted">{{ slideshow.description or 'No description' }}</p>
+                <hr>
+                <small class="text-muted">
+                    Created: {{ slideshow.created_at.strftime('%Y-%m-%d %H:%M') if slideshow.created_at else 'Unknown' }}<br>
+                    Last Updated: {{ slideshow.updated_at.strftime('%Y-%m-%d %H:%M') if slideshow.updated_at else 'Unknown' }}<br>
+                    Slides: {{ slides|length }}
+                </small>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Add New Slide</h5>
+            </div>
+            <div class="card-body">
+                <form id="addSlideForm">
+                    <div class="mb-3">
+                        <label for="slideTitle" class="form-label">Title (Optional)</label>
+                        <input type="text" class="form-control" id="slideTitle" placeholder="Slide title">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="contentType" class="form-label">Content Type</label>
+                        <select class="form-select" id="contentType" required>
+                            <option value="">Select type...</option>
+                            <option value="image">Image</option>
+                            <option value="url">Web Page</option>
+                            <option value="text">Text</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="urlField" style="display: none;">
+                        <label for="contentUrl" class="form-label">URL</label>
+                        <input type="url" class="form-control" id="contentUrl" placeholder="https://...">
+                    </div>
+                    
+                    <div class="mb-3" id="textField" style="display: none;">
+                        <label for="contentText" class="form-label">Text Content</label>
+                        <textarea class="form-control" id="contentText" rows="4" placeholder="Enter your text content"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="displayDuration" class="form-label">Display Duration (seconds)</label>
+                        <input type="number" class="form-control" id="displayDuration" value="30" min="1" max="3600">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-circle"></i> Add Slide
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Slides ({{ slides|length }})</h5>
+            </div>
+            <div class="card-body">
+                {% if slides %}
+                <div id="slidesList">
+                    {% for slide in slides %}
+                    <div class="slide-item border rounded p-3 mb-3" data-slide-id="{{ slide.id }}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6>
+                                    {{ slide.title or 'Untitled Slide' }}
+                                    <span class="badge bg-secondary ms-2">{{ slide.content_type }}</span>
+                                </h6>
+                                
+                                {% if slide.content_type == 'image' %}
+                                    <p class="text-muted mb-1">Image: {{ slide.content_url }}</p>
+                                {% elif slide.content_type == 'url' %}
+                                    <p class="text-muted mb-1">URL: {{ slide.content_url }}</p>
+                                {% elif slide.content_type == 'text' %}
+                                    <p class="text-muted mb-1">{{ slide.content_text[:100] }}{{ '...' if slide.content_text|length > 100 else '' }}</p>
+                                {% endif %}
+                                
+                                <small class="text-muted">
+                                    Duration: {{ slide.display_duration }}s | Order: {{ slide.order_index }}
+                                </small>
+                            </div>
+                            
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-primary btn-sm edit-slide-btn" 
+                                        data-slide-id="{{ slide.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm delete-slide-btn" 
+                                        data-slide-id="{{ slide.id }}">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-collection" style="font-size: 3rem; color: #6c757d;"></i>
+                    <h5 class="text-muted mt-3">No Slides Added Yet</h5>
+                    <p class="text-muted">Add your first slide using the form on the left.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head %}
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contentTypeSelect = document.getElementById('contentType');
+    const urlField = document.getElementById('urlField');
+    const textField = document.getElementById('textField');
+    const addSlideForm = document.getElementById('addSlideForm');
+    
+    // Show/hide fields based on content type
+    contentTypeSelect.addEventListener('change', function() {
+        const type = this.value;
+        
+        urlField.style.display = 'none';
+        textField.style.display = 'none';
+        
+        if (type === 'image' || type === 'url') {
+            urlField.style.display = 'block';
+        } else if (type === 'text') {
+            textField.style.display = 'block';
+        }
+    });
+    
+    // Handle form submission
+    addSlideForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = {
+            title: document.getElementById('slideTitle').value,
+            content_type: document.getElementById('contentType').value,
+            content_url: document.getElementById('contentUrl').value,
+            content_text: document.getElementById('contentText').value,
+            display_duration: parseInt(document.getElementById('displayDuration').value)
+        };
+        
+        try {
+            const response = await fetch(`/api/slideshows/{{ slideshow.id }}/slides`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            if (response.ok) {
+                location.reload(); // Refresh page to show new slide
+            } else {
+                const error = await response.json();
+                alert('Error adding slide: ' + error.error);
+            }
+        } catch (error) {
+            alert('Error adding slide: ' + error.message);
+        }
+    });
+    
+    // Handle delete slide buttons
+    document.querySelectorAll('.delete-slide-btn').forEach(btn => {
+        btn.addEventListener('click', async function() {
+            if (!confirm('Are you sure you want to delete this slide?')) {
+                return;
+            }
+            
+            const slideId = this.dataset.slideId;
+            
+            try {
+                const response = await fetch(`/api/slides/${slideId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    location.reload(); // Refresh page
+                } else {
+                    const error = await response.json();
+                    alert('Error deleting slide: ' + error.error);
+                }
+            } catch (error) {
+                alert('Error deleting slide: ' + error.message);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
