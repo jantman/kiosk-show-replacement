@@ -73,6 +73,9 @@ class DatabaseUtils:
                 except Exception as e:
                     table_status[table] = {"exists": False, "error": str(e)}
 
+            # Properly close the session after health checks
+            db.session.close()
+
             return {
                 "status": "healthy",
                 "database_url": current_app.config.get(
@@ -83,6 +86,12 @@ class DatabaseUtils:
             }
 
         except Exception as e:
+            # Ensure session is closed even on error
+            try:
+                db.session.close()
+            except Exception:
+                pass
+            
             return {
                 "status": "unhealthy",
                 "error": str(e),

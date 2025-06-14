@@ -180,7 +180,15 @@ class Display(db.Model):
         if not self.last_seen_at:
             return False
 
-        time_since_last_seen = datetime.now(UTC) - self.last_seen_at
+        # Ensure both datetimes are timezone-aware for comparison
+        now = datetime.now(UTC)
+        last_seen = self.last_seen_at
+        
+        # If last_seen is naive, assume it's UTC
+        if last_seen.tzinfo is None:
+            last_seen = last_seen.replace(tzinfo=UTC)
+            
+        time_since_last_seen = now - last_seen
         threshold_seconds = self.heartbeat_interval * 3  # Allow 3 missed heartbeats
         return time_since_last_seen.total_seconds() <= threshold_seconds
 

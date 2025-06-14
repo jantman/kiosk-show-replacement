@@ -43,11 +43,15 @@ def sample_user(app):
         db.session.add(user)
         db.session.commit()
         user_id = user.id
+        # Properly close the session after creating the user
+        db.session.close()
 
     # Return a function that creates a fresh user instance
     def get_user():
         with app.app_context():
-            return db.session.get(User, user_id)
+            user = db.session.get(User, user_id)
+            # Don't close session here as calling test might need it
+            return user
 
     return get_user
 
@@ -67,10 +71,14 @@ def sample_display(app, sample_user):
         db.session.add(display)
         db.session.commit()
         display_id = display.id
+        # Properly close the session after creating the display
+        db.session.close()
 
     def get_display():
         with app.app_context():
-            return db.session.get(Display, display_id)
+            display = db.session.get(Display, display_id)
+            # Don't close session here as calling test might need it
+            return display
 
     return get_display
 
@@ -88,7 +96,7 @@ def sample_slideshow(app, sample_user):
         )
         db.session.add(slideshow)
         db.session.commit()
-
+        
         # Add some slideshow items using proper fields
         items = [
             SlideshowItem(
@@ -119,10 +127,14 @@ def sample_slideshow(app, sample_user):
 
         db.session.commit()
         slideshow_id = slideshow.id
+        # Properly close the session after creating the slideshow
+        db.session.close()
 
     def get_slideshow():
         with app.app_context():
-            return db.session.get(Slideshow, slideshow_id)
+            slideshow = db.session.get(Slideshow, slideshow_id)
+            # Don't close session here as calling test might need it
+            return slideshow
 
     return get_slideshow
 

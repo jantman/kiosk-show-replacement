@@ -46,6 +46,14 @@ def create_app(config_name=None):
         }
     )
 
+    # Configure SQLAlchemy engine options for better connection management
+    if config_name == "testing" or app.config.get("TESTING"):
+        app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+            "pool_pre_ping": True,
+            "pool_recycle": 300,
+            "echo": False,
+        }
+
     # Ensure instance directory exists
     os.makedirs(app.instance_path, exist_ok=True)
     os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)

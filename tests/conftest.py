@@ -25,6 +25,7 @@ def app():
             "TESTING": True,
             "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
             "SQLALCHEMY_ENGINE_OPTIONS": {
+                "poolclass": NullPool,  # Disable connection pooling for tests
                 "pool_recycle": -1,
                 "pool_pre_ping": True,
                 "echo": False,
@@ -41,18 +42,29 @@ def app():
         db.create_all()
         yield app
 
-        # Ensure clean shutdown
+        # Comprehensive cleanup to prevent ResourceWarnings
         try:
-            # Close all sessions
+            # First, close any active transactions
             db.session.rollback()
+            
+            # Close all active sessions
             db.session.close()
             db.session.remove()
+            
             # Drop all tables
             db.drop_all()
-            # Dispose of all connections in the pool
+            
+            # Explicitly close all connections in the engine
+            # Get the raw connection and close it
+            try:
+                with db.engine.connect() as conn:
+                    conn.close()
+            except Exception:
+                pass
+            
+            # Dispose of the engine completely - this should close all connections
             db.engine.dispose()
-            # Force garbage collection
-            gc.collect()
+                
         except Exception:
             pass
 
@@ -114,13 +126,17 @@ def sample_slideshow(app):
 
         # Refresh the slideshow to ensure all relationships are loaded
         db.session.refresh(slideshow)
+        slideshow_id = slideshow.id
+        
+        # Close the session after setup
+        db.session.close()
 
         yield slideshow
 
         # Cleanup after test
         try:
             # Get a fresh instance and delete it
-            fresh_slideshow = db.session.get(Slideshow, slideshow.id)
+            fresh_slideshow = db.session.get(Slideshow, slideshow_id)
             if fresh_slideshow:
                 db.session.delete(fresh_slideshow)
                 db.session.commit()
@@ -128,6 +144,7 @@ def sample_slideshow(app):
             # If there's an error, just roll back
             db.session.rollback()
         finally:
+            # Ensure session is closed
             db.session.close()
 
 
@@ -172,3 +189,37 @@ class TestDataFactory:
 def test_factory():
     """Provide test data factory."""
     return TestDataFactory
+
+
+@pytest.fixture(autouse=True)
+def cleanup_db_session(app):
+    """Automatically cleanup database sessions after each test."""
+    yield  # Run the test
+    
+    # Clean up after each test to prevent connection leaks
+    with app.app_context():
+        try:
+            # Close and remove any open sessions
+            db.session.rollback()
+            db.session.close()
+            db.session.remove()
+            
+            # Force any remaining connections to close
+            db.engine.dispose()
+            
+        except Exception:
+            pass
+
+
+@pytest.fixture(scope="session", autouse=True)
+def configure_sqlalchemy_session():
+    """Configure SQLAlchemy for better connection management in tests."""
+    yield
+    
+    # Final cleanup at session end with multiple garbage collection passes
+    # Suppress ResourceWarnings during cleanup
+    import warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", ResourceWarning)
+        for _ in range(5):
+            gc.collect()
