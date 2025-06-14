@@ -7,6 +7,7 @@ database management, server startup, and other administrative tasks.
 
 import click
 from flask.cli import with_appcontext
+from .init_db import main as init_db_command
 
 
 @click.group()
@@ -15,63 +16,20 @@ def cli():
     pass
 
 
+# Add the init_db command to the CLI group
+cli.add_command(init_db_command, name='init-db')
+
+
 @cli.command()
 @with_appcontext
-def init_db():
-    """Initialize the database with all required tables."""
+def create_tables():
+    """Create database tables without sample data (deprecated - use init-db)."""
     from ..app import db
     from ..models import Slideshow, SlideItem  # Import models to ensure they're registered
     
+    click.echo("⚠️  This command is deprecated. Use 'init-db' instead.")
     db.create_all()
-    click.echo('Database initialized successfully.')
-
-
-@cli.command()
-@click.option('--sample-data', '-s', is_flag=True, help='Include sample slideshow data')
-@with_appcontext
-def setup_db(sample_data):
-    """Set up the database with tables and optional sample data."""
-    from ..app import db
-    from ..models import Slideshow, SlideItem
-    
-    # Create tables
-    db.create_all()
-    click.echo('✅ Database tables created.')
-    
-    if sample_data:
-        # Check if sample data already exists
-        existing = Slideshow.query.filter_by(name="Welcome Demo").first()
-        if existing:
-            click.echo('⚠️  Sample data already exists.')
-            return
-        
-        # Create sample slideshow
-        welcome_slideshow = Slideshow(
-            name="Welcome Demo",
-            description="A demonstration slideshow showcasing the system"
-        )
-        db.session.add(welcome_slideshow)
-        db.session.flush()
-        
-        # Add sample slide
-        sample_slide = SlideItem(
-            slideshow_id=welcome_slideshow.id,
-            title='Welcome to Kiosk Show Replacement',
-            content_type='text',
-            content_text='''<div style="text-align: center; font-family: Arial, sans-serif;">
-<h1 style="color: #007bff;">Welcome!</h1>
-<p style="font-size: 1.5em;">Kiosk Show Replacement is running successfully.</p>
-<p>Create your own slideshows in the management interface.</p>
-</div>''',
-            display_duration=10,
-            order_index=0
-        )
-        db.session.add(sample_slide)
-        db.session.commit()
-        
-        click.echo('✅ Sample data created.')
-    
-    click.echo('🎉 Database setup completed!')
+    click.echo('Database tables created successfully.')
 
 
 @cli.command()
@@ -89,6 +47,7 @@ def serve(host, port, debug):
 @cli.command()
 @click.argument('name')
 @click.option('--description', help='Description of the slideshow.')
+@with_appcontext
 def create_slideshow(name, description):
     """Create a new slideshow."""
     from ..app import db

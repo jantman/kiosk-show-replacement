@@ -35,31 +35,22 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 
 3. **Initialize the database:**
    
-   **Option A: Using the dedicated initialization script (Recommended)**
+   **Option A: Using Poetry script shortcut (Recommended)**
    ```bash
    # Basic database setup
-   poetry run python init_db.py
+   poetry run kiosk-init-db
    
    # Or with sample data for testing
-   poetry run python init_db.py --sample-data
+   poetry run kiosk-init-db --sample-data
    ```
    
-   **Option B: Using Poetry script shortcut**
+   **Option B: Using the script directly**
    ```bash
    # Basic database setup
-   poetry run kiosk-show-init-db
+   poetry run python scripts/init_db.py
    
-   # Or with sample data
-   poetry run kiosk-show-init-db --sample-data
-   ```
-   
-   **Option C: Using Flask CLI**
-   ```bash
-   # Basic database setup
-   poetry run flask --app kiosk_show_replacement.app:create_app init-db
-   
-   # Or with sample data
-   poetry run flask --app kiosk_show_replacement.app:create_app setup-db --sample-data
+   # Or with sample data for testing
+   poetry run python scripts/init_db.py --sample-data
    ```
 
 4. **Start the development server:**
@@ -72,7 +63,7 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 
 ### Database Initialization Details
 
-The database initialization script (`init_db.py`) provides several options:
+The database initialization script (`scripts/init_db.py`) provides several options:
 
 - `--sample-data` / `-s`: Creates demonstration slideshows with sample content
 - `--database-url` / `-d`: Override the database URL from environment
@@ -81,13 +72,13 @@ The database initialization script (`init_db.py`) provides several options:
 **Examples:**
 ```bash
 # Initialize with custom database URL
-poetry run python init_db.py -d "sqlite:///custom.db"
+poetry run python scripts/init_db.py -d "sqlite:///custom.db"
 
 # Initialize with sample data for testing
-poetry run python init_db.py --sample-data
+poetry run python scripts/init_db.py --sample-data
 
 # Force reinitialize (preserves existing data)
-poetry run python init_db.py --force --sample-data
+poetry run python scripts/init_db.py --force --sample-data
 ```
 
 The sample data includes:
@@ -166,7 +157,7 @@ For testing, you may want to set up a separate test database:
 
 ```bash
 # Set up test database with sample data
-DATABASE_URL="sqlite:///test.db" poetry run python init_db.py --sample-data
+DATABASE_URL="sqlite:///test.db" poetry run python scripts/init_db.py --sample-data
 
 # Run tests against test database
 DATABASE_URL="sqlite:///test.db" poetry run pytest
@@ -228,9 +219,9 @@ docker run -p 5000:5000 -v ./data:/app/data kiosk-show-replacement
 
 3. Initialize database:
    ```bash
-   poetry run python init_db.py
+   poetry run kiosk-init-db
    # Or with sample data for initial testing:
-   # poetry run python init_db.py --sample-data
+   # poetry run kiosk-init-db --sample-data
    ```
 
 4. Run with a production WSGI server:

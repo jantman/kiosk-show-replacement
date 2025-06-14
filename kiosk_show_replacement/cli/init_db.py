@@ -11,13 +11,8 @@ import sys
 import click
 from pathlib import Path
 
-# Add the project root to Python path if running directly
-if __name__ == '__main__':
-    project_root = Path(__file__).parent
-    sys.path.insert(0, str(project_root))
-
-from kiosk_show_replacement.app import create_app, db
-from kiosk_show_replacement.models import Slideshow, SlideItem
+from ..app import create_app, db
+from ..models import Slideshow, SlideItem
 
 
 def init_database(app, create_sample_data=False):
@@ -213,7 +208,10 @@ def main(sample_data, database_url, force):
         # Check if database already exists (basic check)
         if not force:
             try:
-                existing_tables = db.engine.table_names()
+                # Use SQLAlchemy inspector to check for tables
+                from sqlalchemy import inspect
+                inspector = inspect(db.engine)
+                existing_tables = inspector.get_table_names()
                 if existing_tables:
                     click.echo("⚠️  Database tables already exist.")
                     click.echo("   Use --force to reinitialize (this will not drop existing data)")
