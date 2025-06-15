@@ -31,6 +31,7 @@ def app():
                 "echo": False,
                 "connect_args": {
                     "check_same_thread": False,
+                    "timeout": 20,
                 },
             },
             "WTF_CSRF_ENABLED": False,
@@ -199,12 +200,12 @@ def cleanup_db_session(app):
     # Clean up after each test to prevent connection leaks
     with app.app_context():
         try:
-            # Close and remove any open sessions
+            # Close and remove any open sessions - this should be sufficient
             db.session.rollback()
             db.session.close()
             db.session.remove()
             
-            # Force any remaining connections to close
+            # Dispose of the engine to close all connections
             db.engine.dispose()
             
         except Exception:
@@ -215,11 +216,5 @@ def cleanup_db_session(app):
 def configure_sqlalchemy_session():
     """Configure SQLAlchemy for better connection management in tests."""
     yield
-    
-    # Final cleanup at session end with multiple garbage collection passes
-    # Suppress ResourceWarnings during cleanup
-    import warnings
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore", ResourceWarning)
-        for _ in range(5):
-            gc.collect()
+    # Session cleanup is handled by individual test cleanup
+    # Python's automatic garbage collection will handle the rest

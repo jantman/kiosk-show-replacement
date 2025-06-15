@@ -343,8 +343,14 @@ class TestDisplayModel:
             display2 = Display(name="Unique Display", owner_id=user.id)
             db.session.add(display2)
 
-            with pytest.raises(IntegrityError):
-                db.session.commit()
+            try:
+                with pytest.raises(IntegrityError):
+                    db.session.commit()
+            finally:
+                # Ensure clean session state
+                db.session.rollback()
+                db.session.close()
+                db.session.remove()
 
     def test_display_owner_relationship(self, app, sample_display, sample_user):
         """Test display-owner relationship."""
@@ -646,13 +652,20 @@ class TestModelRelationships:
             assert Slideshow.query.filter_by(owner_id=user_id).count() == 1
             assert SlideshowItem.query.filter_by(slideshow_id=slideshow_id).count() == 3
 
-            # Delete user
-            db.session.delete(user)
-            db.session.commit()
+            # Delete user with explicit session management
+            try:
+                db.session.delete(user)
+                db.session.commit()
 
-            # Verify slideshows and items are also deleted (cascade)
-            assert Slideshow.query.filter_by(owner_id=user_id).count() == 0
-            assert SlideshowItem.query.filter_by(slideshow_id=slideshow_id).count() == 0
+                # Verify slideshows and items are also deleted (cascade)
+                assert Slideshow.query.filter_by(owner_id=user_id).count() == 0
+                assert SlideshowItem.query.filter_by(slideshow_id=slideshow_id).count() == 0
+            
+            finally:
+                # Ensure clean session state
+                db.session.rollback()
+                db.session.close()
+                db.session.remove()
 
     def test_audit_fields_auto_update(self, app, sample_user):
         """Test that audit fields are automatically updated."""
