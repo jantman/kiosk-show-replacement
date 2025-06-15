@@ -71,13 +71,14 @@
 - **ALWAYS run tests via `poetry run nox -s test`** - Never run pytest directly
 - **ALL project commands must be run via `poetry`** - This ensures proper dependency management and virtual environment isolation
 - **ALWAYS redirect command output to files for analysis** - Never pipe commands through `wc -l` or run the same command multiple times. Instead, redirect output to a temporary file and analyze that file.
+- **ALWAYS clean up temporary files after use** - Remove temporary output files (like `test_output.txt`, `lint_output.txt`, etc.) after analysis is complete to keep the workspace clean
 - Examples:
   - Tests: `poetry run nox -s test`
   - Linting: `poetry run nox -s lint` 
   - Install dependencies: `poetry install`
   - Add dependencies: `poetry add <package>`
   - Shell: `poetry shell`
-  - Analysis: `command > output.txt 2>&1` then analyze `output.txt`
+  - Analysis: `command > output.txt 2>&1` then analyze `output.txt` then `rm output.txt`
 
 ## When Contributing Code
 - Run tests with all warnings enabled to catch resource leaks
