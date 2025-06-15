@@ -1,173 +1,65 @@
-# GitHub Copilot Instructions for kiosk-show-replacement
+# AI Copilot Instructions for kiosk-show-replacement
 
-## Code Quality and Best Practices
+## Core Rules
+- **NEVER suppress warnings/errors without human approval** - Fix root cause, not symptoms
+- **Always use proper type annotations** on all new code
+- **Always close resources explicitly** - Use context managers or try/finally
+- **All commands via poetry** - Tests: `poetry run nox -s test`, Lint: `poetry run nox -s lint`
+- **Do not** run the same command multiple times in a row; if this will be needed, then use a temporary file to store the output and analyze it later, such as `cmd > file.txt 2>&1; analyze file.txt; rm -f file.txt`. Be sure to clean up the temporary file after analysis.
+- **Always** include the `-f` option when removing files, such as `rm -f file.txt`.
 
-### Resource Management
-- **NEVER filter out warnings** - All warnings must be investigated and fixed at their source
-- Always properly close database connections, file handles, and other resources
-- Use context managers (`with` statements) for resource management when possible
-- Explicitly call `.close()`, `.dispose()`, or similar cleanup methods when context managers aren't available
-
-### Database and SQLAlchemy
-- Always close database sessions after use: `db.session.close()`
-- Use `try/finally` blocks to ensure cleanup happens even if exceptions occur
-- Dispose of SQLAlchemy engines properly: `db.engine.dispose()`
-- Never rely on garbage collection to clean up database connections
-- Use NullPool for tests to prevent connection pooling issues
+## Resource Management
+### Database/SQLAlchemy
+- Close sessions: `db.session.close()`, Dispose engines: `db.engine.dispose()`
+- Use NullPool for tests, always close SQLite connections explicitly
+- Use try/finally blocks for cleanup
 
 ### Testing
-- Fix ResourceWarnings by identifying and closing unclosed resources
-- Do NOT use `warnings.filterwarnings()` to suppress warnings
-- Do NOT use explicit `gc.collect()` to mask resource management problems
-- Test fixtures should properly clean up resources they create
-- Each test should be independent and not leak resources to other tests
+- Fix ResourceWarnings at source, don't suppress with `warnings.filterwarnings()`
+- Don't use `gc.collect()` to mask resource problems
+- Test fixtures must cleanup resources they create
 
-### Type Annotations
-- **ALL generated code must include proper type annotations**
-- Function parameters, return types, and variables should be typed
-- Use `from typing import` imports for complex types (Union, Optional, List, Dict, etc.)
-- Class attributes and instance variables should have type hints
-- When adding new functions or methods, include comprehensive type annotations
+## Warning/Error Suppression Policy
+**Requires explicit human approval before using:**
+- `warnings.filterwarnings()`, `# type: ignore`, `# noqa`, `# pragma: no cover`
+- Any pytest skip/ignore markers
 
-### Warning and Error Suppression Policy
-- **Suppressing or ignoring any warnings or errors requires explicit human approval**
-- This includes but is not limited to:
-  - `warnings.filterwarnings()` to suppress warnings
-  - `# type: ignore` comments for mypy
-  - `# noqa` comments for linting
-  - `# pragma: no cover` for coverage
-  - Any pytest markers that skip or ignore failures
-- **Before requesting approval, you must:**
-  1. Clearly explain why the warning/error cannot be fixed at the source
-  2. Document the specific third-party library limitation or constraint
-  3. Provide evidence that the functionality works correctly despite the warning/error
-  4. Propose the minimal suppression scope (specific error code, single line, etc.)
+**Approval process:**
+1. Explain why can't fix at source
+2. Document third-party library limitation
+3. Prove functionality works despite warning/error
+4. Propose minimal suppression scope
 
-### Python Best Practices
-- Avoid explicit garbage collection (`gc.collect()`) - it usually indicates poor resource management
-- Use proper exception handling with cleanup in `finally` blocks
-- Follow the principle: "Fix the cause, not the symptom"
-- Write defensive code that handles edge cases gracefully
+## Acceptable Baselines
+### Type Checking (mypy): 11 errors acceptable
+- SQLAlchemy/Flask-Migrate missing type stubs
+- Third-party library limitations only
 
-### Error Handling
-- Always investigate the root cause of warnings and errors
-- Don't suppress exceptions or warnings without understanding why they occur
-- Log meaningful error messages that help with debugging
-- Use specific exception types rather than broad `except Exception` catches
+### Testing ResourceWarnings: ~28 expected
+- Flask-SQLAlchemy: ~15-20 from connection pooling teardown
+- pytest fixtures: ~5-8 from cleanup
+- Werkzeug/Flask: ~3-5 from test client cleanup
+- **Zero tolerance for application code ResourceWarnings**
 
-## Project-Specific Guidelines
+## Command Examples
+```bash
+# Tests
+poetry run nox -s test
 
-### Flask Application
-- Use proper application context management
-- Clean up Flask test clients and contexts after tests
-- Ensure database sessions are scoped correctly to request lifecycles
+# Analysis pattern
+poetry run nox -s lint > lint.txt 2>&1
+# analyze lint.txt
+rm -f lint.txt
 
-### SQLite Connections
-- Be especially careful with SQLite connections in tests
-- Use `check_same_thread=False` only when necessary and document why
-- Always close connections explicitly, especially in test environments
+# Good resource management
+with create_connection() as conn:
+    # use conn
+    pass  # auto-closed
 
-## Command Execution Requirements
-- **ALWAYS run tests via `poetry run nox -s test`** - Never run pytest directly
-- **ALL project commands must be run via `poetry`** - This ensures proper dependency management and virtual environment isolation
-- **ALWAYS redirect command output to files for analysis** - Never pipe commands through `wc -l` or run the same command multiple times. Instead, redirect output to a temporary file and analyze that file.
-- **ALWAYS clean up temporary files after use** - Remove temporary output files (like `test_output.txt`, `lint_output.txt`, etc.) after analysis is complete to keep the workspace clean
-- Examples:
-  - Tests: `poetry run nox -s test`
-  - Linting: `poetry run nox -s lint` 
-  - Install dependencies: `poetry install`
-  - Add dependencies: `poetry add <package>`
-  - Shell: `poetry shell`
-  - Analysis: `command > output.txt 2>&1` then analyze `output.txt` then `rm output.txt`
-
-## When Contributing Code
-- Run tests with all warnings enabled to catch resource leaks
-- Fix any ResourceWarnings before submitting code
-- Write tests that verify proper resource cleanup
-- Document any complex resource management patterns
-- Code reviews should specifically check for proper resource management
-
-## Acceptable Errors and Warnings
-
-### Type Checking (mypy)
-After comprehensive type annotation improvements, **11 mypy errors are acceptable** and represent third-party library limitations:
-
-#### SQLAlchemy/Flask-Migrate Errors (Acceptable)
-- `flask_migrate.upgrade()` - No type stubs available
-- SQLAlchemy model methods - Missing type definitions in ORM
-- Database relationship types - Complex SQLAlchemy types not fully supported
-
-**Why These Are Acceptable:**
-- Originate from third-party libraries, not our code
-- Libraries function correctly despite missing type annotations
-- Well-tested functionality that works properly
-- Adding type ignores would reduce code quality
-
-### Testing ResourceWarnings
-**Approximately 28 ResourceWarnings are expected** during test execution:
-
-#### Expected Third-Party Warnings (Acceptable)
-- **Flask-SQLAlchemy**: ~15-20 warnings from internal connection pooling during test teardown
-- **pytest fixtures**: ~5-8 warnings from pytest's resource management during cleanup  
-- **Werkzeug/Flask**: ~3-5 warnings from Flask's test client cleanup
-
-**Why These Are Acceptable:**
-- Occur only during test teardown, not normal operation
-- Originate from third-party libraries, not application code
-- All tests pass and functionality is unaffected
-- Our application code properly manages all resources it creates
-
-#### Application Code Standard
-- **Zero tolerance for application ResourceWarnings**
-- All database sessions properly closed with NullPool
-- File handles managed with context managers
-- Test fixtures clean up resources they create
-
-### Investigation Priority
-1. **High Priority**: Any new ResourceWarnings from application code
-2. **Medium Priority**: Increases in third-party library warnings (may indicate configuration issues)
-3. **Low Priority**: Stable count of expected third-party warnings
-4. **Document**: Any changes to acceptable error/warning baselines
-
-Remember: **Quality code manages resources explicitly and handles errors gracefully. Warnings are signals of potential problems - fix them, don't hide them.**
-
-## Examples of What NOT to Do
-```python
-# ❌ DON'T suppress warnings
-warnings.filterwarnings("ignore", category=ResourceWarning)
-
-# ❌ DON'T force garbage collection to mask problems
-gc.collect()
-
-# ❌ DON'T leave resources unclosed
-connection = create_connection()
-# ... use connection without closing it
-```
-
-## Examples of What TO Do
-```python
-# ✅ DO use context managers
-with create_connection() as connection:
-    # ... use connection
-    pass  # automatically closed
-
-# ✅ DO use try/finally for explicit cleanup
-connection = None
-try:
-    connection = create_connection()
-    # ... use connection
-finally:
-    if connection:
-        connection.close()
-
-# ✅ DO clean up in test fixtures
+# Test fixture cleanup
 @pytest.fixture
-def sample_data():
-    # Create test data
-    data = create_test_data()
+def resource():
+    data = create_resource()
     yield data
-    # Clean up
-    cleanup_test_data(data)
+    cleanup_resource(data)
 ```
-
-Remember: **Quality code manages resources explicitly and handles errors gracefully. Warnings are signals of potential problems - fix them, don't hide them.**
