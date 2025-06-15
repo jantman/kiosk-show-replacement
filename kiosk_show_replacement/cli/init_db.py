@@ -9,8 +9,10 @@ models and utilities.
 
 import sys
 from datetime import datetime
+from typing import Optional
 
 import click
+from flask import Flask
 
 from ..app import create_app
 from ..database_utils import BackupUtils, DatabaseUtils
@@ -18,13 +20,13 @@ from ..models import User
 
 
 def init_database(
-    app,
-    create_sample_data=False,
-    reset_existing=False,
-    admin_username="admin",
-    admin_password="admin",
-    admin_email=None,
-):
+    app: Flask,
+    create_sample_data: bool = False,
+    reset_existing: bool = False,
+    admin_username: str = "admin",
+    admin_password: str = "admin",
+    admin_email: Optional[str] = None,
+) -> bool:
     """
     Initialize the database with all required tables.
 
@@ -122,8 +124,14 @@ def init_database(
     "--backup-path", default=None, help="Path for backup file (default: auto-generated)"
 )
 def main(
-    sample_data, reset, admin_username, admin_password, admin_email, backup, backup_path
-):
+    sample_data: bool,
+    reset: bool,
+    admin_username: str,
+    admin_password: str,
+    admin_email: Optional[str],
+    backup: bool,
+    backup_path: Optional[str],
+) -> None:
     """Initialize the kiosk-show-replacement database."""
 
     print("🚀 Kiosk Show Replacement - Database Initialization")

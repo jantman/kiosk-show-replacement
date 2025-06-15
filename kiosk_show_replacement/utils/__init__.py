@@ -7,13 +7,14 @@ and other common operations.
 
 import mimetypes
 import os
+from typing import Optional
 from urllib.parse import urlparse
 
 import requests
 from PIL import Image
 
 
-def is_valid_url(url):
+def is_valid_url(url: str) -> bool:
     """
     Check if a URL is valid and accessible.
 
@@ -35,7 +36,7 @@ def is_valid_url(url):
         return False
 
 
-def is_image_url(url):
+def is_image_url(url: str) -> bool:
     """
     Check if a URL points to an image file.
 
@@ -62,7 +63,7 @@ def is_image_url(url):
         return False
 
 
-def validate_image_file(file_path):
+def validate_image_file(file_path: str) -> bool:
     """
     Validate that a file is a valid image.
 
@@ -80,7 +81,7 @@ def validate_image_file(file_path):
         return False
 
 
-def get_file_mimetype(file_path):
+def get_file_mimetype(file_path: str) -> Optional[str]:
     """
     Get the MIME type of a file.
 
@@ -94,7 +95,7 @@ def get_file_mimetype(file_path):
     return mimetype or "application/octet-stream"
 
 
-def ensure_directory_exists(directory_path):
+def ensure_directory_exists(directory_path: str) -> None:
     """
     Ensure that a directory exists, creating it if necessary.
 
@@ -104,7 +105,7 @@ def ensure_directory_exists(directory_path):
     os.makedirs(directory_path, exist_ok=True)
 
 
-def sanitize_filename(filename):
+def sanitize_filename(filename: str) -> str:
     """
     Sanitize a filename by removing potentially dangerous characters.
 

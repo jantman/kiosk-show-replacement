@@ -4,7 +4,7 @@ Comprehensive unit tests for database models.
 Tests all model methods, properties, validators, relationships, and business logic.
 """
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -96,7 +96,7 @@ def sample_slideshow(app, sample_user):
         )
         db.session.add(slideshow)
         db.session.commit()
-        
+
         # Add some slideshow items using proper fields
         items = [
             SlideshowItem(
@@ -303,18 +303,29 @@ class TestDisplayModel:
         """Test display online status calculation."""
         with app.app_context():
             display = sample_display()  # Get fresh display instance
+            display_id = display.id
+
             # Initially offline (no heartbeat)
             assert display.is_online is False
 
-            # Set recent heartbeat
-            display.last_seen_at = datetime.now(UTC)
+            # Set recent heartbeat - work with fresh session
+            db.session.close()
+            fresh_display = db.session.get(Display, display_id)
+            fresh_display.last_seen_at = datetime.now(timezone.utc)
             db.session.commit()
-            assert display.is_online is True
+            assert fresh_display.is_online is True
 
-            # Set old heartbeat (more than 5 minutes ago)
-            display.last_seen_at = datetime.now(UTC) - timedelta(minutes=10)
+            # Set old heartbeat (more than 5 minutes ago) - again with fresh session
+            db.session.close()
+            fresh_display2 = db.session.get(Display, display_id)
+            fresh_display2.last_seen_at = datetime.now(timezone.utc) - timedelta(
+                minutes=10
+            )
             db.session.commit()
-            assert display.is_online is False
+            assert fresh_display2.is_online is False
+
+            # Clean up session
+            db.session.close()
 
     def test_display_heartbeat_update(self, app, sample_display):
         """Test updating display heartbeat."""
@@ -469,13 +480,25 @@ class TestSlideshowModel:
     def test_slideshow_owner_relationship(self, app, sample_slideshow, sample_user):
         """Test slideshow-owner relationship."""
         with app.app_context():
-            slideshow = sample_slideshow()  # Get fresh slideshow instance
-            user = sample_user()  # Get fresh user instance
-            # Re-query to ensure objects are in session
-            slideshow = db.session.get(Slideshow, slideshow.id)
-            user = db.session.get(User, user.id)
-            assert slideshow.owner.id == user.id
-            assert slideshow in user.slideshows
+            # Get the IDs to work with instead of objects
+            slideshow = sample_slideshow()
+            user = sample_user()
+            slideshow_id = slideshow.id
+            user_id = user.id
+
+            # Create a fresh session for this test to avoid connection issues
+            db.session.close()
+
+            # Re-query both objects in the same session for proper relationship loading
+            fresh_slideshow = db.session.get(Slideshow, slideshow_id)
+            fresh_user = db.session.get(User, user_id)
+
+            # Test the relationship - this should all happen in one session
+            assert fresh_slideshow.owner.id == fresh_user.id
+            assert fresh_slideshow in fresh_user.slideshows
+
+            # Explicitly close the session after the test
+            db.session.close()
 
 
 class TestSlideshowItemModel:
@@ -659,8 +682,11 @@ class TestModelRelationships:
 
                 # Verify slideshows and items are also deleted (cascade)
                 assert Slideshow.query.filter_by(owner_id=user_id).count() == 0
-                assert SlideshowItem.query.filter_by(slideshow_id=slideshow_id).count() == 0
-            
+                assert (
+                    SlideshowItem.query.filter_by(slideshow_id=slideshow_id).count()
+                    == 0
+                )
+
             finally:
                 # Ensure clean session state
                 db.session.rollback()

@@ -5,10 +5,6 @@ This module provides common test fixtures and configuration
 for unit, integration, and end-to-end tests.
 """
 
-import gc
-import os
-import tempfile
-
 import pytest
 from sqlalchemy.pool import NullPool
 
@@ -17,13 +13,17 @@ from kiosk_show_replacement.models import SlideItem, Slideshow
 
 
 @pytest.fixture
-def app():
+def app(tmp_path):
     """Create application for testing."""
     app = create_app()
+
+    # Use pytest's temporary directory for the database file
+    db_file = tmp_path / "test.db"
+
     app.config.update(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
             "SQLALCHEMY_ENGINE_OPTIONS": {
                 "poolclass": NullPool,  # Disable connection pooling for tests
                 "pool_recycle": -1,
@@ -47,25 +47,19 @@ def app():
         try:
             # First, close any active transactions
             db.session.rollback()
-            
+
             # Close all active sessions
             db.session.close()
             db.session.remove()
-            
+
             # Drop all tables
             db.drop_all()
-            
-            # Explicitly close all connections in the engine
-            # Get the raw connection and close it
-            try:
-                with db.engine.connect() as conn:
-                    conn.close()
-            except Exception:
-                pass
-            
+
             # Dispose of the engine completely - this should close all connections
             db.engine.dispose()
-                
+
+            # pytest will automatically clean up tmp_path, no manual file deletion
+
         except Exception:
             pass
 
@@ -128,7 +122,7 @@ def sample_slideshow(app):
         # Refresh the slideshow to ensure all relationships are loaded
         db.session.refresh(slideshow)
         slideshow_id = slideshow.id
-        
+
         # Close the session after setup
         db.session.close()
 
@@ -196,7 +190,7 @@ def test_factory():
 def cleanup_db_session(app):
     """Automatically cleanup database sessions after each test."""
     yield  # Run the test
-    
+
     # Clean up after each test to prevent connection leaks
     with app.app_context():
         try:
@@ -204,10 +198,10 @@ def cleanup_db_session(app):
             db.session.rollback()
             db.session.close()
             db.session.remove()
-            
+
             # Dispose of the engine to close all connections
             db.engine.dispose()
-            
+
         except Exception:
             pass
 

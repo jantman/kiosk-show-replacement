@@ -16,25 +16,27 @@ This module provides the main display interface for viewing slideshows
 in kiosk mode.
 """
 
-from flask import Blueprint, jsonify, render_template, request
+from typing import Union
+
+from flask import Blueprint, Response, jsonify, render_template, request
 
 from ..app import db
 from ..models import SlideItem, Slideshow
 
-__all__ = []
+__all__: list[str] = []
 
 bp = Blueprint("display", __name__)
 
 
 @bp.route("/")
-def index():
+def index() -> str:
     """Main landing page showing available slideshows."""
     slideshows = Slideshow.query.filter_by(is_active=True).all()
     return render_template("index.html", slideshows=slideshows)
 
 
 @bp.route("/display/<int:slideshow_id>")
-def display_slideshow(slideshow_id):
+def display_slideshow(slideshow_id: int) -> str:
     """Display a slideshow in kiosk mode."""
     slideshow = Slideshow.query.get_or_404(slideshow_id)
     slides = (
@@ -47,7 +49,7 @@ def display_slideshow(slideshow_id):
 
 
 @bp.route("/api/slideshow/<int:slideshow_id>/slides")
-def get_slideshow_slides(slideshow_id):
+def get_slideshow_slides(slideshow_id: int) -> Response:
     """API endpoint to get slides for a slideshow (for AJAX updates)."""
     slideshow = Slideshow.query.get_or_404(slideshow_id)
     slides = (

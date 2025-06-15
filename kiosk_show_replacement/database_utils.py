@@ -11,7 +11,7 @@ This module provides utility functions for database operations including:
 import os
 import sqlite3
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from flask import current_app
 from sqlalchemy import text
@@ -25,7 +25,7 @@ class DatabaseUtils:
     """Utility class for database operations."""
 
     @staticmethod
-    def create_all_tables():
+    def create_all_tables() -> bool:
         """Create all database tables."""
         try:
             db.create_all()
@@ -36,7 +36,7 @@ class DatabaseUtils:
             return False
 
     @staticmethod
-    def drop_all_tables():
+    def drop_all_tables() -> bool:
         """Drop all database tables."""
         try:
             db.drop_all()
@@ -47,7 +47,7 @@ class DatabaseUtils:
             return False
 
     @staticmethod
-    def check_database_health() -> Dict[str, any]:
+    def check_database_health() -> Dict[str, Any]:
         """
         Check database health and connectivity.
 
@@ -91,7 +91,7 @@ class DatabaseUtils:
                 db.session.close()
             except Exception:
                 pass
-            
+
             return {
                 "status": "unhealthy",
                 "error": str(e),

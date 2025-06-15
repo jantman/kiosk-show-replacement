@@ -14,8 +14,8 @@ between different database engines (SQLite, PostgreSQL, MariaDB).
 
 __all__ = ["User", "Display", "Slideshow", "SlideshowItem"]
 
-from datetime import UTC, datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Any, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -46,11 +46,13 @@ class User(db.Model):
     is_admin = Column(Boolean, default=False, nullable=False)
 
     # Audit fields
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     last_login_at = Column(DateTime, nullable=True)
@@ -75,7 +77,7 @@ class User(db.Model):
         cascade="all, delete-orphan",
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User {self.username}>"
 
     def set_password(self, password: str) -> None:
@@ -112,7 +114,7 @@ class User(db.Model):
         return data
 
     @validates("username")
-    def validate_username(self, key, username):
+    def validate_username(self, key: str, username: str) -> str:
         """Validate username format and length."""
         if not username or len(username.strip()) < 2:
             raise ValueError("Username must be at least 2 characters long")
@@ -121,7 +123,7 @@ class User(db.Model):
         return username.strip()
 
     @validates("email")
-    def validate_email(self, key, email):
+    def validate_email(self, key: str, email: Optional[str]) -> Optional[str]:
         """Validate email format."""
         if email and "@" not in email:
             raise ValueError("Invalid email format")
@@ -147,11 +149,13 @@ class Display(db.Model):
 
     # Ownership and audit fields
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -171,7 +175,7 @@ class Display(db.Model):
         UniqueConstraint("name", "owner_id", name="unique_display_name_per_owner"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Display {self.name}>"
 
     @property
@@ -181,13 +185,13 @@ class Display(db.Model):
             return False
 
         # Ensure both datetimes are timezone-aware for comparison
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         last_seen = self.last_seen_at
-        
+
         # If last_seen is naive, assume it's UTC
         if last_seen.tzinfo is None:
-            last_seen = last_seen.replace(tzinfo=UTC)
-            
+            last_seen = last_seen.replace(tzinfo=timezone.utc)
+
         time_since_last_seen = now - last_seen
         threshold_seconds = self.heartbeat_interval * 3  # Allow 3 missed heartbeats
         return time_since_last_seen.total_seconds() <= threshold_seconds
@@ -206,7 +210,7 @@ class Display(db.Model):
 
     def update_heartbeat(self) -> None:
         """Update the last seen timestamp to current time."""
-        self.last_seen_at = datetime.now(UTC)
+        self.last_seen_at = datetime.now(timezone.utc)
 
     @property
     def last_heartbeat(self) -> Optional[datetime]:
@@ -237,7 +241,7 @@ class Display(db.Model):
         }
 
     @validates("name")
-    def validate_name(self, key, name):
+    def validate_name(self, key: str, name: str) -> str:
         """Validate display name format and length."""
         if not name or len(name.strip()) < 2:
             raise ValueError("Display name must be at least 2 characters long")
@@ -246,7 +250,7 @@ class Display(db.Model):
         return name.strip()
 
     @validates("resolution_width", "resolution_height")
-    def validate_resolution(self, key, value):
+    def validate_resolution(self, key: str, value: Optional[int]) -> Optional[int]:
         """Validate resolution values."""
         if value is not None and (value < 1 or value > 10000):
             raise ValueError(f"{key} must be between 1 and 10000 pixels")
@@ -270,11 +274,13 @@ class Slideshow(db.Model):
 
     # Ownership and audit fields
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -296,7 +302,7 @@ class Slideshow(db.Model):
         UniqueConstraint("name", "owner_id", name="unique_slideshow_name_per_owner"),
     )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Slideshow {self.name}>"
 
     @property
@@ -347,7 +353,7 @@ class Slideshow(db.Model):
         return data
 
     @validates("name")
-    def validate_name(self, key, name):
+    def validate_name(self, key: str, name: str) -> str:
         """Validate slideshow name format and length."""
         if not name or len(name.strip()) < 2:
             raise ValueError("Slideshow name must be at least 2 characters long")
@@ -356,14 +362,14 @@ class Slideshow(db.Model):
         return name.strip()
 
     @validates("default_item_duration")
-    def validate_default_duration(self, key, duration):
+    def validate_default_duration(self, key: str, duration: int) -> int:
         """Validate default item duration."""
         if duration < 1 or duration > 3600:  # 1 second to 1 hour
             raise ValueError("Default item duration must be between 1 and 3600 seconds")
         return duration
 
     @validates("transition_type")
-    def validate_transition_type(self, key, transition_type):
+    def validate_transition_type(self, key: str, transition_type: str) -> str:
         """Validate transition type."""
         allowed_transitions = ["none", "fade", "slide", "zoom"]
         if transition_type not in allowed_transitions:
@@ -402,11 +408,13 @@ class SlideshowItem(db.Model):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Audit fields
-    created_at = Column(DateTime, default=lambda: datetime.now(UTC), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     updated_at = Column(
         DateTime,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
     created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
@@ -417,7 +425,7 @@ class SlideshowItem(db.Model):
     created_by = relationship("User", foreign_keys=[created_by_id])
     updated_by = relationship("User", foreign_keys=[updated_by_id])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<SlideshowItem {self.title or self.content_type}>"
 
     @property
@@ -458,7 +466,7 @@ class SlideshowItem(db.Model):
         }
 
     @validates("content_type")
-    def validate_content_type(self, key, content_type):
+    def validate_content_type(self, key: str, content_type: str) -> str:
         """Validate content type."""
         allowed_types = ["image", "video", "url", "text"]
         if content_type not in allowed_types:
@@ -466,7 +474,9 @@ class SlideshowItem(db.Model):
         return content_type
 
     @validates("content_url")
-    def validate_content_url(self, key, content_url):
+    def validate_content_url(
+        self, key: str, content_url: Optional[str]
+    ) -> Optional[str]:
         """Validate content URL format."""
         if content_url:
             # Basic URL validation - must start with http:// or https://
@@ -477,14 +487,16 @@ class SlideshowItem(db.Model):
         return content_url
 
     @validates("display_duration")
-    def validate_display_duration(self, key, duration):
+    def validate_display_duration(
+        self, key: str, duration: Optional[int]
+    ) -> Optional[int]:
         """Validate display duration."""
         if duration is not None and (duration < 1 or duration > 3600):
             raise ValueError("Display duration must be between 1 and 3600 seconds")
         return duration
 
     @validates("order_index")
-    def validate_order_index(self, key, order_index):
+    def validate_order_index(self, key: str, order_index: int) -> int:
         """Validate order index."""
         if order_index < 0:
             raise ValueError("Order index must be non-negative")

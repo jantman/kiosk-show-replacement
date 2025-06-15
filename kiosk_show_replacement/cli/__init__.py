@@ -11,4 +11,4 @@ This module provides CLI commands for:
 Uses Click framework for command definition and argument parsing.
 """
 
-__all__ = []
+__all__: list[str] = []

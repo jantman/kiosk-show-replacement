@@ -12,4 +12,4 @@ Initially implements permissive authentication where any username/password
 combination is accepted, with extensibility for more secure methods.
 """
 
-__all__ = []
+__all__: list[str] = []

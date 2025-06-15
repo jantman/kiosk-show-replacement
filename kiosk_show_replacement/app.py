@@ -6,6 +6,7 @@ the Flask app instance with all necessary blueprints, extensions, and configurat
 """
 
 import os
+from typing import Optional
 
 from flask import Flask
 from flask_cors import CORS
@@ -17,7 +18,7 @@ db = SQLAlchemy()
 migrate = Migrate()
 
 
-def create_app(config_name=None):
+def create_app(config_name: Optional[str] = None) -> Flask:
     """
     Create and configure the Flask application.
 
@@ -83,7 +84,7 @@ def create_app(config_name=None):
 
     # Health check endpoint
     @app.route("/health")
-    def health_check():
+    def health_check() -> dict[str, str]:
         return {"status": "healthy", "version": "0.1.0"}
 
     return app

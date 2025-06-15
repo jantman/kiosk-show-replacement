@@ -12,7 +12,7 @@ from .init_db import main as init_db_command
 
 
 @click.group()
-def cli():
+def cli() -> None:
     """Kiosk Show Replacement CLI commands."""
     pass
 
@@ -23,7 +23,7 @@ cli.add_command(init_db_command, name="init-db")
 
 @cli.command()
 @with_appcontext
-def create_tables():
+def create_tables() -> None:
     """Create database tables without sample data (deprecated - use init-db)."""
     from ..app import db
 
@@ -36,7 +36,7 @@ def create_tables():
 @click.option("--host", default="127.0.0.1", help="Host to bind to.")
 @click.option("--port", default=5000, help="Port to bind to.")
 @click.option("--debug", is_flag=True, help="Enable debug mode.")
-def serve(host, port, debug):
+def serve(host: str, port: int, debug: bool) -> None:
     """Start the development server."""
     from ..app import create_app
 
@@ -48,7 +48,7 @@ def serve(host, port, debug):
 @click.argument("name")
 @click.option("--description", help="Description of the slideshow.")
 @with_appcontext
-def create_slideshow(name, description):
+def create_slideshow(name: str, description: str) -> None:
     """Create a new slideshow."""
     from ..app import db
     from ..models import Slideshow
@@ -61,7 +61,7 @@ def create_slideshow(name, description):
     click.echo(f'Created slideshow "{name}" with ID {slideshow.id}')
 
 
-def main():
+def main() -> None:
     """Entry point for the CLI when called directly."""
     cli()
 

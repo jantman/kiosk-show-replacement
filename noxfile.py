@@ -38,6 +38,8 @@ def lint(session):
 def type_check(session):
     """Type check with mypy."""
     session.install("mypy")
+    # Install type stubs
+    session.install("types-requests", "types-Flask-Cors", "types-Flask-Migrate")
     # Install package dependencies for type checking
     session.install("-e", ".")
     session.run("mypy", PACKAGE_DIR)

@@ -15,25 +15,35 @@ with comprehensive validation and error handling.
 This module provides web interface for managing slideshows and slides.
 """
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from typing import Union
+
+from flask import (
+    Blueprint,
+    Response,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from ..app import db
 from ..models import SlideItem, Slideshow
 
-__all__ = []
+__all__: list[str] = []
 
 bp = Blueprint("slideshow", __name__)
 
 
 @bp.route("/")
-def list_slideshows():
+def list_slideshows() -> str:
     """List all slideshows for management."""
     slideshows = Slideshow.query.all()
     return render_template("slideshow/list.html", slideshows=slideshows)
 
 
 @bp.route("/create", methods=["GET", "POST"])
-def create_slideshow():
+def create_slideshow() -> Union[str, Response]:
     """Create a new slideshow."""
     if request.method == "POST":
         name = request.form.get("name")
@@ -60,7 +70,7 @@ def create_slideshow():
 
 
 @bp.route("/<int:slideshow_id>/edit")
-def edit_slideshow(slideshow_id):
+def edit_slideshow(slideshow_id: int) -> str:
     """Edit a slideshow and its slides."""
     slideshow = Slideshow.query.get_or_404(slideshow_id)
     slides = (
@@ -73,7 +83,7 @@ def edit_slideshow(slideshow_id):
 
 
 @bp.route("/<int:slideshow_id>/delete", methods=["POST"])
-def delete_slideshow(slideshow_id):
+def delete_slideshow(slideshow_id: int) -> Response:
     """Delete a slideshow (soft delete)."""
     slideshow = Slideshow.query.get_or_404(slideshow_id)
 

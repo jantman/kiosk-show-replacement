@@ -15,25 +15,27 @@ input validation and error handling.
 This module provides REST API endpoints for managing slideshows and slide items.
 """
 
-from flask import Blueprint, jsonify, request
+from typing import Union
+
+from flask import Blueprint, Response, jsonify, request
 
 from ..app import db
 from ..models import SlideItem, Slideshow
 
-__all__ = []
+__all__: list[str] = []
 
 bp = Blueprint("api", __name__)
 
 
 @bp.route("/slideshows", methods=["GET"])
-def list_slideshows():
+def list_slideshows() -> Response:
     """List all slideshows."""
     slideshows = Slideshow.query.filter_by(is_active=True).all()
     return jsonify([slideshow.to_dict() for slideshow in slideshows])
 
 
 @bp.route("/slideshows", methods=["POST"])
-def create_slideshow():
+def create_slideshow() -> Union[Response, tuple[Response, int]]:
     """Create a new slideshow."""
     data = request.get_json()
 
@@ -52,7 +54,7 @@ def create_slideshow():
 
 
 @bp.route("/slideshows/<int:slideshow_id>", methods=["GET"])
-def get_slideshow(slideshow_id):
+def get_slideshow(slideshow_id: int) -> Union[Response, tuple[Response, int]]:
     """Get a specific slideshow with its slides."""
     slideshow = Slideshow.query.get_or_404(slideshow_id)
 
@@ -65,7 +67,7 @@ def get_slideshow(slideshow_id):
 
 
 @bp.route("/slideshows/<int:slideshow_id>/slides", methods=["POST"])
-def add_slide(slideshow_id):
+def add_slide(slideshow_id: int) -> Union[Response, tuple[Response, int]]:
     """Add a new slide to a slideshow."""
     # Verify slideshow exists (will raise 404 if not found)
     Slideshow.query.get_or_404(slideshow_id)
@@ -94,7 +96,7 @@ def add_slide(slideshow_id):
 
 
 @bp.route("/slides/<int:slide_id>", methods=["PUT"])
-def update_slide(slide_id):
+def update_slide(slide_id: int) -> Union[Response, tuple[Response, int]]:
     """Update a slide."""
     slide = SlideItem.query.get_or_404(slide_id)
     data = request.get_json()
@@ -122,7 +124,7 @@ def update_slide(slide_id):
 
 
 @bp.route("/slides/<int:slide_id>", methods=["DELETE"])
-def delete_slide(slide_id):
+def delete_slide(slide_id: int) -> Union[Response, tuple[Response, int]]:
     """Delete a slide (soft delete by setting is_active=False)."""
     slide = SlideItem.query.get_or_404(slide_id)
 
