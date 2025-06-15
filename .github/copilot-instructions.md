@@ -7,6 +7,7 @@
 - **Environment must be activated once per terminal session** - Run `eval $(poetry env activate)` at the start of each new terminal session
 - **Do not** run the same command multiple times in a row; if this will be needed, then use a temporary file to store the output and analyze it later, such as `cmd > file.txt 2>&1; analyze file.txt; rm -f file.txt`. Be sure to clean up the temporary file after analysis.
 - **Always** include the `-f` option when removing files, such as `rm -f file.txt`.
+- **Always** run the `format` nox session before running the `lint` session, such as `poetry run nox -s format; poetry run nox -s lint`.
 
 ## Resource Management
 ### Database/SQLAlchemy
