@@ -325,8 +325,14 @@ The project now has a complete development infrastructure that supports:
 - **Database Utilities**: `/kiosk_show_replacement/database_utils.py` - Full utility class implementations  
 - **Migration System**: `/kiosk_show_replacement/migration_utils.py` - Flask-Migrate integration
 - **CLI Enhancement**: `/kiosk_show_replacement/cli/init_db.py` - Complete rewrite with advanced options
-- **Test Suite**: `/tests/unit/test_models.py` - 38 comprehensive model tests
+- **Test Suite**: `/tests/unit/test_models.py` - 51 comprehensive model tests (enhanced with rotation tests)
 - **Working Database**: `/instance/kiosk_show.db` - Fully populated SQLite database with sample data
+
+#### Recent Enhancement - Display Rotation Property (June 15, 2025)
+- **Database Schema**: Added `rotation` column to Display model with validation for 0, 90, 180, 270 degrees
+- **Test Coverage**: Added 2 new tests for rotation validation and default values (51 total tests)
+- **Model Updates**: Enhanced Display model with rotation property, validation, and serialization
+- **Database Migration**: Updated database initialization to support new rotation column
 
 #### Next Steps (5% remaining)
 1. **Fix Remaining Test Issues** - Resolve 18 failing tests with session management

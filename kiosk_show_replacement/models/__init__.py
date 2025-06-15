@@ -140,6 +140,7 @@ class Display(db.Model):
     description = Column(Text, nullable=True)
     resolution_width = Column(Integer, nullable=True)
     resolution_height = Column(Integer, nullable=True)
+    rotation = Column(Integer, default=0, nullable=False)  # 0, 90, 180, or 270 degrees
     location = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
 
@@ -227,6 +228,7 @@ class Display(db.Model):
             "resolution_height": self.resolution_height,
             "resolution_string": self.resolution_string,
             "resolution": self.resolution,
+            "rotation": self.rotation,
             "location": self.location,
             "is_active": self.is_active,
             "is_online": self.is_online,
@@ -255,6 +257,14 @@ class Display(db.Model):
         if value is not None and (value < 1 or value > 10000):
             raise ValueError(f"{key} must be between 1 and 10000 pixels")
         return value
+
+    @validates("rotation")
+    def validate_rotation(self, key: str, rotation: int) -> int:
+        """Validate rotation value."""
+        allowed_rotations = [0, 90, 180, 270]
+        if rotation not in allowed_rotations:
+            raise ValueError(f"Rotation must be one of: {', '.join(map(str, allowed_rotations))}")
+        return rotation
 
 
 class Slideshow(db.Model):

@@ -263,6 +263,7 @@ class TestDisplayModel:
                 location="Test Location",
                 resolution_width=1920,
                 resolution_height=1080,
+                rotation=90,
                 owner_id=user.id,
             )
             db.session.add(display)
@@ -272,6 +273,7 @@ class TestDisplayModel:
             assert display.name == "Test Display"
             assert display.location == "Test Location"
             assert display.resolution == "1920x1080"
+            assert display.rotation == 90
             assert display.owner_id == user.id
             assert display.is_active is True
             assert display.last_seen_at is None
@@ -294,6 +296,7 @@ class TestDisplayModel:
             assert display_dict["name"] == "Test Display"
             assert display_dict["location"] == "Test Location"
             assert display_dict["resolution"] == "1920x1080"
+            assert display_dict["rotation"] == 0  # Default rotation
             assert display_dict["is_active"] is True
             assert display_dict["is_online"] is False  # No heartbeat yet
             assert "created_at" in display_dict
@@ -373,6 +376,43 @@ class TestDisplayModel:
             user = db.session.get(User, user.id)
             assert display.owner.id == user.id
             assert display in user.displays
+
+    def test_display_rotation_validation(self, app, sample_user):
+        """Test display rotation validation."""
+        with app.app_context():
+            user = sample_user()  # Get fresh user instance
+
+            # Test valid rotations
+            valid_rotations = [0, 90, 180, 270]
+            for rotation in valid_rotations:
+                display = Display(
+                    name=f"Display {rotation}",
+                    owner_id=user.id,
+                    rotation=rotation
+                )
+                db.session.add(display)
+                db.session.commit()
+                assert display.rotation == rotation
+
+            # Test invalid rotation
+            with pytest.raises(ValueError, match="Rotation must be one of: 0, 90, 180, 270"):
+                invalid_display = Display(
+                    name="Invalid Rotation Display",
+                    owner_id=user.id,
+                    rotation=45  # Invalid rotation
+                )
+                db.session.add(invalid_display)
+                db.session.commit()
+
+    def test_display_default_rotation(self, app, sample_user):
+        """Test that display rotation defaults to 0."""
+        with app.app_context():
+            user = sample_user()  # Get fresh user instance
+            display = Display(name="Default Rotation Display", owner_id=user.id)
+            db.session.add(display)
+            db.session.commit()
+            
+            assert display.rotation == 0
 
 
 class TestSlideshowModel:
