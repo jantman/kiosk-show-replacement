@@ -280,6 +280,30 @@ class TestDisplayModel:
             assert display.created_at is not None
             assert display.updated_at is not None
 
+    def test_create_display_without_owner(self, app):
+        """Test creating a display without an owner (auto-registered)."""
+        with app.app_context():
+            display = Display(
+                name="Auto Registered Display",
+                location="Lobby",
+                resolution_width=1920,
+                resolution_height=1080,
+                rotation=0,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            assert display.id is not None
+            assert display.name == "Auto Registered Display"
+            assert display.location == "Lobby"
+            assert display.resolution == "1920x1080"
+            assert display.rotation == 0
+            assert display.owner_id is None  # No owner for auto-registered displays
+            assert display.created_by_id is None  # No created_by for auto-registered displays
+            assert display.is_active is True
+            assert display.created_at is not None
+            assert display.updated_at is not None
+
     def test_display_repr(self, app, sample_display):
         """Test display string representation."""
         with app.app_context():
@@ -344,17 +368,17 @@ class TestDisplayModel:
             assert display.last_seen_at != initial_heartbeat
             assert display.is_online is True
 
-    def test_display_unique_name_per_owner(self, app, sample_user):
-        """Test that display names must be unique per owner."""
+    def test_display_unique_name_globally(self, app, sample_user):
+        """Test that display names must be globally unique."""
         with app.app_context():
             user = sample_user()  # Get fresh user instance
-            # Create first display
+            # Create first display with owner
             display1 = Display(name="Unique Display", owner_id=user.id)
             db.session.add(display1)
             db.session.commit()
 
-            # Try to create second display with same name and owner
-            display2 = Display(name="Unique Display", owner_id=user.id)
+            # Try to create second display with same name but no owner (auto-registered)
+            display2 = Display(name="Unique Display")  # No owner_id
             db.session.add(display2)
 
             try:
@@ -376,6 +400,20 @@ class TestDisplayModel:
             user = db.session.get(User, user.id)
             assert display.owner.id == user.id
             assert display in user.displays
+
+    def test_display_without_owner_relationship(self, app):
+        """Test display without owner (auto-registered)."""
+        with app.app_context():
+            # Create display without owner
+            display = Display(name="Ownerless Display")
+            db.session.add(display)
+            db.session.commit()
+            
+            # Verify relationships are None
+            assert display.owner is None
+            assert display.created_by is None
+            assert display.owner_id is None
+            assert display.created_by_id is None
 
     def test_display_rotation_validation(self, app, sample_user):
         """Test display rotation validation."""

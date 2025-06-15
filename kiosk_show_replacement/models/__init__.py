@@ -148,8 +148,8 @@ class Display(db.Model):
     last_seen_at = Column(DateTime, nullable=True)
     heartbeat_interval = Column(Integer, default=60, nullable=False)  # seconds
 
-    # Ownership and audit fields
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # Ownership and audit fields (nullable for auto-registered displays)
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     created_at = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -171,9 +171,10 @@ class Display(db.Model):
     updated_by = relationship("User", foreign_keys=[updated_by_id])
     current_slideshow = relationship("Slideshow", foreign_keys=[current_slideshow_id])
 
-    # Unique constraint: display names must be unique per owner
+    # Unique constraint: display names must be globally unique
+    # (since owner_id can be NULL for auto-registered displays)
     __table_args__ = (
-        UniqueConstraint("name", "owner_id", name="unique_display_name_per_owner"),
+        UniqueConstraint("name", name="unique_display_name"),
     )
 
     def __repr__(self) -> str:

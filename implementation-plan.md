@@ -1214,12 +1214,26 @@ Added rotation property to the Display model to support kiosk displays that need
 - Display interface can dynamically adjust content orientation
 - Admin interface can provide rotation selection UI (dropdown/radio buttons)
 
+### Display Model Enhancement - Nullable Owner Support (June 15, 2025)
+
+Added support for displays without owners to enable automatic display registration:
+
+#### Changes Made:
+- **Database Schema**: Changed `owner_id` from NOT NULL to nullable in Display model
+- **Unique Constraints**: Updated to globally unique display names (since owner_id can be NULL)
+- **Model Updates**: Enhanced Display model to handle NULL owner_id and created_by_id
+- **Test Coverage**: Added 2 new tests for ownerless displays and global name uniqueness (53 total tests)
+- **Database Migration**: Updated schema to support auto-registered displays
+
+#### Technical Details:
+- **Owner Field**: `owner_id` is now nullable to support auto-registered displays
+- **Unique Constraint**: Display names must be globally unique (across all users and auto-registered displays)
+- **Audit Fields**: `created_by_id` is also nullable for auto-registered displays
+- **Relationships**: Display.owner and Display.created_by can be None
+
+#### Future Usage:
+- Display devices can auto-register on first connection without requiring user assignment
+- Admin interface can later assign ownership to auto-registered displays
+- Supports kiosk deployment scenarios where displays connect before user setup
+
 ---
-
-### Key Takeaways for Future Development
-
-1. **Resource Management**: Investigate and fix warnings at their source rather than suppressing them
-2. **Type Annotations**: Comprehensive typing significantly improves code quality and maintainability
-3. **Third-Party Limitations**: Some errors/warnings from external libraries are acceptable when properly documented
-4. **Testing Best Practices**: Use pytest fixtures properly and ensure clean resource management
-5. **Command Efficiency**: Redirect output to files for analysis to avoid redundant command execution

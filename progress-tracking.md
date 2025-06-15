@@ -334,6 +334,13 @@ The project now has a complete development infrastructure that supports:
 - **Model Updates**: Enhanced Display model with rotation property, validation, and serialization
 - **Database Migration**: Updated database initialization to support new rotation column
 
+#### Recent Enhancement - Nullable Owner Support (June 15, 2025)
+- **Database Schema**: Changed `owner_id` from NOT NULL to nullable in Display model
+- **Unique Constraints**: Updated to globally unique display names (since owner_id can be NULL)
+- **Model Updates**: Enhanced Display model to handle NULL owner_id and created_by_id
+- **Test Coverage**: Added 2 new tests for ownerless displays and global name uniqueness (53 total tests)
+- **Database Migration**: Updated schema to support auto-registered displays
+
 #### Next Steps (5% remaining)
 1. **Fix Remaining Test Issues** - Resolve 18 failing tests with session management
 2. **Initialize Migration System** - Set up Flask-Migrate repository and create baseline migration
