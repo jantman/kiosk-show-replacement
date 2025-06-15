@@ -77,36 +77,42 @@ def runner(app):
 
 
 @pytest.fixture
-def sample_slideshow(app):
+def sample_user(app):
+    """Create a sample user for testing."""
+    with app.app_context():
+        user = TestDataFactory.create_user()
+        db.session.add(user)
+        db.session.commit()
+        yield user
+        # Cleanup happens in cleanup_db_session fixture
+
+
+@pytest.fixture
+def sample_slideshow(app, sample_user):
     """Create a sample slideshow for testing."""
     with app.app_context():
-        slideshow = Slideshow(
-            name="Test Slideshow", description="A slideshow for testing"
-        )
+        slideshow = TestDataFactory.create_slideshow(owner_id=sample_user.id)
         db.session.add(slideshow)
         db.session.commit()
 
-        # Add some sample slides
+        # Add some sample slides using factory
         slides = [
-            SlideItem(
+            TestDataFactory.create_slide_item(
                 slideshow_id=slideshow.id,
-                title="Test Image Slide",
                 content_type="image",
                 content_url="https://example.com/image.jpg",
                 display_duration=30,
                 order_index=0,
             ),
-            SlideItem(
+            TestDataFactory.create_slide_item(
                 slideshow_id=slideshow.id,
-                title="Test Text Slide",
                 content_type="text",
                 content_text="This is a test text slide",
                 display_duration=15,
                 order_index=1,
             ),
-            SlideItem(
+            TestDataFactory.create_slide_item(
                 slideshow_id=slideshow.id,
-                title="Test Web Slide",
                 content_type="url",
                 content_url="https://example.com",
                 display_duration=45,
@@ -118,29 +124,58 @@ def sample_slideshow(app):
             db.session.add(slide)
 
         db.session.commit()
-
-        # Refresh the slideshow to ensure all relationships are loaded
-        db.session.refresh(slideshow)
-        slideshow_id = slideshow.id
-
-        # Close the session after setup
-        db.session.close()
-
         yield slideshow
+        # Cleanup happens in cleanup_db_session fixture
 
-        # Cleanup after test
-        try:
-            # Get a fresh instance and delete it
-            fresh_slideshow = db.session.get(Slideshow, slideshow_id)
-            if fresh_slideshow:
-                db.session.delete(fresh_slideshow)
-                db.session.commit()
-        except Exception:
-            # If there's an error, just roll back
-            db.session.rollback()
-        finally:
-            # Ensure session is closed
-            db.session.close()
+
+@pytest.fixture
+def sample_slideshow_with_items(app, sample_user):
+    """Create a sample slideshow with multiple slide items for testing."""
+    with app.app_context():
+        slideshow = TestDataFactory.create_slideshow(
+            name="Test Slideshow with Items",
+            description="A slideshow with multiple items for testing",
+            owner_id=sample_user.id,
+        )
+        db.session.add(slideshow)
+        db.session.flush()  # Get the ID
+
+        # Add different types of slides using factory
+        items = [
+            TestDataFactory.create_slide_item(
+                slideshow_id=slideshow.id,
+                content_type="image",
+                content_url="https://example.com/image.jpg",
+                display_duration=5,
+                order_index=1,
+            ),
+            TestDataFactory.create_slide_item(
+                slideshow_id=slideshow.id,
+                content_type="video",
+                content_url="https://example.com/video.mp4",
+                display_duration=10,
+                order_index=2,
+            ),
+            TestDataFactory.create_slide_item(
+                slideshow_id=slideshow.id,
+                content_type="url",
+                content_url="https://example.com",
+                display_duration=15,
+                order_index=3,
+            ),
+            TestDataFactory.create_slide_item(
+                slideshow_id=slideshow.id,
+                content_type="text",
+                content_text="This is test text content",
+                display_duration=8,
+                order_index=4,
+            ),
+        ]
+        db.session.add_all(items)
+        db.session.commit()
+
+        yield slideshow, items
+        # Cleanup happens in cleanup_db_session fixture
 
 
 @pytest.fixture
@@ -155,9 +190,30 @@ class TestDataFactory:
     """Factory for creating test data."""
 
     @staticmethod
-    def create_slideshow(name="Test Slideshow", description="Test Description"):
+    def create_user(
+        username="testuser", email="test@example.com", password="testpassword"
+    ):
+        """Create a test user."""
+        from kiosk_show_replacement.models import User
+
+        user = User(username=username, email=email)
+        user.set_password(password)
+        return user
+
+    @staticmethod
+    def create_slideshow(
+        name="Test Slideshow", description="Test Description", owner_id=None, **kwargs
+    ):
         """Create a test slideshow."""
-        return Slideshow(name=name, description=description)
+        defaults = {
+            "name": name,
+            "description": description,
+            "owner_id": owner_id,
+            "is_active": True,
+            "is_default": False,
+        }
+        defaults.update(kwargs)
+        return Slideshow(**defaults)
 
     @staticmethod
     def create_slide_item(slideshow_id, content_type="text", **kwargs):

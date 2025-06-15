@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ slideshow.name }} - {{ display.name }}</title>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            cursor: none;
+        }
+        
+        .slideshow-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .slide {
+            display: none;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        
+        .slide.active {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .slide img {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+            width: auto;
+            height: auto;
+        }
+        
+        .slide video {
+            max-width: 100vw;
+            max-height: 100vh;
+            object-fit: contain;
+            width: auto;
+            height: auto;
+        }
+        
+        .slide iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+            background: #fff;
+        }
+        
+        .slide .text-content {
+            padding: 3rem;
+            text-align: center;
+            font-size: 2.5rem;
+            line-height: 1.6;
+            max-width: 85%;
+            word-wrap: break-word;
+        }
+        
+        .slide .text-content .title {
+            font-size: 4rem;
+            margin-bottom: 2rem;
+            font-weight: 300;
+            color: #fff;
+        }
+        
+        .slide .text-content .content {
+            font-size: 2.5rem;
+            font-weight: 300;
+            color: #f0f0f0;
+        }
+        
+        .slide-info {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .progress-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 4px;
+            background: #007bff;
+            transition: width linear;
+            z-index: 1000;
+        }
+        
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-size: 2rem;
+            gap: 1rem;
+        }
+        
+        .loading .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .fade-transition {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        
+        .fade-transition.active {
+            opacity: 1;
+        }
+        
+        .error-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            text-align: center;
+            color: #ff6b6b;
+            font-size: 1.5rem;
+        }
+        
+        .error-message .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="slideshow-container" id="slideshowContainer">
+        <!-- Loading state -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <div>Loading slideshow...</div>
+        </div>
+        
+        <!-- Slides will be dynamically inserted here -->
+    </div>
+    
+    <!-- Progress bar -->
+    <div class="progress-bar" id="progressBar"></div>
+    
+    <!-- Slide info -->
+    <div class="slide-info" id="slideInfo">
+        <div>
+            <span id="slideCounter">1 / 1</span> | 
+            <span id="slideshowName">{{ slideshow.name }}</span>
+        </div>
+        <div style="font-size: 0.8rem; margin-top: 4px; opacity: 0.8;">
+            Display: {{ display.name }}
+        </div>
+    </div>
+
+    <script>
+        class SlideshowPlayer {
+            constructor() {
+                this.slides = {{ slides | tojson }};
+                this.currentSlideIndex = 0;
+                this.container = document.getElementById('slideshowContainer');
+                this.progressBar = document.getElementById('progressBar');
+                this.slideCounter = document.getElementById('slideCounter');
+                this.loading = document.getElementById('loading');
+                this.slideInterval = null;
+                this.progressInterval = null;
+                this.heartbeatInterval = null;
+                
+                this.init();
+            }
+            
+            init() {
+                if (this.slides.length === 0) {
+                    this.showError('No slides available in slideshow');
+                    return;
+                }
+                
+                this.loading.style.display = 'none';
+                this.createSlideElements();
+                this.showSlide(0);
+                this.startSlideshow();
+                this.startHeartbeat();
+            }
+            
+            createSlideElements() {
+                this.slides.forEach((slide, index) => {
+                    const slideElement = document.createElement('div');
+                    slideElement.className = 'slide fade-transition';
+                    slideElement.id = `slide-${index}`;
+                    
+                    let content = '';
+                    
+                    switch(slide.content_type) {
+                        case 'image':
+                            content = `<img src="${slide.content_url}" alt="${slide.title || 'Slide'}" 
+                                           onload="this.style.opacity=1" 
+                                           onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load image</div></div>'">`;
+                            break;
+                        case 'video':
+                            content = `<video autoplay muted onloadeddata="this.style.opacity=1" 
+                                             onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load video</div></div>'">
+                                        <source src="${slide.content_url}" type="video/mp4">
+                                        <source src="${slide.content_url}" type="video/webm">
+                                        Your browser does not support video playback.
+                                       </video>`;
+                            break;
+                        case 'url':
+                            content = `<iframe src="${slide.content_url}" 
+                                             onload="this.style.opacity=1"
+                                             onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load webpage</div></div>'"></iframe>`;
+                            break;
+                        case 'text':
+                            content = `
+                                <div class="text-content">
+                                    ${slide.title ? `<div class="title">${this.escapeHtml(slide.title)}</div>` : ''}
+                                    <div class="content">${this.escapeHtml(slide.content_text || '')}</div>
+                                </div>
+                            `;
+                            break;
+                        default:
+                            content = `<div class="error-message">
+                                        <div class="icon">⚠️</div>
+                                        <div>Unsupported content type: ${slide.content_type}</div>
+                                       </div>`;
+                    }
+                    
+                    slideElement.innerHTML = content;
+                    this.container.appendChild(slideElement);
+                });
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            showSlide(index) {
+                // Hide all slides
+                document.querySelectorAll('.slide').forEach(slide => {
+                    slide.classList.remove('active');
+                });
+                
+                // Show current slide
+                const currentSlide = document.getElementById(`slide-${index}`);
+                if (currentSlide) {
+                    currentSlide.classList.add('active');
+                    
+                    // Handle video playback
+                    const video = currentSlide.querySelector('video');
+                    if (video) {
+                        video.currentTime = 0;
+                        video.play().catch(e => console.warn('Video autoplay failed:', e));
+                    }
+                }
+                
+                // Update counter
+                this.slideCounter.textContent = `${index + 1} / ${this.slides.length}`;
+                
+                // Start progress bar animation
+                const duration = this.slides[index].display_duration * 1000;
+                this.animateProgressBar(duration);
+            }
+            
+            nextSlide() {
+                // Stop any playing videos
+                const currentSlide = document.getElementById(`slide-${this.currentSlideIndex}`);
+                if (currentSlide) {
+                    const video = currentSlide.querySelector('video');
+                    if (video) {
+                        video.pause();
+                    }
+                }
+                
+                this.currentSlideIndex = (this.currentSlideIndex + 1) % this.slides.length;
+                this.showSlide(this.currentSlideIndex);
+            }
+            
+            startSlideshow() {
+                if (this.slides.length <= 1) return;
+                
+                const showNextSlide = () => {
+                    this.nextSlide();
+                    const duration = this.slides[this.currentSlideIndex].display_duration * 1000;
+                    this.slideInterval = setTimeout(showNextSlide, duration);
+                };
+                
+                const initialDuration = this.slides[0].display_duration * 1000;
+                this.slideInterval = setTimeout(showNextSlide, initialDuration);
+            }
+            
+            animateProgressBar(duration) {
+                this.progressBar.style.width = '0%';
+                this.progressBar.style.transition = 'none';
+                
+                setTimeout(() => {
+                    this.progressBar.style.transition = `width ${duration}ms linear`;
+                    this.progressBar.style.width = '100%';
+                }, 50);
+            }
+            
+            startHeartbeat() {
+                // Send initial heartbeat with resolution
+                this.sendHeartbeat();
+                
+                // Send heartbeat every 60 seconds
+                this.heartbeatInterval = setInterval(() => {
+                    this.sendHeartbeat();
+                }, 60000);
+            }
+            
+            sendHeartbeat() {
+                const resolution = {
+                    width: screen.width,
+                    height: screen.height
+                };
+                
+                fetch(`{{ url_for('display.update_heartbeat', display_name=display.name) }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(resolution)
+                }).catch(error => {
+                    console.warn('Failed to send heartbeat:', error);
+                });
+            }
+            
+            showError(message) {
+                this.container.innerHTML = `
+                    <div class="error-message">
+                        <div class="icon">⚠️</div>
+                        <div>${message}</div>
+                        <div style="font-size: 1rem; margin-top: 1rem; opacity: 0.8;">
+                            The page will automatically refresh in 30 seconds...
+                        </div>
+                    </div>
+                `;
+                
+                // Auto-refresh after 30 seconds
+                setTimeout(() => {
+                    window.location.reload();
+                }, 30000);
+            }
+            
+            cleanup() {
+                if (this.slideInterval) {
+                    clearTimeout(this.slideInterval);
+                }
+                if (this.heartbeatInterval) {
+                    clearInterval(this.heartbeatInterval);
+                }
+            }
+        }
+        
+        let player;
+        
+        // Start the slideshow when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            player = new SlideshowPlayer();
+        });
+        
+        // Handle keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (player) player.cleanup();
+                window.history.back();
+            }
+        });
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', () => {
+            if (player) player.cleanup();
+        });
+        
+        // Handle visibility change (pause videos when hidden)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                const videos = document.querySelectorAll('video');
+                videos.forEach(video => video.pause());
+            } else {
+                const activeSlide = document.querySelector('.slide.active');
+                if (activeSlide) {
+                    const video = activeSlide.querySelector('video');
+                    if (video) {
+                        video.play().catch(e => console.warn('Video resume failed:', e));
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

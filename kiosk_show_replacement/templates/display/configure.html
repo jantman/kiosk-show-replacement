@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Display: {{ display.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="text-center mb-4">
+                <i class="bi bi-display" style="font-size: 4rem; color: #6c757d;"></i>
+                <h1 class="mt-3">Display Configuration Required</h1>
+                <p class="text-muted">This display needs to be configured with a slideshow.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="bi bi-info-circle"></i> Display Information</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th>Display Name:</th>
+                            <td><code>{{ display.name }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Server URL:</th>
+                            <td><code>{{ request.host_url }}</code></td>
+                        </tr>
+                        <tr>
+                            <th>Display URL:</th>
+                            <td><code>{{ request.url }}</code></td>
+                        </tr>
+                        {% if display.resolution_width and display.resolution_height %}
+                        <tr>
+                            <th>Resolution:</th>
+                            <td>{{ display.resolution_width }} × {{ display.resolution_height }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            {% if available_slideshows %}
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-collection"></i> Available Slideshows</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        The following slideshows are available for this display. 
+                        Contact your administrator to assign one to this display.
+                    </p>
+                    
+                    <div class="list-group">
+                        {% for slideshow in available_slideshows %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ slideshow.name }}</h6>
+                                    {% if slideshow.description %}
+                                    <p class="mb-1 text-muted">{{ slideshow.description }}</p>
+                                    {% endif %}
+                                    <small class="text-muted">
+                                        {{ slideshow.slides|length }} slides
+                                        {% if slideshow.is_default %}
+                                        | <span class="badge bg-primary">Default</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5><i class="bi bi-gear"></i> Configuration Instructions</h5>
+                </div>
+                <div class="card-body">
+                    <ol class="mb-0">
+                        <li class="mb-2">
+                            <strong>Administrator Access:</strong> 
+                            Navigate to <code>{{ request.host_url }}</code> to access the admin interface.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Login:</strong> 
+                            Use your admin credentials to log in to the system.
+                        </li>
+                        <li class="mb-2">
+                            <strong>Assign Slideshow:</strong> 
+                            Go to the Display Management section and assign a slideshow to display <code>{{ display.name }}</code>.
+                        </li>
+                        <li class="mb-0">
+                            <strong>Refresh:</strong> 
+                            Once configured, refresh this page to start displaying the slideshow.
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <button onclick="window.location.reload();" class="btn btn-primary">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh Page
+                </button>
+                <a href="{{ request.host_url }}" target="_blank" class="btn btn-outline-secondary">
+                    <i class="bi bi-box-arrow-up-right"></i> Open Admin Interface
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Auto-refresh every 30 seconds to check for configuration changes
+setTimeout(() => {
+    window.location.reload();
+}, 30000);
+
+// Send heartbeat with resolution detection
+function sendHeartbeat() {
+    const resolution = {
+        width: screen.width,
+        height: screen.height
+    };
+    
+    fetch(`{{ url_for('display.update_heartbeat', display_name=display.name) }}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(resolution)
+    }).catch(error => {
+        console.warn('Failed to send heartbeat:', error);
+    });
+}
+
+// Send initial heartbeat
+sendHeartbeat();
+
+// Send heartbeat every 60 seconds
+setInterval(sendHeartbeat, 60000);
+</script>
+{% endblock %}
+
+{% block head %}
+<!-- Bootstrap Icons -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+{% endblock %}
