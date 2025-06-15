@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Kiosk.show Replacement{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Application Settings</h1>
+            
+            <div class="row">
+                <!-- System Settings -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>System Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="defaultDuration"><strong>Default Slide Duration (seconds):</strong></label>
+                                <input type="number" class="form-control" id="defaultDuration" value="30" disabled>
+                                <small class="form-text text-muted">Default duration for new slideshow items</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="maxFileSize"><strong>Maximum File Size (MB):</strong></label>
+                                <input type="number" class="form-control" id="maxFileSize" value="16" disabled>
+                                <small class="form-text text-muted">Maximum allowed file upload size</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="heartbeatInterval"><strong>Display Heartbeat Interval (seconds):</strong></label>
+                                <input type="number" class="form-control" id="heartbeatInterval" value="60" disabled>
+                                <small class="form-text text-muted">How often displays report their status</small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-primary" disabled>Save System Settings</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Display Settings -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Display Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="defaultTransition"><strong>Default Transition Type:</strong></label>
+                                <select class="form-control" id="defaultTransition" disabled>
+                                    <option value="fade" selected>Fade</option>
+                                    <option value="slide">Slide</option>
+                                    <option value="zoom">Zoom</option>
+                                    <option value="none">None</option>
+                                </select>
+                                <small class="form-text text-muted">Default transition effect for slideshows</small>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="autoRegister" checked disabled>
+                                <label class="form-check-label" for="autoRegister">
+                                    <strong>Auto-register Displays</strong>
+                                </label>
+                                <small class="form-text text-muted">Allow displays to register automatically on first connection</small>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="showDebugInfo" disabled>
+                                <label class="form-check-label" for="showDebugInfo">
+                                    <strong>Show Debug Information</strong>
+                                </label>
+                                <small class="form-text text-muted">Display debug information on displays</small>
+                            </div>
+                            
+                            <button type="button" class="btn btn-primary mt-3" disabled>Save Display Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Security Settings -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Security Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="sessionTimeout"><strong>Session Timeout (minutes):</strong></label>
+                                        <input type="number" class="form-control" id="sessionTimeout" value="60" disabled>
+                                        <small class="form-text text-muted">Automatic logout after inactivity</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="requireHttps" disabled>
+                                        <label class="form-check-label" for="requireHttps">
+                                            <strong>Require HTTPS</strong>
+                                        </label>
+                                        <small class="form-text text-muted">Force HTTPS for all connections</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-warning" disabled>Save Security Settings</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Settings configuration will be implemented in a future milestone. 
+                    These controls are currently placeholder elements to demonstrate the planned interface.
+                </div>
+                
+                <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

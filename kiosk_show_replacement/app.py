@@ -65,6 +65,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     CORS(app)
 
     # Register blueprints
+    from .auth import bp as auth_bp
+
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+
+    from .dashboard import dashboard_bp
+
+    app.register_blueprint(dashboard_bp)
+
     from .api import bp as api_bp
 
     app.register_blueprint(api_bp, url_prefix="/api")
@@ -85,6 +93,8 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     # Health check endpoint
     @app.route("/health")
     def health_check() -> dict[str, str]:
-        return {"status": "healthy", "version": "0.1.0"}
+        from . import __version__
+
+        return {"status": "healthy", "version": __version__}
 
     return app

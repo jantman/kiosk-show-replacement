@@ -173,9 +173,7 @@ class Display(db.Model):
 
     # Unique constraint: display names must be globally unique
     # (since owner_id can be NULL for auto-registered displays)
-    __table_args__ = (
-        UniqueConstraint("name", name="unique_display_name"),
-    )
+    __table_args__ = (UniqueConstraint("name", name="unique_display_name"),)
 
     def __repr__(self) -> str:
         return f"<Display {self.name}>"
@@ -264,7 +262,9 @@ class Display(db.Model):
         """Validate rotation value."""
         allowed_rotations = [0, 90, 180, 270]
         if rotation not in allowed_rotations:
-            raise ValueError(f"Rotation must be one of: {', '.join(map(str, allowed_rotations))}")
+            raise ValueError(
+                f"Rotation must be one of: {', '.join(map(str, allowed_rotations))}"
+            )
         return rotation
 
 

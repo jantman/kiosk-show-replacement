@@ -34,7 +34,7 @@
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('display.index') }}">
+            <a class="navbar-brand" href="{{ url_for('dashboard.index') }}">
                 🖥️ Kiosk Show Replacement
             </a>
             
@@ -45,11 +45,35 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('display.index') }}">Home</a>
+                        <a class="nav-link" href="{{ url_for('dashboard.index') }}">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('slideshow.list_slideshows') }}">Manage Slideshows</a>
+                        <a class="nav-link" href="/api/slideshows">Slideshows</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/api/displays">Displays</a>
+                    </li>
+                </ul>
+                
+                <!-- User menu -->
+                <ul class="navbar-nav">
+                    {% if current_user %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                            {{ current_user.username }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard.profile') }}">Profile</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('dashboard.settings') }}">Settings</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                        </ul>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>

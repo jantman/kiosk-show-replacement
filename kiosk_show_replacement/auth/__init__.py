@@ -12,4 +12,28 @@ Initially implements permissive authentication where any username/password
 combination is accepted, with extensibility for more secure methods.
 """
 
-__all__: list[str] = []
+from flask import Blueprint
+
+from .decorators import (
+    admin_required,
+    clear_session,
+    get_current_user,
+    get_current_user_id,
+    is_admin,
+    is_authenticated,
+    login_required,
+    refresh_session_user_data,
+)
+from .views import bp
+
+__all__ = [
+    "bp",
+    "login_required",
+    "admin_required",
+    "is_authenticated",
+    "is_admin",
+    "get_current_user",
+    "get_current_user_id",
+    "refresh_session_user_data",
+    "clear_session",
+]

@@ -299,7 +299,9 @@ class TestDisplayModel:
             assert display.resolution == "1920x1080"
             assert display.rotation == 0
             assert display.owner_id is None  # No owner for auto-registered displays
-            assert display.created_by_id is None  # No created_by for auto-registered displays
+            assert (
+                display.created_by_id is None
+            )  # No created_by for auto-registered displays
             assert display.is_active is True
             assert display.created_at is not None
             assert display.updated_at is not None
@@ -408,7 +410,7 @@ class TestDisplayModel:
             display = Display(name="Ownerless Display")
             db.session.add(display)
             db.session.commit()
-            
+
             # Verify relationships are None
             assert display.owner is None
             assert display.created_by is None
@@ -424,20 +426,20 @@ class TestDisplayModel:
             valid_rotations = [0, 90, 180, 270]
             for rotation in valid_rotations:
                 display = Display(
-                    name=f"Display {rotation}",
-                    owner_id=user.id,
-                    rotation=rotation
+                    name=f"Display {rotation}", owner_id=user.id, rotation=rotation
                 )
                 db.session.add(display)
                 db.session.commit()
                 assert display.rotation == rotation
 
             # Test invalid rotation
-            with pytest.raises(ValueError, match="Rotation must be one of: 0, 90, 180, 270"):
+            with pytest.raises(
+                ValueError, match="Rotation must be one of: 0, 90, 180, 270"
+            ):
                 invalid_display = Display(
                     name="Invalid Rotation Display",
                     owner_id=user.id,
-                    rotation=45  # Invalid rotation
+                    rotation=45,  # Invalid rotation
                 )
                 db.session.add(invalid_display)
                 db.session.commit()
@@ -449,7 +451,7 @@ class TestDisplayModel:
             display = Display(name="Default Rotation Display", owner_id=user.id)
             db.session.add(display)
             db.session.commit()
-            
+
             assert display.rotation == 0
 
 

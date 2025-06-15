@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Kiosk.show Replacement{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="mb-4">Dashboard</h1>
+            
+            {% if user %}
+            <div class="alert alert-info">
+                <strong>Welcome, {{ user.username }}!</strong>
+                {% if user.is_admin %}
+                <span class="badge badge-secondary">Administrator</span>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary">
+                        <div class="card-header">Total Displays</div>
+                        <div class="card-body">
+                            <h4 class="card-title">{{ total_displays }}</h4>
+                            <p class="card-text">{{ active_displays }} active</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success">
+                        <div class="card-header">Your Slideshows</div>
+                        <div class="card-body">
+                            <h4 class="card-title">{{ total_slideshows }}</h4>
+                            <p class="card-text">{{ active_slideshows }} active</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info">
+                        <div class="card-header">Recent Activity</div>
+                        <div class="card-body">
+                            <h4 class="card-title">{{ recent_displays|length + recent_slideshows|length }}</h4>
+                            <p class="card-text">items updated</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning">
+                        <div class="card-header">System Status</div>
+                        <div class="card-body">
+                            <h4 class="card-title">Healthy</h4>
+                            <p class="card-text">All systems operational</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recent Items -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Recent Displays</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_displays %}
+                            <div class="list-group list-group-flush">
+                                {% for display in recent_displays %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ display.name }}</strong>
+                                        {% if display.location %}
+                                        <br><small class="text-muted">{{ display.location }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        {% if display.is_online %}
+                                        <span class="badge badge-success">Online</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Offline</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted">No displays found.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Recent Slideshows</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if recent_slideshows %}
+                            <div class="list-group list-group-flush">
+                                {% for slideshow in recent_slideshows %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ slideshow.name }}</strong>
+                                        {% if slideshow.description %}
+                                        <br><small class="text-muted">{{ slideshow.description[:50] }}{% if slideshow.description|length > 50 %}...{% endif %}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        {% if slideshow.is_default %}
+                                        <span class="badge badge-primary">Default</span>
+                                        {% endif %}
+                                        {% if slideshow.is_active %}
+                                        <span class="badge badge-success">Active</span>
+                                        {% else %}
+                                        <span class="badge badge-secondary">Inactive</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                            <p class="text-muted">No slideshows found.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Quick Actions -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Quick Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="btn-group" role="group">
+                                <a href="/api/" class="btn btn-primary">Manage Slideshows</a>
+                                <a href="/api/" class="btn btn-secondary">View Displays</a>
+                                <a href="{{ url_for('dashboard.settings') }}" class="btn btn-info">Settings</a>
+                                <a href="{{ url_for('dashboard.profile') }}" class="btn btn-outline-primary">Profile</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

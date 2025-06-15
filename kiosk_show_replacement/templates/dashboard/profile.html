@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}User Profile - Kiosk.show Replacement{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h1 class="mb-4">User Profile</h1>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Account Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Username:</strong></label>
+                                <p>{{ user.username }}</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label><strong>Email:</strong></label>
+                                <p>{{ user.email or 'Not set' }}</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label><strong>Account Status:</strong></label>
+                                <p>
+                                    {% if user.is_active %}
+                                    <span class="badge badge-success">Active</span>
+                                    {% else %}
+                                    <span class="badge badge-danger">Inactive</span>
+                                    {% endif %}
+                                    
+                                    {% if user.is_admin %}
+                                    <span class="badge badge-primary ml-2">Administrator</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Member Since:</strong></label>
+                                <p>{{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'Unknown' }}</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label><strong>Last Login:</strong></label>
+                                <p>{{ user.last_login_at.strftime('%B %d, %Y at %I:%M %p') if user.last_login_at else 'Never' }}</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label><strong>Profile Updated:</strong></label>
+                                <p>{{ user.updated_at.strftime('%B %d, %Y at %I:%M %p') if user.updated_at else 'Unknown' }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="btn-group" role="group">
+                    <a href="{{ url_for('dashboard.index') }}" class="btn btn-secondary">Back to Dashboard</a>
+                    <button type="button" class="btn btn-primary" disabled>Edit Profile (Coming Soon)</button>
+                    <button type="button" class="btn btn-outline-warning" disabled>Change Password (Coming Soon)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
