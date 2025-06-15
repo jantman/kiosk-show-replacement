@@ -73,7 +73,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     app.register_blueprint(dashboard_bp)
 
-    from .api import bp as api_bp
+    from .api import api_bp
 
     app.register_blueprint(api_bp, url_prefix="/api")
 

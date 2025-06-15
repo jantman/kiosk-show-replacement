@@ -186,6 +186,30 @@ def auth_client(client):
     return client
 
 
+@pytest.fixture
+def authenticated_user(app, client):
+    """Create a sample user and authenticate the session."""
+    import uuid
+    with app.app_context():
+        # Use a unique username for each test to avoid conflicts
+        unique_id = str(uuid.uuid4())[:8]
+        user = TestDataFactory.create_user(
+            username=f"testuser_{unique_id}",
+            email=f"test_{unique_id}@example.com"
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        # Set up authenticated session
+        with client.session_transaction() as sess:
+            sess["user_id"] = user.id
+            sess["username"] = user.username
+            sess["is_admin"] = user.is_admin
+
+        yield user
+        # Cleanup happens in cleanup_db_session fixture
+
+
 class TestDataFactory:
     """Factory for creating test data."""
 

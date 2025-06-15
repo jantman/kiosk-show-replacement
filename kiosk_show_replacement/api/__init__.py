@@ -1,138 +1,47 @@
 """
 API module for the Kiosk.show Replacement application.
 
-This module contains REST API endpoints and related functionality for:
-- Slideshow CRUD operations
-- Display management
-- File upload handling
-- Authentication endpoints
-- Real-time event streaming via Server-Sent Events
+This module provides RESTful API endpoints for:
+- Slideshow management (CRUD operations)
+- Slideshow item management 
+- Display management and monitoring
 
-The API follows RESTful principles with JSON request/response format
-and proper HTTP status codes. All endpoints include comprehensive
-input validation and error handling.
-
-This module provides REST API endpoints for managing slideshows and slide items.
+The API is versioned with v1 endpoints available at /api/v1/*
 """
 
-from typing import Union
+from flask import Blueprint
 
-from flask import Blueprint, Response, jsonify, request
+# Create main API blueprint
+api_bp = Blueprint('api', __name__)
 
-from ..app import db
-from ..models import SlideItem, Slideshow
+# Import and register v1 endpoints
+from .v1 import api_v1_bp
 
-__all__: list[str] = []
+# Register v1 blueprint under /v1 prefix
+api_bp.register_blueprint(api_v1_bp, url_prefix='/v1')
 
-bp = Blueprint("api", __name__)
+# API root endpoint for version discovery
+@api_bp.route('/')
+def api_root():
+    """API root endpoint providing version information."""
+    return {
+        'message': 'Kiosk.show Replacement API',
+        'versions': {
+            'v1': '/api/v1/'
+        },
+        'documentation': '/api/v1/docs'
+    }
 
-
-@bp.route("/slideshows", methods=["GET"])
-def list_slideshows() -> Response:
-    """List all slideshows."""
-    slideshows = Slideshow.query.filter_by(is_active=True).all()
-    return jsonify([slideshow.to_dict() for slideshow in slideshows])
-
-
-@bp.route("/slideshows", methods=["POST"])
-def create_slideshow() -> Union[Response, tuple[Response, int]]:
-    """Create a new slideshow."""
-    data = request.get_json()
-
-    if not data or not data.get("name"):
-        return jsonify({"error": "Name is required"}), 400
-
-    slideshow = Slideshow(name=data["name"], description=data.get("description", ""))
-
-    try:
-        db.session.add(slideshow)
-        db.session.commit()
-        return jsonify(slideshow.to_dict()), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
-
-
-@bp.route("/slideshows/<int:slideshow_id>", methods=["GET"])
-def get_slideshow(slideshow_id: int) -> Union[Response, tuple[Response, int]]:
-    """Get a specific slideshow with its slides."""
-    slideshow = Slideshow.query.get_or_404(slideshow_id)
-
-    result = slideshow.to_dict()
-    result["slides"] = [
-        slide.to_dict() for slide in slideshow.slides if slide.is_active
-    ]
-
-    return jsonify(result)
-
-
-@bp.route("/slideshows/<int:slideshow_id>/slides", methods=["POST"])
-def add_slide(slideshow_id: int) -> Union[Response, tuple[Response, int]]:
-    """Add a new slide to a slideshow."""
-    # Verify slideshow exists (will raise 404 if not found)
-    Slideshow.query.get_or_404(slideshow_id)
-    data = request.get_json()
-
-    if not data or not data.get("content_type"):
-        return jsonify({"error": "Content type is required"}), 400
-
-    slide = SlideItem(
-        slideshow_id=slideshow_id,
-        title=data.get("title"),
-        content_type=data["content_type"],
-        content_url=data.get("content_url"),
-        content_text=data.get("content_text"),
-        display_duration=data.get("display_duration", 30),
-        order_index=data.get("order_index", 0),
-    )
-
-    try:
-        db.session.add(slide)
-        db.session.commit()
-        return jsonify(slide.to_dict()), 201
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
-
-
-@bp.route("/slides/<int:slide_id>", methods=["PUT"])
-def update_slide(slide_id: int) -> Union[Response, tuple[Response, int]]:
-    """Update a slide."""
-    slide = SlideItem.query.get_or_404(slide_id)
-    data = request.get_json()
-
-    if not data:
-        return jsonify({"error": "No data provided"}), 400
-
-    # Update fields
-    for field in [
-        "title",
-        "content_url",
-        "content_text",
-        "display_duration",
-        "order_index",
-    ]:
-        if field in data:
-            setattr(slide, field, data[field])
-
-    try:
-        db.session.commit()
-        return jsonify(slide.to_dict())
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
-
-
-@bp.route("/slides/<int:slide_id>", methods=["DELETE"])
-def delete_slide(slide_id: int) -> Union[Response, tuple[Response, int]]:
-    """Delete a slide (soft delete by setting is_active=False)."""
-    slide = SlideItem.query.get_or_404(slide_id)
-
-    slide.is_active = False
-
-    try:
-        db.session.commit()
-        return jsonify({"message": "Slide deleted successfully"})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({"error": str(e)}), 400
+# Health check for API
+@api_bp.route('/health')
+def api_health():
+    """API health check endpoint."""
+    return {
+        'status': 'healthy',
+        'api_version': 'v1',
+        'endpoints': [
+            '/api/v1/slideshows',
+            '/api/v1/displays',
+            '/api/v1/slideshow-items'
+        ]
+    }
