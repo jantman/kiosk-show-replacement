@@ -166,7 +166,7 @@ kiosk-show-replacement/
 eval $(poetry env activate)
 
 # Run tests
-pytest
+nox -s test
 ```
 
 ### Test Database Setup
@@ -181,7 +181,7 @@ eval $(poetry env activate)
 DATABASE_URL="sqlite:///test.db" python scripts/init_db.py --sample-data
 
 # Run tests against test database
-DATABASE_URL="sqlite:///test.db" pytest
+DATABASE_URL="sqlite:///test.db" nox -s test
 ```
 
 ### Code Quality
