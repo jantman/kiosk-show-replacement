@@ -21,23 +21,24 @@ Using Poetry (Recommended for Development)
       git clone https://github.com/jantman/kiosk-show-replacement.git
       cd kiosk-show-replacement
 
-2. Install dependencies:
+2. Install dependencies and activate environment:
 
    .. code-block:: bash
 
       poetry install
+      eval $(poetry env activate)
 
 3. Initialize the database:
 
    .. code-block:: bash
 
-      poetry run kiosk-init-db --sample-data
+      kiosk-init-db --sample-data
 
 4. Run the development server:
 
    .. code-block:: bash
 
-      poetry run python run.py
+      python run.py
 
 Using pip
 ~~~~~~~~~
@@ -77,7 +78,15 @@ The application can be configured using environment variables:
 Database Initialization
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The application requires database initialization before first use:
+The application requires database initialization before first use.
+
+**Important**: First activate your Poetry environment (once per terminal session):
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
+
+Then run the initialization commands:
 
 .. code-block:: bash
 

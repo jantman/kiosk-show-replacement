@@ -20,6 +20,16 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 - Python 3.9 or higher
 - Poetry (for dependency management)
 
+### Important: Environment Activation
+
+**Before starting work with this project in any new terminal session, you MUST run:**
+
+```bash
+eval $(poetry env activate)
+```
+
+This activates the Poetry virtual environment **once per terminal session** and allows you to run all subsequent commands without the `poetry run` prefix. All examples in this documentation assume you have already activated the environment in your current terminal session.
+
 ### Installation
 
 1. **Clone the repository:**
@@ -28,9 +38,10 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
    cd kiosk-show-replacement
    ```
 
-2. **Install dependencies:**
+2. **Install dependencies and activate environment:**
    ```bash
    poetry install
+   eval $(poetry env activate)
    ```
 
 3. **Initialize the database:**
@@ -38,24 +49,24 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
    **Option A: Using Poetry script shortcut (Recommended)**
    ```bash
    # Basic database setup
-   poetry run kiosk-init-db
+   kiosk-init-db
    
    # Or with sample data for testing
-   poetry run kiosk-init-db --sample-data
+   kiosk-init-db --sample-data
    ```
    
    **Option B: Using the script directly**
    ```bash
    # Basic database setup
-   poetry run python scripts/init_db.py
+   python scripts/init_db.py
    
    # Or with sample data for testing
-   poetry run python scripts/init_db.py --sample-data
+   python scripts/init_db.py --sample-data
    ```
 
 4. **Start the development server:**
    ```bash
-   poetry run python run.py
+   python run.py
    ```
 
 5. **Open your browser:**
@@ -71,14 +82,17 @@ The database initialization script (`scripts/init_db.py`) provides several optio
 
 **Examples:**
 ```bash
+# First, activate the environment
+eval $(poetry env activate)
+
 # Initialize with custom database URL
-poetry run python scripts/init_db.py -d "sqlite:///custom.db"
+python scripts/init_db.py -d "sqlite:///custom.db"
 
 # Initialize with sample data for testing
-poetry run python scripts/init_db.py --sample-data
+python scripts/init_db.py --sample-data
 
 # Force reinitialize (preserves existing data)
-poetry run python scripts/init_db.py --force --sample-data
+python scripts/init_db.py --force --sample-data
 ```
 
 The sample data includes:
@@ -148,7 +162,11 @@ kiosk-show-replacement/
 ### Running Tests
 
 ```bash
-poetry run pytest
+# First, activate the environment
+eval $(poetry env activate)
+
+# Run tests
+pytest
 ```
 
 ### Test Database Setup
@@ -156,24 +174,30 @@ poetry run pytest
 For testing, you may want to set up a separate test database:
 
 ```bash
+# First, activate the environment
+eval $(poetry env activate)
+
 # Set up test database with sample data
-DATABASE_URL="sqlite:///test.db" poetry run python scripts/init_db.py --sample-data
+DATABASE_URL="sqlite:///test.db" python scripts/init_db.py --sample-data
 
 # Run tests against test database
-DATABASE_URL="sqlite:///test.db" poetry run pytest
+DATABASE_URL="sqlite:///test.db" pytest
 ```
 
 ### Code Quality
 
 ```bash
+# First, activate the environment
+eval $(poetry env activate)
+
 # Format code
-poetry run black .
+black .
 
 # Check code style
-poetry run flake8
+flake8
 
 # Type checking
-poetry run mypy kiosk_show_replacement/
+mypy kiosk_show_replacement/
 ```
 
 ### Environment Variables
@@ -208,6 +232,7 @@ docker run -p 5000:5000 -v ./data:/app/data kiosk-show-replacement
 1. Install dependencies in production mode:
    ```bash
    poetry install --without dev
+   eval $(poetry env activate)
    ```
 
 2. Set environment variables:
@@ -219,14 +244,14 @@ docker run -p 5000:5000 -v ./data:/app/data kiosk-show-replacement
 
 3. Initialize database:
    ```bash
-   poetry run kiosk-init-db
+   kiosk-init-db
    # Or with sample data for initial testing:
-   # poetry run kiosk-init-db --sample-data
+   # kiosk-init-db --sample-data
    ```
 
 4. Run with a production WSGI server:
    ```bash
-   poetry run gunicorn "kiosk_show_replacement.app:create_app()" -b 0.0.0.0:5000
+   gunicorn "kiosk_show_replacement.app:create_app()" -b 0.0.0.0:5000
    ```
 
 ## Contributing

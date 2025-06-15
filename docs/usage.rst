@@ -128,7 +128,13 @@ Slide Endpoints
 Command Line Interface
 ----------------------
 
-The application includes several CLI commands:
+The application includes several CLI commands.
+
+**Important**: First activate your Poetry environment in any new terminal session:
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
 
 Database Management
 ~~~~~~~~~~~~~~~~~~~

@@ -1167,19 +1167,23 @@ These warnings are acceptable because:
 
 #### Efficiency Guidelines
 - **Always redirect command output to files** instead of running commands multiple times
-- **Use `poetry run nox -s <session>`** for all project commands
+- **Environment must be activated once per terminal session** - Run `eval $(poetry env activate)` at the start of each new terminal session
+- Use `nox -s <session>` for all project commands (after environment activation)
 - **Analyze output files** rather than piping through tools like `wc -l`
 - **Batch similar operations** to reduce redundant command execution
 
 #### Examples of Efficient Command Usage
 ```bash
+# FIRST: Activate environment (once per terminal session)
+eval $(poetry env activate)
+
 # ✅ Efficient - redirect and analyze
-poetry run nox -s test > test_output.txt 2>&1
+nox -s test > test_output.txt 2>&1
 grep "ResourceWarning" test_output.txt
 
 # ❌ Inefficient - multiple command executions
-poetry run nox -s test | wc -l
-poetry run nox -s test | grep "ResourceWarning"
+nox -s test | wc -l
+nox -s test | grep "ResourceWarning"
 ```
 
 ### Key Takeaways for Future Development

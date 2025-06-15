@@ -1,7 +1,16 @@
 Development
 ===========
 
-Setting up the Development Environment
+Setting up tAvailable Commands
+~~~~~~~~~~~~~~~~~~
+
+**Important**: First activate your Poetry environment in any new terminal session:
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
+
+Then run the development commands:ment Environment
 ---------------------------------------
 
 1. Clone the repository:
@@ -17,17 +26,18 @@ Setting up the Development Environment
 
       curl -sSL https://install.python-poetry.org | python3 -
 
-3. Install dependencies:
+3. Install dependencies and activate environment:
 
    .. code-block:: bash
 
       poetry install
+      eval $(poetry env activate)
 
 4. Set up the development environment:
 
    .. code-block:: bash
 
-      poetry run nox -s dev-setup
+      nox -s dev-setup
 
 Development Workflow
 --------------------
@@ -37,40 +47,48 @@ This project uses `nox <https://nox.thea.codes/>`_ for development automation.
 Available Commands
 ~~~~~~~~~~~~~~~~~~
 
+**Important**: First activate your Poetry environment in any new shell:
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
+
+Then run the development commands:
+
 .. code-block:: bash
 
    # Format code with black and isort
-   poetry run nox -s format
+   nox -s format
 
    # Run linting (flake8, pycodestyle)
-   poetry run nox -s lint
+   nox -s lint
 
    # Run type checking with mypy
-   poetry run nox -s type_check
+   nox -s type_check
 
    # Run unit tests
-   poetry run nox -s test
+   nox -s test
 
    # Run integration tests
-   poetry run nox -s test-integration
+   nox -s test-integration
 
    # Run end-to-end tests
-   poetry run nox -s test-e2e
+   nox -s test-e2e
 
    # Run all tests with coverage
-   poetry run nox -s test-all
+   nox -s test-all
 
    # Build documentation
-   poetry run nox -s docs
+   nox -s docs
 
    # Serve documentation locally
-   poetry run nox -s docs-serve
+   nox -s docs-serve
 
    # Clean build artifacts
-   poetry run nox -s clean
+   nox -s clean
 
    # Check for security vulnerabilities
-   poetry run nox -s safety
+   nox -s safety
 
 Default Development Session
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -79,7 +97,8 @@ Running ``nox`` without arguments will run the default development session (form
 
 .. code-block:: bash
 
-   poetry run nox
+   # After activating environment
+   nox
 
 Code Style
 ----------
@@ -101,6 +120,12 @@ Testing
 
 The project uses pytest for testing with three types of tests:
 
+**Important**: First activate your Poetry environment in any new terminal session:
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
+
 Unit Tests
 ~~~~~~~~~~
 
@@ -108,7 +133,7 @@ Located in ``tests/unit/``, these test individual functions and classes in isola
 
 .. code-block:: bash
 
-   poetry run nox -s test
+   nox -s test
 
 Integration Tests
 ~~~~~~~~~~~~~~~~~
@@ -117,7 +142,7 @@ Located in ``tests/integration/``, these test the interaction between components
 
 .. code-block:: bash
 
-   poetry run nox -s test-integration
+   nox -s test-integration
 
 End-to-End Tests
 ~~~~~~~~~~~~~~~~
@@ -126,7 +151,7 @@ Located in ``tests/e2e/``, these test complete user workflows.
 
 .. code-block:: bash
 
-   poetry run nox -s test-e2e
+   nox -s test-e2e
 
 Test Configuration
 ~~~~~~~~~~~~~~~~~~
@@ -190,7 +215,15 @@ Adding New Features
 Database Migrations
 -------------------
 
-This project uses Flask-Migrate for database migrations:
+This project uses Flask-Migrate for database migrations.
+
+**Important**: First activate your Poetry environment in any new terminal session:
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
+
+Then run migration commands:
 
 .. code-block:: bash
 

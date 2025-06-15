@@ -4,7 +4,7 @@
 - **NEVER suppress warnings/errors without human approval** - Fix root cause, not symptoms
 - **Always use proper type annotations** on all new code
 - **Always close resources explicitly** - Use context managers or try/finally
-- **All commands via poetry** - Tests: `poetry run nox -s test`, Lint: `poetry run nox -s lint`
+- **Environment must be activated once per terminal session** - Run `eval $(poetry env activate)` at the start of each new terminal session
 - **Do not** run the same command multiple times in a row; if this will be needed, then use a temporary file to store the output and analyze it later, such as `cmd > file.txt 2>&1; analyze file.txt; rm -f file.txt`. Be sure to clean up the temporary file after analysis.
 - **Always** include the `-f` option when removing files, such as `rm -f file.txt`.
 
@@ -43,11 +43,17 @@
 
 ## Command Examples
 ```bash
-# Tests
-poetry run nox -s test
+# FIRST: Activate environment (once per terminal session)
+eval $(poetry env activate)
+
+# Then run commands normally (no poetry run prefix needed)
+nox -s test
+
+# Linting
+nox -s lint
 
 # Analysis pattern
-poetry run nox -s lint > lint.txt 2>&1
+nox -s lint > lint.txt 2>&1
 # analyze lint.txt
 rm -f lint.txt
 
