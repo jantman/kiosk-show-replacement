@@ -5,7 +5,7 @@
 **Project Name**: Kiosk.show Replacement  
 **Project Start Date**: June 13, 2025  
 **Total Milestones**: 16  
-**Current Status**: Milestone 4 Completed
+**Current Status**: Milestone 5 In Progress
 
 ## Milestone Status Overview
 
@@ -15,7 +15,7 @@
 | 2. Database Models | Completed | June 14, 2025 | June 14, 2025 | 1 day | 100% |
 | 3. Flask Application & Auth | Completed | June 14, 2025 | June 15, 2025 | 1 day | 100% |
 | 4. Display Interface | Completed | June 15, 2025 | June 15, 2025 | 1 day | 100% |
-| 5. Core API Foundation | Not Started | - | - | - | 0% |
+| 5. Core API Foundation | In Progress | June 15, 2025 | - | - | 80% |
 | 6. File Upload & Storage | Not Started | - | - | - | 0% |
 | 7. Enhanced Display Interface | Not Started | - | - | - | 0% |
 | 8. Admin Interface Foundation | Not Started | - | - | - | 0% |
@@ -28,10 +28,10 @@
 | 15. Docker & Deployment | Not Started | - | - | - | 0% |
 | 16. Package Distribution | Not Started | - | - | - | 0% |
 
-## Current Milestone: Milestone 4 Completed - Ready for Milestone 5
+## Current Milestone: Milestone 5 In Progress
 
-### Current Focus: Milestone 4 Complete - Ready for Milestone 5
-Milestone 4 has been successfully completed with comprehensive display interface implementation including auto-registration, resolution detection, slideshow rendering, heartbeat monitoring, and error handling. The system now provides a complete kiosk display interface with robust status monitoring and content rendering capabilities. All 113 tests are passing with 51.29% coverage. Ready to proceed to Milestone 5: Core API Foundation.
+### Current Focus: Milestone 5 Core API Foundation (80% Complete)
+Milestone 5 implementation is in progress with comprehensive REST API framework completed including slideshow CRUD operations, display management endpoints, slideshow item management, and authentication integration. The API foundation has been implemented but requires final validation through complete test suite execution, code formatting, linting, and documentation updates before completion.
 
 ### Milestone 0: Project Planning (COMPLETED)
 **Status**: ✅ Completed  
@@ -661,26 +661,124 @@ Successfully implemented the core display interface for kiosk devices with compr
 
 ---
 
-## Next Milestone: Milestone 5 - Core API Foundation
+## Milestone 5: Core API Foundation and Slideshow CRUD
+**Status**: 🔄 In Progress  
+**Started**: June 15, 2025  
+**Progress**: 80%
 
-### Preparation for Milestone 5
-**Focus**: REST API endpoints for slideshow and display management
+### Summary
+Currently implementing comprehensive REST API foundation with complete CRUD operations for slideshows, slideshow items, and display management. The API architecture has been established with proper authentication, standardized response formats, and comprehensive error handling. Major implementation work is complete but requires final validation and quality assurance.
 
-#### Key Deliverables Planned
-- **Slideshow CRUD API**: Create, read, update, delete slideshows via REST endpoints
-- **Display Management API**: Display status, assignment, and monitoring endpoints  
-- **Content Management API**: Slideshow item management with proper validation
-- **API Documentation**: OpenAPI/Swagger documentation for all endpoints
-- **Authentication Integration**: API endpoints secured with existing auth system
+### Deliverables Completed ✅
+
+#### 5.1 API Framework Implementation ✅
+- **Versioned API Structure**: Complete API v1 blueprint with `/api/v1/` prefix structure
+- **Standardized Response Format**: Consistent JSON responses with `success`, `data`, `message`, and `error` fields
+- **Custom Authentication**: `@api_auth_required` decorator for API endpoints returning 401 instead of redirects
+- **Response Helpers**: `api_response()` and `api_error()` functions for consistent API responses
+- **URL Routing**: Proper REST endpoint structure with resource-based URLs
+
+#### 5.2 Slideshow CRUD API ✅
+- **GET /api/v1/slideshows** - List all slideshows (no ownership restrictions)
+- **POST /api/v1/slideshows** - Create new slideshow with global name uniqueness validation
+- **GET /api/v1/slideshows/{id}** - Get specific slideshow with items
+- **PUT /api/v1/slideshows/{id}** - Update slideshow (all users can modify all slideshows)
+- **DELETE /api/v1/slideshows/{id}** - Soft delete with assignment validation
+- **POST /api/v1/slideshows/{id}/set-default** - Set slideshow as default
+
+#### 5.3 Slideshow Item Management API ✅
+- **GET /api/v1/slideshows/{id}/items** - List slideshow items
+- **POST /api/v1/slideshows/{id}/items** - Create new slideshow item
+- **PUT /api/v1/slideshow-items/{id}** - Update slideshow item
+- **DELETE /api/v1/slideshow-items/{id}** - Soft delete slideshow item
+- **POST /api/v1/slideshow-items/{id}/reorder** - Reorder slideshow items
+
+#### 5.4 Display Management API ✅
+- **GET /api/v1/displays** - List all displays
+- **GET /api/v1/displays/{id}** - Get display by ID
+- **PUT /api/v1/displays/{id}** - Update display by ID
+- **DELETE /api/v1/displays/{id}** - Delete display by ID
+- **POST /api/v1/displays/{name}/assign-slideshow** - Assign slideshow to display
+
+#### 5.5 API Status and Health ✅
+- **GET /api/v1/status** - API health and version endpoint with system information
+
+### Remaining Tasks (20%)
+
+#### 5.6 Quality Assurance 🔄
+- **Test Suite Validation**: Run complete test suite to ensure all API endpoints function correctly
+- **Code Formatting**: Execute `nox -s format` to ensure consistent code formatting
+- **Code Linting**: Execute `nox -s lint` to validate code quality and style
+- **Test Coverage**: Verify test coverage meets project requirements
+
+#### 5.7 Documentation Updates 🔄
+- **API Documentation**: Update documentation to reflect new API endpoints
+- **Progress Tracking**: Final milestone completion documentation
+- **Integration Documentation**: Document API integration patterns
+
+### Key Implementation Details
+
+#### Permission Model
+- **Global Access**: All authenticated users can view and modify all slideshows and items
+- **No Ownership Restrictions**: Removed per-user filtering from all endpoints
+- **Global Name Uniqueness**: Slideshow names must be unique across all users
+- **Audit Trail**: All changes tracked with user IDs for accountability
+
+#### Authentication Integration
+- **Session-Based Auth**: Integration with existing Flask-Login authentication system
+- **API-Specific Decorator**: Custom decorator returning 401 JSON responses instead of redirects
+- **Authenticated User Fixture**: Test infrastructure with unique username generation
+
+#### Error Handling and Validation
+- **Comprehensive Error Messages**: Detailed validation feedback for all endpoints
+- **Proper HTTP Status Codes**: 200, 201, 400, 401, 403, 404, 500 as appropriate
+- **Input Validation**: Request data validation with proper error responses
+- **Constraint Checking**: Global duplicate name validation and assignment validation
+
+### Files Created/Modified
+- **API Implementation**: `/kiosk_show_replacement/api/v1.py` - Complete API v1 (500+ lines)
+- **API Blueprint**: Updated `/kiosk_show_replacement/api/__init__.py` for v1 registration
+- **Test Fixtures**: Enhanced `/tests/conftest.py` with `authenticated_user` fixture
+
+### Success Criteria (Pending Final Validation)
+- ⏳ Complete REST API for slideshow CRUD operations (implementation complete)
+- ⏳ Display management endpoints with proper ID-based access (implementation complete)
+- ⏳ Slideshow item management with reordering capabilities (implementation complete)
+- ⏳ Proper authentication integration with existing auth system (implementation complete)
+- ⏳ Standardized API response format across all endpoints (implementation complete)
+- ⏳ Comprehensive error handling and validation (implementation complete)
+- ⏳ Global permission model allowing all users to access all data (implementation complete)
+- ⏳ API status and health monitoring endpoint (implementation complete)
+- ❌ All tests passing with proper coverage
+- ❌ Code formatting and linting requirements met
+- ❌ Documentation updated to reflect API changes
+
+---
+
+## Next Steps: Complete Milestone 5
+
+### Preparation for Milestone 5 Completion
+**Focus**: Complete quality assurance and validation for API foundation
+
+#### Remaining Tasks
+- **Test Suite Validation**: Run complete test suite to ensure all API endpoints function correctly
+- **Code Quality**: Execute formatting and linting nox sessions to meet project standards
+- **Documentation Updates**: Update documentation to reflect new API endpoints and functionality
+- **Final Milestone Review**: Comprehensive validation before proceeding to Milestone 6
 
 #### Dependencies Met
 - ✅ Database models complete (Milestone 2)
 - ✅ Authentication system functional (Milestone 3)  
 - ✅ Display interface operational (Milestone 4)
-- ✅ Test infrastructure established
+- ✅ API implementation complete (80% of Milestone 5)
+- ✅ Test infrastructure comprehensive
 
 #### Estimated Duration
-**1-2 days** - Building on solid foundation with comprehensive API development
+**0.5 days** - Final validation and quality assurance tasks
+
+---
+
+## Future: Milestone 6 - File Upload & Storage
 
 ---
 

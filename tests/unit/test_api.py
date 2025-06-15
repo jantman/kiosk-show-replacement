@@ -23,7 +23,7 @@ class TestSlideshowAPI:
     def test_list_slideshows_requires_auth(self, client):
         """Test that listing slideshows requires authentication."""
         response = client.get("/api/v1/slideshows")
-        assert response.status_code == 302  # Redirect to login
+        assert response.status_code == 401  # API returns 401 Unauthorized
 
     def test_list_slideshows_empty(self, client, authenticated_user):
         """Test listing slideshows when none exist."""
