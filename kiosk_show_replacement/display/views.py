@@ -297,6 +297,59 @@ def assign_slideshow(display_name: str, slideshow_id: int) -> Response:
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@display_bp.route("/slideshow/<int:slideshow_id>")
+def display_slideshow(slideshow_id: int) -> Union[str, Response]:
+    """
+    Display a specific slideshow for preview/testing purposes.
+
+    This creates a temporary display for previewing slideshows.
+    """
+    # Get the slideshow
+    slideshow = Slideshow.query.get_or_404(slideshow_id)
+
+    if not slideshow.is_active:
+        return render_template(
+            "display/no_content.html",
+            display=None,
+            slideshow=slideshow,
+        )
+
+    # Get slideshow items
+    slides = get_slideshow_items(slideshow.id)
+
+    if not slides:
+        # No slides in slideshow - show empty state
+        return render_template(
+            "display/no_content.html",
+            display=None,
+            slideshow=slideshow,
+        )
+
+    # Create a temporary display object for preview
+    preview_display = type(
+        "PreviewDisplay",
+        (),
+        {
+            "id": 0,
+            "name": "Preview",
+            "location": "Preview Mode",
+            "is_active": True,
+            "current_slideshow_id": slideshow.id,
+        },
+    )()
+
+    # Convert slides to JSON-serializable format
+    slides_data = [slide.to_dict() for slide in slides]
+
+    # Render slideshow display
+    return render_template(
+        "display/slideshow.html",
+        display=preview_display,
+        slideshow=slideshow,
+        slides=slides_data,
+    )
+
+
 # Helper Functions
 
 

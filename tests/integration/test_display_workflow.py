@@ -14,12 +14,12 @@ from kiosk_show_replacement.models import Display, Slideshow, SlideshowItem, db
 class TestCompleteDisplayWorkflow:
     """Test complete display workflows from registration to playback."""
 
-    def test_new_display_complete_workflow(self, client, auth_login, sample_user):
+    def test_new_display_complete_workflow(self, auth_client, sample_user):
         """Test complete workflow for a new display."""
         display_name = "integration-test-display"
 
         # Step 1: First connection - should show configuration page
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Display Configuration Required" in response.data
 
@@ -70,7 +70,7 @@ class TestCompleteDisplayWorkflow:
         db.session.commit()
 
         # Step 3: Reload display - should now show slideshow
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert slideshow.name.encode() in response.data
         assert b"SlideshowPlayer" in response.data
@@ -80,7 +80,7 @@ class TestCompleteDisplayWorkflow:
         assert display.current_slideshow_id == slideshow.id
 
         # Step 4: Send heartbeat with resolution
-        heartbeat_response = client.post(
+        heartbeat_response = auth_client.post(
             f"/display/{display_name}/heartbeat",
             data=json.dumps({"width": 1920, "height": 1080}),
             content_type="application/json",
@@ -88,7 +88,7 @@ class TestCompleteDisplayWorkflow:
         assert heartbeat_response.status_code == 200
 
         # Step 5: Check status
-        status_response = client.get(f"/display/{display_name}/status")
+        status_response = auth_client.get(f"/display/{display_name}/status")
         assert status_response.status_code == 200
 
         status_data = status_response.get_json()
@@ -97,7 +97,7 @@ class TestCompleteDisplayWorkflow:
         assert status_data["slideshow"]["name"] == slideshow.name
         assert len(status_data["slideshow"]["slides"]) == 3
 
-    def test_display_slideshow_change_workflow(self, client, auth_login, sample_user):
+    def test_display_slideshow_change_workflow(self, auth_client, sample_user):
         """Test workflow when display slideshow is changed."""
         display_name = "slideshow-change-test"
 
@@ -121,7 +121,7 @@ class TestCompleteDisplayWorkflow:
         db.session.add(slide1)
 
         # Register display and verify initial assignment
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Initial Slideshow" in response.data
 
@@ -149,13 +149,13 @@ class TestCompleteDisplayWorkflow:
         db.session.commit()
 
         # Reload display - should show new slideshow
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"New Slideshow" in response.data
         assert b"New content" in response.data
         assert b"Initial content" not in response.data
 
-    def test_default_slideshow_change_workflow(self, client, auth_login, sample_user):
+    def test_default_slideshow_change_workflow(self, auth_client, sample_user):
         """Test workflow when default slideshow changes."""
         # Create first default slideshow
         old_default = Slideshow(
@@ -178,7 +178,7 @@ class TestCompleteDisplayWorkflow:
 
         # Register display with old default
         display_name = "default-change-test"
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Old Default" in response.data
 
@@ -207,16 +207,16 @@ class TestCompleteDisplayWorkflow:
 
         # Register new display - should get new default
         new_display_name = "new-display-default-test"
-        response = client.get(f"/display/{new_display_name}")
+        response = auth_client.get(f"/display/{new_display_name}")
         assert response.status_code == 200
         assert b"New Default" in response.data
 
         # Existing display should keep old assignment until manually changed
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Old Default" in response.data
 
-    def test_slideshow_deletion_workflow(self, client, auth_login, sample_user):
+    def test_slideshow_deletion_workflow(self, auth_client, sample_user):
         """Test workflow when assigned slideshow is deleted."""
         display_name = "deletion-test-display"
 
@@ -241,7 +241,7 @@ class TestCompleteDisplayWorkflow:
         db.session.commit()
 
         # Register display
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"To Be Deleted" in response.data
 
@@ -251,7 +251,7 @@ class TestCompleteDisplayWorkflow:
         db.session.commit()
 
         # Reload display - should show configuration page
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Display Configuration Required" in response.data
 
@@ -259,22 +259,22 @@ class TestCompleteDisplayWorkflow:
 class TestDisplayMonitoringIntegration:
     """Test display monitoring and status tracking integration."""
 
-    def test_display_online_offline_cycle(self, client, auth_login):
+    def test_display_online_offline_cycle(self, auth_client):
         """Test complete online/offline detection cycle."""
         display_name = "monitoring-test-display"
 
         # Register display
-        client.get(f"/display/{display_name}")
+        auth_client.get(f"/display/{display_name}")
 
         # Send heartbeat - should be online
-        client.post(
+        auth_client.post(
             f"/display/{display_name}/heartbeat",
             data=json.dumps({"width": 1920, "height": 1080}),
             content_type="application/json",
         )
 
         # Check status - should be online
-        response = client.get(f"/display/{display_name}/status")
+        response = auth_client.get(f"/display/{display_name}/status")
         assert response.status_code == 200
 
         data = response.get_json()
@@ -287,20 +287,20 @@ class TestDisplayMonitoringIntegration:
         db.session.commit()
 
         # Check status - should be offline
-        response = client.get(f"/display/{display_name}/status")
+        response = auth_client.get(f"/display/{display_name}/status")
         assert response.status_code == 200
 
         data = response.get_json()
         assert data["online"] is False
 
-    def test_multiple_displays_status_tracking(self, client, auth_login):
+    def test_multiple_displays_status_tracking(self, auth_client):
         """Test status tracking for multiple displays."""
         display_names = ["multi-test-1", "multi-test-2", "multi-test-3"]
 
         # Register all displays
         for name in display_names:
-            client.get(f"/display/{name}")
-            client.post(
+            auth_client.get(f"/display/{name}")
+            auth_client.post(
                 f"/display/{name}/heartbeat",
                 data=json.dumps({"width": 1920, "height": 1080}),
                 content_type="application/json",
@@ -308,40 +308,40 @@ class TestDisplayMonitoringIntegration:
 
         # Check status for all displays
         for name in display_names:
-            response = client.get(f"/display/{name}/status")
+            response = auth_client.get(f"/display/{name}/status")
             assert response.status_code == 200
 
             data = response.get_json()
             assert data["name"] == name
             assert data["online"] is True
 
-    def test_display_resolution_tracking_over_time(self, client, auth_login):
+    def test_display_resolution_tracking_over_time(self, auth_client):
         """Test resolution tracking as it changes over time."""
         display_name = "resolution-tracking-test"
 
         # Register display
-        client.get(f"/display/{display_name}")
+        auth_client.get(f"/display/{display_name}")
 
         # Initial resolution
-        client.post(
+        auth_client.post(
             f"/display/{display_name}/heartbeat",
             data=json.dumps({"width": 1920, "height": 1080}),
             content_type="application/json",
         )
 
-        response = client.get(f"/display/{display_name}/status")
+        response = auth_client.get(f"/display/{display_name}/status")
         data = response.get_json()
         assert data["resolution"]["width"] == 1920
         assert data["resolution"]["height"] == 1080
 
         # Changed resolution
-        client.post(
+        auth_client.post(
             f"/display/{display_name}/heartbeat",
             data=json.dumps({"width": 2560, "height": 1440}),
             content_type="application/json",
         )
 
-        response = client.get(f"/display/{display_name}/status")
+        response = auth_client.get(f"/display/{display_name}/status")
         data = response.get_json()
         assert data["resolution"]["width"] == 2560
         assert data["resolution"]["height"] == 1440
@@ -350,9 +350,7 @@ class TestDisplayMonitoringIntegration:
 class TestErrorRecoveryIntegration:
     """Test error recovery and resilience in display workflows."""
 
-    def test_display_recovery_after_server_restart(
-        self, client, auth_login, sample_user
-    ):
+    def test_display_recovery_after_server_restart(self, auth_client, sample_user):
         """Test display recovery after server restart simulation."""
         display_name = "recovery-test-display"
 
@@ -377,7 +375,7 @@ class TestErrorRecoveryIntegration:
         db.session.commit()
 
         # Initial connection
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Recovery Test Slideshow" in response.data
 
@@ -387,22 +385,22 @@ class TestErrorRecoveryIntegration:
         db.session.commit()
 
         # Reconnection should work properly
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Recovery Test Slideshow" in response.data
 
         # Heartbeat should restore monitoring
-        client.post(
+        auth_client.post(
             f"/display/{display_name}/heartbeat",
             data=json.dumps({"width": 1920, "height": 1080}),
             content_type="application/json",
         )
 
-        response = client.get(f"/display/{display_name}/status")
+        response = auth_client.get(f"/display/{display_name}/status")
         data = response.get_json()
         assert data["online"] is True
 
-    def test_graceful_handling_of_corrupted_display_data(self, client, auth_login):
+    def test_graceful_handling_of_corrupted_display_data(self, auth_client):
         """Test graceful handling when display data is corrupted."""
         display_name = "corrupted-data-test"
 
@@ -416,20 +414,20 @@ class TestErrorRecoveryIntegration:
         db.session.commit()
 
         # Should handle gracefully and show configuration page
-        response = client.get(f"/display/{display_name}")
+        response = auth_client.get(f"/display/{display_name}")
         assert response.status_code == 200
         assert b"Display Configuration Required" in response.data
 
-    def test_network_interruption_simulation(self, client, auth_login):
+    def test_network_interruption_simulation(self, auth_client):
         """Test handling of network interruptions in heartbeat."""
         display_name = "network-test-display"
 
         # Register display
-        client.get(f"/display/{display_name}")
+        auth_client.get(f"/display/{display_name}")
 
         # Send successful heartbeats
         for _ in range(3):
-            response = client.post(
+            response = auth_client.post(
                 f"/display/{display_name}/heartbeat",
                 data=json.dumps({"width": 1920, "height": 1080}),
                 content_type="application/json",
@@ -437,7 +435,7 @@ class TestErrorRecoveryIntegration:
             assert response.status_code == 200
 
         # Simulate network interruption with malformed data
-        response = client.post(
+        response = auth_client.post(
             f"/display/{display_name}/heartbeat",
             data="malformed",
             content_type="application/json",
@@ -445,7 +443,7 @@ class TestErrorRecoveryIntegration:
         assert response.status_code == 400
 
         # Recovery should work with proper data
-        response = client.post(
+        response = auth_client.post(
             f"/display/{display_name}/heartbeat",
             data=json.dumps({"width": 1920, "height": 1080}),
             content_type="application/json",

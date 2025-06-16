@@ -21,6 +21,7 @@ from flask import (
     Blueprint,
     Response,
     flash,
+    g,
     redirect,
     render_template,
     request,
@@ -37,8 +38,10 @@ bp = Blueprint("slideshow", __name__)
 
 @bp.route("/")
 def list_slideshows() -> str:
-    """List all slideshows for management."""
-    slideshows = Slideshow.query.all()
+    """List all slideshows for management. Global access."""
+    slideshows = (
+        Slideshow.query.filter_by(is_active=True).order_by(Slideshow.name).all()
+    )
     return render_template("slideshow/list.html", slideshows=slideshows)
 
 
@@ -53,7 +56,18 @@ def create_slideshow() -> Union[str, Response]:
             flash("Name is required", "error")
             return render_template("slideshow/create.html")
 
-        slideshow = Slideshow(name=name, description=description)
+        # Get current user from session
+        current_user = getattr(g, "current_user", None)
+        if not current_user:
+            flash("You must be logged in to create a slideshow", "error")
+            return redirect(url_for("auth.login"))
+
+        slideshow = Slideshow(
+            name=name,
+            description=description,
+            owner_id=current_user.id,
+            created_by_id=current_user.id,
+        )
 
         try:
             db.session.add(slideshow)

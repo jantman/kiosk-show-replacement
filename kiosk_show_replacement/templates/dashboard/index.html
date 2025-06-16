@@ -107,6 +107,7 @@
                                         {% if slideshow.description %}
                                         <br><small class="text-muted">{{ slideshow.description[:50] }}{% if slideshow.description|length > 50 %}...{% endif %}</small>
                                         {% endif %}
+                                        <br><small class="text-muted">{{ slideshow.items|length }} slides</small>
                                     </div>
                                     <div>
                                         {% if slideshow.is_default %}

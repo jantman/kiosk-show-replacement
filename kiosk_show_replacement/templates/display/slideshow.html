@@ -51,6 +51,15 @@
             object-fit: contain;
             width: auto;
             height: auto;
+            /* Enhanced scaling for better presentation */
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+        }
+        
+        .slide img.loaded {
+            opacity: 1;
         }
         
         .slide video {
@@ -59,6 +68,49 @@
             object-fit: contain;
             width: auto;
             height: auto;
+            /* Enhanced scaling and performance */
+            transform: translateZ(0); /* Hardware acceleration */
+            backface-visibility: hidden;
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+        }
+        
+        .slide video.loaded {
+            opacity: 1;
+        }
+        
+        /* Responsive scaling for different screen sizes */
+        @media (max-aspect-ratio: 16/9) {
+            .slide img, .slide video {
+                max-width: 100vw;
+                height: auto;
+            }
+        }
+        
+        @media (min-aspect-ratio: 16/9) {
+            .slide img, .slide video {
+                width: auto;
+                max-height: 100vh;
+            }
+        }
+        
+        /* Ultra-wide screen optimizations */
+        @media (min-aspect-ratio: 21/9) {
+            .slide .text-content {
+                max-width: 70%;
+            }
+        }
+        
+        /* Portrait mode optimizations */
+        @media (orientation: portrait) {
+            .slide .text-content {
+                max-width: 90%;
+                font-size: 2rem;
+            }
+            
+            .slide .text-content .title {
+                font-size: 3rem;
+            }
         }
         
         .slide iframe {
@@ -160,6 +212,42 @@
             font-size: 4rem;
             margin-bottom: 1rem;
         }
+        
+        /* Preloading indicator */
+        .preload-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+        
+        .preload-indicator.active {
+            display: block;
+        }
+        
+        /* Cache status indicator */
+        .cache-indicator {
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            background: rgba(0, 128, 0, 0.8);
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: none;
+        }
+        
+        .cache-indicator.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -186,6 +274,15 @@
             Display: {{ display.name }}
         </div>
     </div>
+    
+    <!-- Performance indicators -->
+    <div class="preload-indicator" id="preloadIndicator">
+        ⚡ Preloading content...
+    </div>
+    
+    <div class="cache-indicator" id="cacheIndicator">
+        💾 Cached
+    </div>
 
     <script>
         class SlideshowPlayer {
@@ -196,9 +293,18 @@
                 this.progressBar = document.getElementById('progressBar');
                 this.slideCounter = document.getElementById('slideCounter');
                 this.loading = document.getElementById('loading');
+                this.preloadIndicator = document.getElementById('preloadIndicator');
+                this.cacheIndicator = document.getElementById('cacheIndicator');
                 this.slideInterval = null;
                 this.progressInterval = null;
                 this.heartbeatInterval = null;
+                
+                // Performance optimization properties
+                this.preloadedContent = new Map();
+                this.contentCache = new Map();
+                this.preloadQueue = [];
+                this.isPreloading = false;
+                this.preloadStrategy = 'aggressive'; // 'lazy', 'normal', 'aggressive'
                 
                 this.init();
             }
@@ -211,6 +317,7 @@
                 
                 this.loading.style.display = 'none';
                 this.createSlideElements();
+                this.startContentPreloading();
                 this.showSlide(0);
                 this.startSlideshow();
                 this.startHeartbeat();
@@ -223,23 +330,30 @@
                     slideElement.id = `slide-${index}`;
                     
                     let content = '';
+                    // Use display_url if available, fallback to content_url for backward compatibility
+                    const contentUrl = slide.display_url || slide.content_url;
                     
                     switch(slide.content_type) {
                         case 'image':
-                            content = `<img src="${slide.content_url}" alt="${slide.title || 'Slide'}" 
-                                           onload="this.style.opacity=1" 
+                            content = `<img src="${contentUrl}" alt="${slide.title || 'Slide'}" 
+                                           onload="this.style.opacity=1; this.classList.add('loaded')" 
                                            onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load image</div></div>'">`;
                             break;
                         case 'video':
-                            content = `<video autoplay muted onloadeddata="this.style.opacity=1" 
+                            content = `<video autoplay muted loop preload="metadata"
+                                             onloadeddata="this.style.opacity=1; this.classList.add('loaded')" 
+                                             oncanplay="this.dataset.ready='true'"
                                              onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load video</div></div>'">
-                                        <source src="${slide.content_url}" type="video/mp4">
-                                        <source src="${slide.content_url}" type="video/webm">
+                                        <source src="${contentUrl}" type="video/mp4">
+                                        <source src="${contentUrl}" type="video/webm">
+                                        <source src="${contentUrl}" type="video/ogg">
                                         Your browser does not support video playback.
                                        </video>`;
                             break;
                         case 'url':
-                            content = `<iframe src="${slide.content_url}" 
+                            content = `<iframe src="${contentUrl}" 
+                                             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
+                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                              onload="this.style.opacity=1"
                                              onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load webpage</div></div>'"></iframe>`;
                             break;
@@ -273,6 +387,12 @@
                 // Hide all slides
                 document.querySelectorAll('.slide').forEach(slide => {
                     slide.classList.remove('active');
+                    // Pause any playing videos
+                    const video = slide.querySelector('video');
+                    if (video) {
+                        video.pause();
+                        video.currentTime = 0;
+                    }
                 });
                 
                 // Show current slide
@@ -280,20 +400,42 @@
                 if (currentSlide) {
                     currentSlide.classList.add('active');
                     
-                    // Handle video playback
+                    // Handle video playback with enhanced management
                     const video = currentSlide.querySelector('video');
                     if (video) {
                         video.currentTime = 0;
-                        video.play().catch(e => console.warn('Video autoplay failed:', e));
+                        // Wait for video to be ready before playing
+                        const playVideo = () => {
+                            video.play().catch(e => {
+                                console.warn('Video autoplay failed:', e);
+                                // Try muted playback if unmuted fails
+                                video.muted = true;
+                                video.play().catch(err => console.error('Video playback failed:', err));
+                            });
+                        };
+                        
+                        if (video.readyState >= 2) { // HAVE_CURRENT_DATA
+                            playVideo();
+                        } else {
+                            video.addEventListener('canplay', playVideo, { once: true });
+                        }
                     }
                 }
                 
                 // Update counter
                 this.slideCounter.textContent = `${index + 1} / ${this.slides.length}`;
                 
-                // Start progress bar animation
-                const duration = this.slides[index].display_duration * 1000;
-                this.animateProgressBar(duration);
+                // Start progress bar animation with proper duration
+                const slide = this.slides[index];
+                let duration = slide.display_duration || slide.effective_duration || 30;
+                
+                // For videos, use video duration if available and shorter than slide duration
+                const video = currentSlide?.querySelector('video');
+                if (video && video.duration && !isNaN(video.duration)) {
+                    duration = Math.min(duration, Math.ceil(video.duration));
+                }
+                
+                this.animateProgressBar(duration * 1000);
             }
             
             nextSlide() {
@@ -308,6 +450,9 @@
                 
                 this.currentSlideIndex = (this.currentSlideIndex + 1) % this.slides.length;
                 this.showSlide(this.currentSlideIndex);
+                
+                // Preload next slides after transitioning
+                this.preloadNextSlides();
             }
             
             startSlideshow() {
@@ -384,6 +529,151 @@
                 if (this.heartbeatInterval) {
                     clearInterval(this.heartbeatInterval);
                 }
+                
+                // Clean up preloaded content
+                this.preloadedContent.clear();
+                this.contentCache.clear();
+                this.preloadQueue = [];
+                this.isPreloading = false;
+            }
+            
+            // Performance optimization methods
+            startContentPreloading() {
+                // Prepare preload queue based on strategy
+                if (this.preloadStrategy === 'aggressive') {
+                    // Preload all content
+                    this.preloadQueue = this.slides.map((_, index) => index);
+                } else if (this.preloadStrategy === 'normal') {
+                    // Preload next 3 slides
+                    this.preloadQueue = this.getNextSlideIndices(3);
+                } else {
+                    // Lazy: preload only next slide
+                    this.preloadQueue = this.getNextSlideIndices(1);
+                }
+                
+                this.processPreloadQueue();
+            }
+            
+            getNextSlideIndices(count) {
+                const indices = [];
+                for (let i = 1; i <= count && i < this.slides.length; i++) {
+                    indices.push((this.currentSlideIndex + i) % this.slides.length);
+                }
+                return indices;
+            }
+            
+            async processPreloadQueue() {
+                if (this.isPreloading || this.preloadQueue.length === 0) return;
+                
+                this.isPreloading = true;
+                this.showPreloadIndicator();
+                
+                const batchSize = 2; // Process 2 items at a time
+                const batch = this.preloadQueue.splice(0, batchSize);
+                
+                try {
+                    await Promise.all(batch.map(index => this.preloadSlideContent(index)));
+                } catch (error) {
+                    console.warn('Preloading batch failed:', error);
+                }
+                
+                // Continue with next batch
+                if (this.preloadQueue.length > 0) {
+                    setTimeout(() => {
+                        this.isPreloading = false;
+                        this.processPreloadQueue();
+                    }, 100); // Small delay to prevent blocking
+                } else {
+                    this.isPreloading = false;
+                    this.hidePreloadIndicator();
+                    this.showCacheIndicator();
+                }
+            }
+            
+            async preloadSlideContent(slideIndex) {
+                const slide = this.slides[slideIndex];
+                if (!slide || this.preloadedContent.has(slideIndex)) return;
+                
+                const contentUrl = slide.display_url || slide.content_url;
+                
+                try {
+                    switch (slide.content_type) {
+                        case 'image':
+                            await this.preloadImage(contentUrl, slideIndex);
+                            break;
+                        case 'video':
+                            await this.preloadVideo(contentUrl, slideIndex);
+                            break;
+                        case 'url':
+                            // For URLs, we can't preload content but we can mark as ready
+                            this.preloadedContent.set(slideIndex, { type: 'url', ready: true });
+                            break;
+                        case 'text':
+                            // Text content is always ready
+                            this.preloadedContent.set(slideIndex, { type: 'text', ready: true });
+                            break;
+                    }
+                } catch (error) {
+                    console.warn(`Failed to preload slide ${slideIndex}:`, error);
+                }
+            }
+            
+            preloadImage(url, slideIndex) {
+                return new Promise((resolve, reject) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.preloadedContent.set(slideIndex, { type: 'image', element: img, ready: true });
+                        resolve();
+                    };
+                    img.onerror = reject;
+                    img.src = url;
+                });
+            }
+            
+            preloadVideo(url, slideIndex) {
+                return new Promise((resolve, reject) => {
+                    const video = document.createElement('video');
+                    video.preload = 'metadata';
+                    video.muted = true;
+                    
+                    video.onloadedmetadata = () => {
+                        this.preloadedContent.set(slideIndex, { 
+                            type: 'video', 
+                            element: video, 
+                            ready: true,
+                            duration: video.duration 
+                        });
+                        resolve();
+                    };
+                    video.onerror = reject;
+                    video.src = url;
+                });
+            }
+            
+            showPreloadIndicator() {
+                this.preloadIndicator.classList.add('active');
+            }
+            
+            hidePreloadIndicator() {
+                this.preloadIndicator.classList.remove('active');
+            }
+            
+            showCacheIndicator() {
+                this.cacheIndicator.classList.add('active');
+                setTimeout(() => {
+                    this.cacheIndicator.classList.remove('active');
+                }, 3000); // Show for 3 seconds
+            }
+            
+            // Enhanced slide management with preloading
+            preloadNextSlides() {
+                // Dynamically preload next slides based on current position
+                const nextIndices = this.getNextSlideIndices(2);
+                nextIndices.forEach(index => {
+                    if (!this.preloadedContent.has(index)) {
+                        this.preloadSlideContent(index);
+                    }
+                });
             }
         }
         

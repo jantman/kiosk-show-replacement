@@ -458,6 +458,25 @@ class SlideshowItem(db.Model):
             return self.content_text
         return None
 
+    @property
+    def display_url(self) -> Optional[str]:
+        """Get the URL for displaying this content in the slideshow."""
+        if self.content_type in ["image", "video"] and self.content_file_path:
+            # Convert file path to /uploads/ URL
+            # Remove any leading path separators and ensure proper format
+            file_path = self.content_file_path.lstrip("/")
+            # Check if the path already starts with 'uploads/'
+            if file_path.startswith("uploads/"):
+                return f"/{file_path}"
+            else:
+                return f"/uploads/{file_path}"
+        elif self.content_type in ["image", "video", "url"] and self.content_url:
+            return self.content_url
+        elif self.content_type == "text":
+            # Text content doesn't need a URL
+            return None
+        return None
+
     def to_dict(self) -> dict:
         """Convert slideshow item to dictionary for JSON serialization."""
         return {
@@ -469,6 +488,7 @@ class SlideshowItem(db.Model):
             "content_text": self.content_text,
             "content_file_path": self.content_file_path,
             "content_source": self.content_source,
+            "display_url": self.display_url,
             "display_duration": self.display_duration,
             "effective_duration": self.effective_duration,
             "order_index": self.order_index,

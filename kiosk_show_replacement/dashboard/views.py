@@ -53,32 +53,19 @@ def index() -> Union[str, Response]:
         active_displays = (
             db.session.query(Display).filter(Display.is_active.is_(True)).count()
         )
-        total_slideshows = (
-            db.session.query(Slideshow)
-            .filter(Slideshow.owner_id == current_user.id)
-            .count()
-        )
+        total_slideshows = db.session.query(Slideshow).count()
         active_slideshows = (
-            db.session.query(Slideshow)
-            .filter(
-                Slideshow.owner_id == current_user.id, Slideshow.is_active.is_(True)
-            )
-            .count()
+            db.session.query(Slideshow).filter(Slideshow.is_active.is_(True)).count()
         )
 
-        # Get recent displays for current user
+        # Get recent displays (all displays, not user-filtered)
         recent_displays = (
-            db.session.query(Display)
-            .filter(Display.owner_id == current_user.id)
-            .order_by(Display.updated_at.desc())
-            .limit(5)
-            .all()
+            db.session.query(Display).order_by(Display.updated_at.desc()).limit(5).all()
         )
 
-        # Get recent slideshows for current user
+        # Get recent slideshows (all slideshows, not user-filtered)
         recent_slideshows = (
             db.session.query(Slideshow)
-            .filter(Slideshow.owner_id == current_user.id)
             .order_by(Slideshow.updated_at.desc())
             .limit(5)
             .all()

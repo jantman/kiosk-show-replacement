@@ -30,7 +30,7 @@ class TestDisplayRoutes:
 
     def test_display_slideshow(self, client, sample_slideshow):
         """Test slideshow display interface."""
-        response = client.get(f"/display/{sample_slideshow.id}")
+        response = client.get(f"/display/slideshow/{sample_slideshow.id}")
 
         assert response.status_code == 200
         assert b"Test Slideshow" in response.data
@@ -189,7 +189,7 @@ class TestTemplateRendering:
 
     def test_slideshow_display_template_structure(self, client, sample_slideshow):
         """Test slideshow display template has required structure."""
-        response = client.get(f"/display/{sample_slideshow.id}")
+        response = client.get(f"/display/slideshow/{sample_slideshow.id}")
 
         assert response.status_code == 200
 

@@ -79,8 +79,14 @@ def runner(app):
 @pytest.fixture
 def sample_user(app):
     """Create a sample user for testing."""
+    import uuid
+
     with app.app_context():
-        user = TestDataFactory.create_user()
+        # Use unique username to avoid conflicts in integration tests
+        unique_id = str(uuid.uuid4())[:8]
+        user = TestDataFactory.create_user(
+            username=f"sample_user_{unique_id}", email=f"sample_{unique_id}@example.com"
+        )
         db.session.add(user)
         db.session.commit()
         yield user
@@ -181,8 +187,13 @@ def sample_slideshow_with_items(app, sample_user):
 @pytest.fixture
 def auth_client(client):
     """Create authenticated test client."""
+    import uuid
+
+    # Use unique username to avoid conflicts with other fixtures
+    unique_id = str(uuid.uuid4())[:8]
+    username = f"auth_user_{unique_id}"
     # Since we have permissive auth, any login works
-    client.post("/auth/login", data={"username": "testuser", "password": "testpass"})
+    client.post("/auth/login", data={"username": username, "password": "testpass"})
     return client
 
 

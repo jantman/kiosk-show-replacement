@@ -295,46 +295,41 @@ class QueryHelpers:
 
     @staticmethod
     def get_active_slideshows(user: Optional[User] = None) -> List[Slideshow]:
-        """Get all active slideshows, optionally filtered by user."""
+        """Get all active slideshows. Global access - user param unused."""
         query = Slideshow.query.filter_by(is_active=True)
-        if user:
-            query = query.filter_by(owner=user)
+        # Note: user parameter maintained for API compatibility but not used
         return query.order_by(Slideshow.name).all()
 
     @staticmethod
     def get_default_slideshow(user: Optional[User] = None) -> Optional[Slideshow]:
-        """Get the default slideshow, optionally for a specific user."""
+        """Get the default slideshow. Global access - user param unused."""
         query = Slideshow.query.filter_by(is_default=True, is_active=True)
-        if user:
-            query = query.filter_by(owner=user)
+        # Note: user parameter maintained for API compatibility but not used
         return query.first()
 
     @staticmethod
     def get_online_displays(user: Optional[User] = None) -> List[Display]:
-        """Get all online displays, optionally filtered by user."""
+        """Get all online displays. Global access - user param unused."""
         query = Display.query.filter_by(is_active=True)
-        if user:
-            query = query.filter_by(owner=user)
+        # Note: user parameter maintained for API compatibility but not used
 
         displays = query.all()
         return [d for d in displays if d.is_online]
 
     @staticmethod
     def get_displays_without_slideshow(user: Optional[User] = None) -> List[Display]:
-        """Get displays that don't have an assigned slideshow."""
+        """Get displays without slideshow. Global access - user param unused."""
         query = Display.query.filter_by(is_active=True, current_slideshow_id=None)
-        if user:
-            query = query.filter_by(owner=user)
+        # Note: user parameter maintained for API compatibility but not used
         return query.all()
 
     @staticmethod
     def get_slideshow_with_items(
         slideshow_id: int, user: Optional[User] = None
     ) -> Optional[Slideshow]:
-        """Get a slideshow with its items loaded."""
+        """Get slideshow with items. Global access - user param unused."""
         query = Slideshow.query.filter_by(id=slideshow_id)
-        if user:
-            query = query.filter_by(owner=user)
+        # Note: user parameter maintained for API compatibility but not used
 
         slideshow = query.first()
         if slideshow:
@@ -346,7 +341,7 @@ class QueryHelpers:
     def search_slideshows(
         search_term: str, user: Optional[User] = None
     ) -> List[Slideshow]:
-        """Search slideshows by name or description."""
+        """Search slideshows by name/description. Global access."""
         search_pattern = f"%{search_term}%"
         query = Slideshow.query.filter(
             (
@@ -355,23 +350,18 @@ class QueryHelpers:
             )
             & (Slideshow.is_active.is_(True))
         )
-        if user:
-            query = query.filter_by(owner=user)
+        # Note: user parameter maintained for API compatibility but not used
         return query.order_by(Slideshow.name).all()
 
     @staticmethod
     def get_user_statistics(user: User) -> Dict[str, int]:
-        """Get statistics for a user's content."""
+        """Get statistics for system content. Global access model."""
         return {
-            "total_slideshows": Slideshow.query.filter_by(owner=user).count(),
-            "active_slideshows": Slideshow.query.filter_by(
-                owner=user, is_active=True
-            ).count(),
-            "total_displays": Display.query.filter_by(owner=user).count(),
-            "active_displays": Display.query.filter_by(
-                owner=user, is_active=True
-            ).count(),
-            "online_displays": len(QueryHelpers.get_online_displays(user)),
+            "total_slideshows": Slideshow.query.count(),
+            "active_slideshows": Slideshow.query.filter_by(is_active=True).count(),
+            "total_displays": Display.query.count(),
+            "active_displays": Display.query.filter_by(is_active=True).count(),
+            "online_displays": len(QueryHelpers.get_online_displays()),
         }
 
 
