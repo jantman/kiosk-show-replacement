@@ -190,12 +190,12 @@ def auth_client(client):
 def authenticated_user(app, client):
     """Create a sample user and authenticate the session."""
     import uuid
+
     with app.app_context():
         # Use a unique username for each test to avoid conflicts
         unique_id = str(uuid.uuid4())[:8]
         user = TestDataFactory.create_user(
-            username=f"testuser_{unique_id}",
-            email=f"test_{unique_id}@example.com"
+            username=f"testuser_{unique_id}", email=f"test_{unique_id}@example.com"
         )
         db.session.add(user)
         db.session.commit()

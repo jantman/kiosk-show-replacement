@@ -145,10 +145,10 @@ def update_heartbeat(display_name: str) -> Response:
         # Update heartbeat timestamp
         display.last_seen_at = datetime.now(timezone.utc)
 
-        # Update resolution if provided (handle both direct fields and resolution object)
+        # Update resolution if provided (handle both direct fields and resolution object)  # noqa: E501
         width = data.get("width")
         height = data.get("height")
-        
+
         # Also check for resolution object format
         resolution = data.get("resolution")
         if resolution and isinstance(resolution, dict):
@@ -213,7 +213,9 @@ def display_status(display_name: str) -> Response:
             "width": display.resolution_width,
             "height": display.resolution_height,
         },
-        "last_seen_at": display.last_seen_at.isoformat() if display.last_seen_at else None,
+        "last_seen_at": (
+            display.last_seen_at.isoformat() if display.last_seen_at else None
+        ),
         "slideshow": slideshow.to_dict() if slideshow else None,
         "created_at": display.created_at.isoformat(),
     }

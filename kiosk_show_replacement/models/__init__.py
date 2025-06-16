@@ -231,6 +231,7 @@ class Display(db.Model):
             "location": self.location,
             "is_active": self.is_active,
             "is_online": self.is_online,
+            "online": self.is_online,  # Alias for API consistency
             "last_seen_at": (
                 self.last_seen_at.isoformat() if self.last_seen_at else None
             ),
