@@ -11,7 +11,7 @@ All endpoints require authentication and return consistent JSON responses.
 
 from typing import Any, List, Tuple
 
-from flask import Blueprint, Response, current_app, jsonify, request
+from flask import Blueprint, Response, current_app, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
 
 from ..auth.decorators import get_current_user
@@ -891,3 +891,28 @@ def api_status() -> Tuple[Response, int]:
         },
         "API is operational",
     )
+
+
+# =============================================================================
+# Authentication API Endpoints
+# =============================================================================
+
+
+@api_v1_bp.route("/auth/user", methods=["GET"])
+@api_auth_required
+def get_current_user_info() -> Tuple[Response, int]:
+    """Get current authenticated user information."""
+    user = get_current_user()
+    if not user:
+        return api_error("User not found", 404)
+    
+    return api_response(user.to_dict(), "User information retrieved successfully")
+
+
+@api_v1_bp.route("/auth/logout", methods=["POST"])
+@api_auth_required
+def api_logout() -> Tuple[Response, int]:
+    """Logout current user (clears session)."""
+
+    session.clear()
+    return api_response(message="Successfully logged out")

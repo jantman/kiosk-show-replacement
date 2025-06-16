@@ -6,9 +6,9 @@ the Flask app instance with all necessary blueprints, extensions, and configurat
 """
 
 import os
-from typing import Optional
+from typing import Optional, Any
 
-from flask import Flask, abort, send_from_directory
+from flask import Flask, abort, send_from_directory, redirect
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -107,5 +107,32 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     from .storage import init_storage
 
     init_storage(app)
+
+    # Serve React frontend (for production build)
+    @app.route("/admin")
+    @app.route("/admin/<path:path>")
+    def serve_admin(path: str = "") -> Any:
+        """Serve React admin interface."""
+        import os
+        from flask import send_from_directory
+        
+        # In development, redirect to Vite dev server
+        if app.config.get("ENV") == "development":
+            return redirect("http://localhost:3000/admin")
+        
+        # In production, serve from static/dist
+        static_dir = os.path.join(app.root_path, "static", "dist")
+        if os.path.exists(static_dir):
+            if path and os.path.exists(os.path.join(static_dir, path)):
+                return send_from_directory(static_dir, path)
+            else:
+                return send_from_directory(static_dir, "index.html")
+        
+        # Fallback if build doesn't exist
+        return """
+        <h1>Admin Interface Not Available</h1>
+        <p>The React admin interface has not been built yet.</p>
+        <p>Run: <code>cd frontend && npm run build</code></p>
+        """, 404
 
     return app
