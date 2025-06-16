@@ -720,6 +720,160 @@ def delete_display(display_id: int) -> Tuple[Response, int]:
 
 
 # =============================================================================
+# File Upload Endpoints
+# =============================================================================
+
+
+@api_v1_bp.route("/uploads/image", methods=["POST"])
+@api_auth_required
+def upload_image() -> Tuple[Response, int]:
+    """Upload an image file."""
+    from ..storage import get_storage_manager
+
+    current_user = get_current_user()
+    if not current_user:
+        return api_error("Authentication required", 401)
+
+    # Check if file is present
+    if "file" not in request.files:
+        return api_error("No file provided", 400)
+
+    file = request.files["file"]
+    if file.filename == "":
+        return api_error("No file selected", 400)
+
+    # Get slideshow ID from form data
+    slideshow_id = request.form.get("slideshow_id")
+    if not slideshow_id:
+        return api_error("slideshow_id is required", 400)
+
+    try:
+        slideshow_id = int(slideshow_id)
+    except ValueError:
+        return api_error("Invalid slideshow_id", 400)
+
+    # Verify slideshow exists
+    slideshow = Slideshow.query.get(slideshow_id)
+    if not slideshow:
+        return api_error("Slideshow not found", 404)
+
+    # Upload the file
+    storage_manager = get_storage_manager()
+    success, message, file_info = storage_manager.save_file(
+        file, "image", current_user.id, slideshow_id
+    )
+
+    if not success:
+        return api_error(message, 400)
+
+    return api_response(file_info, message, 201)
+
+
+@api_v1_bp.route("/uploads/video", methods=["POST"])
+@api_auth_required
+def upload_video() -> Tuple[Response, int]:
+    """Upload a video file."""
+    from ..storage import get_storage_manager
+
+    current_user = get_current_user()
+    if not current_user:
+        return api_error("Authentication required", 401)
+
+    # Check if file is present
+    if "file" not in request.files:
+        return api_error("No file provided", 400)
+
+    file = request.files["file"]
+    if file.filename == "":
+        return api_error("No file selected", 400)
+
+    # Get slideshow ID from form data
+    slideshow_id = request.form.get("slideshow_id")
+    if not slideshow_id:
+        return api_error("slideshow_id is required", 400)
+
+    try:
+        slideshow_id = int(slideshow_id)
+    except ValueError:
+        return api_error("Invalid slideshow_id", 400)
+
+    # Verify slideshow exists
+    slideshow = Slideshow.query.get(slideshow_id)
+    if not slideshow:
+        return api_error("Slideshow not found", 404)
+
+    # Upload the file
+    storage_manager = get_storage_manager()
+    success, message, file_info = storage_manager.save_file(
+        file, "video", current_user.id, slideshow_id
+    )
+
+    if not success:
+        return api_error(message, 400)
+
+    return api_response(file_info, message, 201)
+
+
+@api_v1_bp.route("/uploads/<int:file_id>", methods=["GET"])
+@api_auth_required
+def get_file_info(file_id: int) -> Tuple[Response, int]:
+    """Get information about an uploaded file."""
+    # For now, this will be a placeholder since we don't have a File model yet
+    # In a future enhancement, we could add a File model to track uploaded files
+    return api_error("File info endpoint not yet implemented", 501)
+
+
+@api_v1_bp.route("/uploads/<int:file_id>", methods=["DELETE"])
+@api_auth_required
+def delete_file(file_id: int) -> Tuple[Response, int]:
+    """Delete an uploaded file."""
+    # For now, this will be a placeholder since we don't have a File model yet
+    # In a future enhancement, we could add a File model to track uploaded files
+    return api_error("File deletion endpoint not yet implemented", 501)
+
+
+@api_v1_bp.route("/uploads/stats", methods=["GET"])
+@api_auth_required
+def get_upload_stats() -> Tuple[Response, int]:
+    """Get storage statistics."""
+    from ..storage import get_storage_manager
+
+    current_user = get_current_user()
+    if not current_user:
+        return api_error("Authentication required", 401)
+
+    storage_manager = get_storage_manager()
+    stats = storage_manager.get_storage_stats()
+
+    # Convert byte sizes to human-readable format
+    def format_size(size_bytes):
+        if size_bytes == 0:
+            return "0 B"
+        size_names = ["B", "KB", "MB", "GB"]
+        i = 0
+        while size_bytes >= 1024 and i < len(size_names) - 1:
+            size_bytes /= 1024
+            i += 1
+        return f"{size_bytes:.1f} {size_names[i]}"
+
+    formatted_stats = {
+        "total_size": stats["total_size"],
+        "total_size_formatted": format_size(stats["total_size"]),
+        "image_size": stats["image_size"],
+        "image_size_formatted": format_size(stats["image_size"]),
+        "video_size": stats["video_size"],
+        "video_size_formatted": format_size(stats["video_size"]),
+        "total_files": stats["total_files"],
+        "image_files": stats["image_files"],
+        "video_files": stats["video_files"],
+        "users_with_files": stats["users_with_files"],
+        "slideshows_with_files": stats["slideshows_with_files"],
+    }
+
+    return api_response(formatted_stats, "Storage statistics retrieved")
+
+
+# =============================================================================
 # API Status and Health Endpoints
 # =============================================================================
 

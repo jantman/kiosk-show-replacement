@@ -65,6 +65,11 @@ db.sqlite3-journal
 instance/
 .webassets-cache
 
+# File uploads - exclude user uploaded content
+uploads/
+instance/uploads/
+*/uploads/
+
 # Scrapy stuff:
 .scrapy
 

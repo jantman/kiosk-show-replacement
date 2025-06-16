@@ -16,8 +16,23 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Upload settings
-    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "uploads")
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    UPLOAD_FOLDER = os.environ.get("UPLOAD_FOLDER", "instance/uploads")
+    MAX_CONTENT_LENGTH = int(
+        os.environ.get("MAX_CONTENT_LENGTH", str(500 * 1024 * 1024))
+    )  # 500MB default
+
+    # File upload limits by type (in bytes)
+    MAX_IMAGE_SIZE = int(
+        os.environ.get("MAX_IMAGE_SIZE", str(50 * 1024 * 1024))
+    )  # 50MB
+    MAX_VIDEO_SIZE = int(
+        os.environ.get("MAX_VIDEO_SIZE", str(500 * 1024 * 1024))
+    )  # 500MB
+
+    # Allowed file extensions
+    ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "gif", "webp", "bmp", "tiff"}
+    ALLOWED_VIDEO_EXTENSIONS = {"mp4", "webm", "avi", "mov", "mkv", "flv", "wmv"}
+    ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
 
     # Session settings
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
@@ -30,8 +45,10 @@ class DevelopmentConfig(Config):
     """Development configuration."""
 
     DEBUG = True
+    # Use DATABASE_URL if set, otherwise use development default
     SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DEV_DATABASE_URL", "sqlite:///kiosk_show_dev.db"
+        "DATABASE_URL",
+        os.environ.get("DEV_DATABASE_URL", "sqlite:///kiosk_show_dev.db"),
     )
 
 

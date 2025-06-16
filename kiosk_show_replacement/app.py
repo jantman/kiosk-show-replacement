@@ -8,7 +8,7 @@ the Flask app instance with all necessary blueprints, extensions, and configurat
 import os
 from typing import Optional
 
-from flask import Flask
+from flask import Flask, abort, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -34,18 +34,10 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     if config_name is None:
         config_name = os.environ.get("FLASK_ENV", "development")
 
-    # Basic configuration
-    app.config.update(
-        {
-            "SECRET_KEY": os.environ.get("SECRET_KEY", "dev-secret-key-change-me"),
-            "SQLALCHEMY_DATABASE_URI": os.environ.get(
-                "DATABASE_URL", "sqlite:///kiosk_show.db"
-            ),
-            "SQLALCHEMY_TRACK_MODIFICATIONS": False,
-            "UPLOAD_FOLDER": os.path.join(app.instance_path, "uploads"),
-            "MAX_CONTENT_LENGTH": 16 * 1024 * 1024,  # 16MB max file size
-        }
-    )
+    # Load configuration from config module
+    from .config import config
+
+    app.config.from_object(config.get(config_name, config["default"]))
 
     # Configure SQLAlchemy engine options for better connection management
     if config_name == "testing" or app.config.get("TESTING"):
@@ -96,5 +88,24 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         from . import __version__
 
         return {"status": "healthy", "version": __version__}
+
+    # File serving endpoint
+    @app.route("/uploads/<path:filename>")
+    def uploaded_file(filename: str):
+        """Serve uploaded files."""
+        from urllib.parse import unquote_plus
+
+        # Decode the URL-encoded filename
+        decoded_filename = unquote_plus(filename)
+
+        try:
+            return send_from_directory(app.config["UPLOAD_FOLDER"], decoded_filename)
+        except FileNotFoundError:
+            abort(404)
+
+    # Initialize storage system
+    from .storage import init_storage
+
+    init_storage(app)
 
     return app

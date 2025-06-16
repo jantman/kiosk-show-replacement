@@ -86,7 +86,7 @@ class TestAppConfiguration:
         """Test default configuration values."""
         app = create_app()
 
-        assert app.config["MAX_CONTENT_LENGTH"] == 16 * 1024 * 1024  # 16MB
+        assert app.config["MAX_CONTENT_LENGTH"] == 500 * 1024 * 1024  # 500MB
         assert "uploads" in app.config["UPLOAD_FOLDER"]
         assert app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] is False
 
@@ -95,6 +95,13 @@ class TestAppConfiguration:
         # Set environment variables
         monkeypatch.setenv("SECRET_KEY", "test-secret-from-env")
         monkeypatch.setenv("DATABASE_URL", "sqlite:///test-from-env.db")
+
+        # Reload the config module to pick up new environment variables
+        import importlib
+
+        from kiosk_show_replacement import config
+
+        importlib.reload(config)
 
         app = create_app()
 
