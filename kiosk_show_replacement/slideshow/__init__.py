@@ -29,7 +29,8 @@ from flask import (
 )
 
 from ..app import db
-from ..models import SlideItem, Slideshow
+from ..auth.decorators import get_current_user
+from ..models import SlideshowItem, Slideshow
 
 __all__: list[str] = []
 
@@ -57,7 +58,7 @@ def create_slideshow() -> Union[str, Response]:
             return render_template("slideshow/create.html")
 
         # Get current user from session
-        current_user = getattr(g, "current_user", None)
+        current_user = get_current_user()
         if not current_user:
             flash("You must be logged in to create a slideshow", "error")
             return redirect(url_for("auth.login"))
@@ -88,8 +89,8 @@ def edit_slideshow(slideshow_id: int) -> str:
     """Edit a slideshow and its slides."""
     slideshow = Slideshow.query.get_or_404(slideshow_id)
     slides = (
-        SlideItem.query.filter_by(slideshow_id=slideshow_id)
-        .order_by(SlideItem.order_index)
+        SlideshowItem.query.filter_by(slideshow_id=slideshow_id)
+        .order_by(SlideshowItem.order_index)
         .all()
     )
 

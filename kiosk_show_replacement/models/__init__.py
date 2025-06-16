@@ -15,7 +15,7 @@ between different database engines (SQLite, PostgreSQL, MariaDB).
 __all__ = ["User", "Display", "Slideshow", "SlideshowItem"]
 
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from sqlalchemy import (
     Boolean,
@@ -360,7 +360,7 @@ class Slideshow(db.Model):
         }
 
         if include_items:
-            data["items"] = [item.to_dict() for item in self.items if item.is_active]
+            data["slides"] = [item.to_dict() for item in self.items if item.is_active]
 
         return data
 
@@ -389,6 +389,11 @@ class Slideshow(db.Model):
                 f"Transition type must be one of: {', '.join(allowed_transitions)}"
             )
         return transition_type
+
+    @property
+    def slides(self) -> List["SlideshowItem"]:
+        """Alias for items to maintain backward compatibility with templates."""
+        return self.items
 
 
 class SlideshowItem(db.Model):

@@ -216,7 +216,7 @@ def display_status(display_name: str) -> Response:
         "last_seen_at": (
             display.last_seen_at.isoformat() if display.last_seen_at else None
         ),
-        "slideshow": slideshow.to_dict() if slideshow else None,
+        "slideshow": slideshow.to_dict(include_items=True) if slideshow else None,
         "created_at": display.created_at.isoformat(),
     }
 
@@ -347,6 +347,57 @@ def display_slideshow(slideshow_id: int) -> Union[str, Response]:
         display=preview_display,
         slideshow=slideshow,
         slides=slides_data,
+    )
+
+
+@display_bp.route("/<string:display_name>/slideshow/<int:slideshow_id>")
+def display_slideshow_for_display(display_name: str, slideshow_id: int) -> Union[str, Response]:
+    """
+    Display a specific slideshow on a specific display.
+    
+    This is used for testing and preview purposes where you want to see
+    how a slideshow would look on a particular display.
+    """
+    # Get or create the display
+    display = get_or_create_display(display_name)
+    
+    # Get the slideshow
+    slideshow = Slideshow.query.get_or_404(slideshow_id)
+
+    if not slideshow.is_active:
+        return render_template(
+            "display/no_content.html",
+            display=display,
+            slideshow=slideshow,
+        )
+
+    # Get slideshow items
+    slides = get_slideshow_items(slideshow.id)
+
+    if not slides:
+        # No slides in slideshow - show empty state
+        return render_template(
+            "display/no_content.html",
+            display=display,
+            slideshow=slideshow,
+        )
+
+    current_app.logger.info(
+        "Display slideshow rendered",
+        extra={
+            "display_name": display.name,
+            "slideshow_id": slideshow.id,
+            "slideshow_name": slideshow.name,
+            "slide_count": len(slides),
+            "action": "slideshow_render",
+        },
+    )
+
+    return render_template(
+        "display/slideshow.html",
+        display=display,
+        slideshow=slideshow,
+        slides=[slide.to_dict() for slide in slides],
     )
 
 

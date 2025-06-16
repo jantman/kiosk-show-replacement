@@ -143,13 +143,13 @@ class TestEnhancedDisplayInterface:
         return get_item
 
     def test_simple_enhanced_features(
-        self, client, display, slideshow, uploaded_file_slide
+        self, auth_client, display, slideshow, uploaded_file_slide
     ):
         """Test basic enhanced display features work correctly."""
-        with client.application.app_context():
+        with auth_client.application.app_context():
             display_obj = display()
             slideshow_obj = slideshow()
-            response = client.get(
+            response = auth_client.get(
                 f"/display/{display_obj.name}/slideshow/{slideshow_obj.id}"
             )
 

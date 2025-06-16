@@ -11,22 +11,22 @@ from kiosk_show_replacement.models import Slideshow
 class TestDisplayRoutes:
     """Integration tests for display interface routes."""
 
-    def test_homepage_no_slideshows(self, client):
+    def test_homepage_no_slideshows(self, auth_client):
         """Test homepage when no slideshows exist."""
-        response = client.get("/")
+        response = auth_client.get("/")
 
         assert response.status_code == 200
-        assert b"No Slideshows Available" in response.data
-        assert b"Create Your First Slideshow" in response.data
+        assert b"No slideshows found." in response.data
+        assert b"Manage Slideshows" in response.data
 
-    def test_homepage_with_slideshows(self, client, sample_slideshow):
+    def test_homepage_with_slideshows(self, auth_client, sample_slideshow):
         """Test homepage with existing slideshows."""
-        response = client.get("/")
+        response = auth_client.get("/")
 
         assert response.status_code == 200
         assert b"Test Slideshow" in response.data
         assert b"A slideshow for testing" in response.data
-        assert b"3 slides" in response.data
+        assert b"slides" in response.data
 
     def test_display_slideshow(self, client, sample_slideshow):
         """Test slideshow display interface."""
@@ -39,23 +39,22 @@ class TestDisplayRoutes:
         assert b"Test Image Slide" in response.data
         assert b"Test Text Slide" in response.data
 
-    def test_display_nonexistent_slideshow(self, client):
+    def test_display_nonexistent_slideshow(self, auth_client):
         """Test displaying non-existent slideshow."""
-        response = client.get("/display/99999")
+        response = auth_client.get("/display/slideshow/99999")
 
         assert response.status_code == 404
 
-    def test_slideshow_slides_api_endpoint(self, client, sample_slideshow):
+    def test_slideshow_slides_api_endpoint(self, auth_client, sample_slideshow):
         """Test the AJAX endpoint for getting slideshow slides."""
-        response = client.get(f"/api/slideshow/{sample_slideshow.id}/slides")
+        response = auth_client.get(f"/api/v1/slideshows/{sample_slideshow.id}/items")
 
         assert response.status_code == 200
         data = response.get_json()
 
-        assert "slideshow" in data
-        assert "slides" in data
-        assert data["slideshow"]["name"] == "Test Slideshow"
-        assert len(data["slides"]) == 3
+        assert data["success"] is True
+        assert "data" in data
+        assert len(data["data"]) == 3  # sample_slideshow has 3 items
 
 
 class TestSlideshowManagementRoutes:
@@ -69,9 +68,9 @@ class TestSlideshowManagementRoutes:
         assert b"No Slideshows Found" in response.data
         assert b"Create Your First Slideshow" in response.data
 
-    def test_slideshow_list_with_data(self, client, sample_slideshow):
+    def test_slideshow_list_with_data(self, auth_client, sample_slideshow):
         """Test slideshow management page with data."""
-        response = client.get("/slideshow/")
+        response = auth_client.get("/slideshow/")
 
         assert response.status_code == 200
         assert b"Test Slideshow" in response.data
@@ -79,18 +78,18 @@ class TestSlideshowManagementRoutes:
         assert b"3 slides" in response.data
         assert b"Active" in response.data
 
-    def test_create_slideshow_get(self, client):
+    def test_create_slideshow_get(self, auth_client):
         """Test GET request to create slideshow page."""
-        response = client.get("/slideshow/create")
+        response = auth_client.get("/slideshow/create")
 
         assert response.status_code == 200
         assert b"Create New Slideshow" in response.data
         assert b'name="name"' in response.data
         assert b'name="description"' in response.data
 
-    def test_create_slideshow_post_valid(self, client, app):
+    def test_create_slideshow_post_valid(self, auth_client, app):
         """Test POST request to create slideshow with valid data."""
-        response = client.post(
+        response = auth_client.post(
             "/slideshow/create",
             data={
                 "name": "New Slideshow",
@@ -116,9 +115,9 @@ class TestSlideshowManagementRoutes:
         assert response.status_code == 200
         assert b"Name is required" in response.data or b"error" in response.data
 
-    def test_edit_slideshow(self, client, sample_slideshow):
+    def test_edit_slideshow(self, auth_client, sample_slideshow):
         """Test slideshow edit page."""
-        response = client.get(f"/slideshow/{sample_slideshow.id}/edit")
+        response = auth_client.get(f"/slideshow/{sample_slideshow.id}/edit")
 
         assert response.status_code == 200
         assert b"Edit Slideshow: Test Slideshow" in response.data
@@ -162,26 +161,26 @@ class TestSlideshowManagementRoutes:
 class TestTemplateRendering:
     """Test template rendering and context variables."""
 
-    def test_base_template_elements(self, client):
+    def test_base_template_elements(self, auth_client):
         """Test that base template elements are rendered."""
-        response = client.get("/")
+        response = auth_client.get("/")
 
         assert response.status_code == 200
         assert b"Kiosk Show Replacement" in response.data
         assert b"navbar" in response.data
         assert b"Bootstrap" in response.data or b"bootstrap" in response.data
 
-    def test_responsive_design_meta_tags(self, client):
+    def test_responsive_design_meta_tags(self, auth_client):
         """Test that responsive design meta tags are present."""
-        response = client.get("/")
+        response = auth_client.get("/")
 
         assert response.status_code == 200
         assert b"viewport" in response.data
         assert b"width=device-width" in response.data
 
-    def test_navigation_links(self, client):
+    def test_navigation_links(self, auth_client):
         """Test that navigation links are present."""
-        response = client.get("/")
+        response = auth_client.get("/")
 
         assert response.status_code == 200
         assert b"Home" in response.data

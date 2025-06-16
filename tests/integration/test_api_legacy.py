@@ -33,7 +33,7 @@ class TestSlideshowAPI:
 
         slideshow_data = data["data"][0]
         assert slideshow_data["name"] == "Test Slideshow"
-        assert slideshow_data["description"] == "Test Description"
+        assert slideshow_data["description"] == "A slideshow for testing"
         assert slideshow_data["is_active"] is True
 
     def test_create_slideshow_valid(self, auth_client, app):

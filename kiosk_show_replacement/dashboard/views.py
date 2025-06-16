@@ -17,7 +17,8 @@ from flask import (
     url_for,
 )
 from flask.wrappers import Response
-from sqlalchemy import text
+from sqlalchemy import text  
+from sqlalchemy.orm import joinedload
 
 from ..auth import admin_required, get_current_user, login_required
 from ..models import Display, Slideshow, db
@@ -63,9 +64,12 @@ def index() -> Union[str, Response]:
             db.session.query(Display).order_by(Display.updated_at.desc()).limit(5).all()
         )
 
-        # Get recent slideshows (all slideshows, not user-filtered)
+        # Get recent slideshows (all active slideshows, not user-filtered)
+        # Eagerly load items to avoid DetachedInstanceError
         recent_slideshows = (
             db.session.query(Slideshow)
+            .filter_by(is_active=True)
+            .options(joinedload(Slideshow.items))
             .order_by(Slideshow.updated_at.desc())
             .limit(5)
             .all()
@@ -93,8 +97,9 @@ def index() -> Union[str, Response]:
             "recent_slideshows": [],
             "user": current_user,
         }
-    finally:
-        db.session.close()
+    
+    # Don't close the session here - let Flask-SQLAlchemy handle it
+    # The session needs to remain open for template rendering
 
     return render_template("dashboard/index.html", **dashboard_data)
 
