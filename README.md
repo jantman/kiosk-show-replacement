@@ -161,12 +161,45 @@ kiosk-show-replacement/
 
 ### Running Tests
 
+The project includes three types of tests:
+
 ```bash
 # First, activate the environment
 eval $(poetry env activate)
 
-# Run tests
+# Run unit tests
 nox -s test
+
+# Run integration tests
+nox -s test-integration
+
+# Run end-to-end tests (requires Chrome/Chromium)
+nox -s test-e2e
+
+# Run all tests with coverage
+nox -s test-all
+```
+
+**Test Types:**
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Test component interactions using Flask test client
+- **End-to-End Tests**: Test complete user workflows using browser automation
+
+**E2E Test Requirements:**
+E2E tests require Chrome or Chromium browser installed:
+
+```bash
+# ArchLinux
+sudo pacman -S google-chrome
+# or chromium
+
+# Ubuntu/Debian  
+sudo apt install google-chrome-stable
+# or chromium-browser
+
+# Fedora
+sudo dnf install google-chrome-stable
+# or chromium
 ```
 
 ### Test Database Setup
@@ -191,13 +224,16 @@ DATABASE_URL="sqlite:///test.db" nox -s test
 eval $(poetry env activate)
 
 # Format code
-black .
+nox -s format
 
 # Check code style
-flake8
+nox -s lint
 
 # Type checking
-mypy kiosk_show_replacement/
+nox -s type_check
+
+# Run all quality checks
+nox  # Runs format, lint, and test by default
 ```
 
 ### Environment Variables

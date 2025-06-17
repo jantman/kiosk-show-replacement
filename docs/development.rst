@@ -1,16 +1,7 @@
 Development
 ===========
 
-Setting up tAvailable Commands
-~~~~~~~~~~~~~~~~~~
-
-**Important**: First activate your Poetry environment in any new terminal session:
-
-.. code-block:: bash
-
-   eval $(poetry env activate)
-
-Then run the development commands:ment Environment
+Setting up Development Environment
 ---------------------------------------
 
 1. Clone the repository:
@@ -47,7 +38,7 @@ This project uses `nox <https://nox.thea.codes/>`_ for development automation.
 Available Commands
 ~~~~~~~~~~~~~~~~~~
 
-**Important**: First activate your Poetry environment in any new shell:
+**Important**: First activate your Poetry environment in any new terminal session:
 
 .. code-block:: bash
 

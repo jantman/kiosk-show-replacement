@@ -81,70 +81,67 @@ def test_integration(session):
     )
 
 
-# Future E2E Tests (not yet implemented)
-# E2E tests will use Flask's live test server with browser automation
-# @nox.session(python=DEFAULT_PYTHON, name="test-e2e")
-# def test_e2e(session):
-#     """Run end-to-end tests with browser automation."""
-#     session.install("-e", ".")
-#     session.install("pytest", "pytest-flask", "selenium", "playwright")
-#     session.run("pytest", TEST_DIR + "/e2e", *session.posargs)
-
-
 @nox.session(python=DEFAULT_PYTHON, name="test-e2e")
 def test_e2e(session):
     """Run end-to-end tests with Playwright browser automation using system Chrome."""
     session.install("-e", ".")
     session.install("pytest", "pytest-flask", "playwright", "pytest-playwright")
-    
+
     # Find system Chrome/Chromium executable
     import os
+
     chrome_paths = [
         "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
-        "/usr/bin/chromium-browser",      # Chromium on Ubuntu/Debian
-        "/usr/bin/google-chrome",         # Alternative Chrome location
-        "/usr/bin/chromium",              # Chromium on Arch/Fedora
+        "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
+        "/usr/bin/google-chrome",  # Alternative Chrome location
+        "/usr/bin/chromium",  # Chromium on Arch/Fedora
     ]
-    
+
     chrome_path = None
     for path in chrome_paths:
         if os.path.exists(path):
             chrome_path = path
             break
-    
+
     if chrome_path:
         session.log(f"Using system Chrome at: {chrome_path}")
         # Set environment variable to use system Chrome
         session.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] = chrome_path
-        
-        # Run E2E tests 
+
+        # Run E2E tests
         session.run(
-            "pytest", 
+            "pytest",
             TEST_DIR + "/e2e",
-            "--browser", "chromium",
-            "--video", "retain-on-failure",
-            "--screenshot", "only-on-failure",
+            "--browser",
+            "chromium",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
             "-v",
-            *session.posargs
+            *session.posargs,
         )
     else:
         session.log("Warning: No system Chrome found. E2E tests may fail.")
         session.log(f"Checked paths: {', '.join(chrome_paths)}")
         # Try with the 'chrome' channel which might find system Chrome
         session.run(
-            "pytest", 
+            "pytest",
             TEST_DIR + "/e2e",
-            "--browser-channel", "chrome",
-            "--video", "retain-on-failure",
-            "--screenshot", "only-on-failure",
+            "--browser-channel",
+            "chrome",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
             "-v",
-            *session.posargs
+            *session.posargs,
         )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-all")
 def test_all(session):
-    """Run all tests (unit, integration) with coverage."""
+    """Run all tests (unit, integration) with coverage. E2E tests run separately due to browser requirements."""
     session.install("-e", ".")
     session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
 
