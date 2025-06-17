@@ -14,6 +14,17 @@ const Displays: React.FC = () => {
   const [selectedDisplay, setSelectedDisplay] = useState<Display | null>(null);
   const [assigningSlideshowId, setAssigningSlideshowId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // Bulk operations state
+  const [selectedDisplayIds, setSelectedDisplayIds] = useState<Set<number>>(new Set());
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkAssigningSlideshowId, setBulkAssigningSlideshowId] = useState<number | null>(null);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
+  const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
 
   useEffect(() => {
     loadData();
@@ -50,9 +61,84 @@ const Displays: React.FC = () => {
 
   const handleAssignSlideshow = (display: Display) => {
     setSelectedDisplay(display);
-    setAssigningSlideshowId(display.current_slideshow_id);
+    setAssigningSlideshowId(display.current_slideshow_id || null);
     setShowAssignModal(true);
   };
+
+  // Bulk operations methods
+  const handleSelectDisplay = (displayId: number, checked: boolean) => {
+    const newSelected = new Set(selectedDisplayIds);
+    if (checked) {
+      newSelected.add(displayId);
+    } else {
+      newSelected.delete(displayId);
+    }
+    setSelectedDisplayIds(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const allIds = new Set(filteredDisplays.map(d => d.id));
+      setSelectedDisplayIds(allIds);
+    } else {
+      setSelectedDisplayIds(new Set());
+    }
+  };
+
+  const handleBulkAssign = () => {
+    if (selectedDisplayIds.size === 0) return;
+    setBulkAssigningSlideshowId(null);
+    setShowBulkAssignModal(true);
+  };
+
+  const handleBulkAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedDisplayIds.size === 0) return;
+
+    try {
+      setBulkSubmitting(true);
+      
+      // Assign slideshow to all selected displays
+      const promises = Array.from(selectedDisplayIds).map(displayId =>
+        apiCall(`/api/v1/displays/${displayId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ slideshow_id: bulkAssigningSlideshowId })
+        })
+      );
+
+      const results = await Promise.all(promises);
+      const failures = results.filter(result => !result.success);
+      
+      if (failures.length > 0) {
+        throw new Error(`Failed to assign slideshow to ${failures.length} displays`);
+      }
+
+      setShowBulkAssignModal(false);
+      setSelectedDisplayIds(new Set());
+      await loadData(); // Reload to get updated data
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to bulk assign slideshow');
+    } finally {
+      setBulkSubmitting(false);
+    }
+  };
+
+  // Filter displays based on search and filter criteria
+  const filteredDisplays = displays.filter(display => {
+    const matchesSearch = display.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (display.location || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || 
+                         (statusFilter === 'online' && display.is_online) ||
+                         (statusFilter === 'offline' && !display.is_online);
+    
+    const matchesAssignment = assignmentFilter === 'all' ||
+                             (assignmentFilter === 'assigned' && display.current_slideshow_id) ||
+                             (assignmentFilter === 'unassigned' && !display.current_slideshow_id);
+    
+    return matchesSearch && matchesStatus && matchesAssignment;
+  });
 
   const handleSubmitAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -158,27 +244,104 @@ const Displays: React.FC = () => {
 
           <Card>
             <Card.Header>
-              <h5 className="mb-0">
-                <i className="bi bi-display me-2"></i>
-                All Displays ({displays.length})
-              </h5>
+              <Row className="align-items-center">
+                <Col>
+                  <h5 className="mb-0">
+                    <i className="bi bi-display me-2"></i>
+                    All Displays ({filteredDisplays.length} of {displays.length})
+                  </h5>
+                </Col>
+                <Col xs="auto">
+                  {selectedDisplayIds.size > 0 && (
+                    <Button 
+                      variant="primary" 
+                      size="sm" 
+                      onClick={handleBulkAssign}
+                      className="me-2"
+                    >
+                      <i className="bi bi-collection me-1"></i>
+                      Bulk Assign ({selectedDisplayIds.size})
+                    </Button>
+                  )}
+                </Col>
+              </Row>
             </Card.Header>
             <Card.Body>
-              {displays.length === 0 ? (
+              {/* Search and Filter Controls */}
+              <Row className="mb-3">
+                <Col md={4}>
+                  <Form.Control
+                    type="text"
+                    placeholder="Search displays..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </Col>
+                <Col md={3}>
+                  <Form.Select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as 'all' | 'online' | 'offline')}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="online">Online Only</option>
+                    <option value="offline">Offline Only</option>
+                  </Form.Select>
+                </Col>
+                <Col md={3}>
+                  <Form.Select
+                    value={assignmentFilter}
+                    onChange={(e) => setAssignmentFilter(e.target.value as 'all' | 'assigned' | 'unassigned')}
+                  >
+                    <option value="all">All Assignments</option>
+                    <option value="assigned">Assigned Only</option>
+                    <option value="unassigned">Unassigned Only</option>
+                  </Form.Select>
+                </Col>
+                <Col md={2}>
+                  <Button variant="outline-secondary" onClick={() => {
+                    setSearchTerm('');
+                    setStatusFilter('all');
+                    setAssignmentFilter('all');
+                  }}>
+                    Clear
+                  </Button>
+                </Col>
+              </Row>
+
+              {filteredDisplays.length === 0 ? (
                 <div className="text-center py-5">
-                  <i className="bi bi-display" style={{ fontSize: '3rem', color: '#6c757d' }}></i>
-                  <h4 className="mt-3 text-muted">No Displays Found</h4>
-                  <p className="text-muted">
-                    Displays will appear here automatically when they connect to the system.
-                  </p>
-                  <p className="text-muted">
-                    To add a display, navigate to <code>/display/[display-name]</code> in a browser.
-                  </p>
+                  {displays.length === 0 ? (
+                    <>
+                      <i className="bi bi-display" style={{ fontSize: '3rem', color: '#6c757d' }}></i>
+                      <h4 className="mt-3 text-muted">No Displays Found</h4>
+                      <p className="text-muted">
+                        Displays will appear here automatically when they connect to the system.
+                      </p>
+                      <p className="text-muted">
+                        To add a display, navigate to <code>/display/[display-name]</code> in a browser.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-search" style={{ fontSize: '3rem', color: '#6c757d' }}></i>
+                      <h4 className="mt-3 text-muted">No Displays Match Your Filters</h4>
+                      <p className="text-muted">
+                        Try adjusting your search terms or filters to find displays.
+                      </p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <Table responsive hover>
                   <thead>
                     <tr>
+                      <th>
+                        <Form.Check
+                          type="checkbox"
+                          checked={selectedDisplayIds.size === filteredDisplays.length && filteredDisplays.length > 0}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                        />
+                      </th>
                       <th>Name</th>
                       <th>Status</th>
                       <th>Resolution</th>
@@ -189,8 +352,15 @@ const Displays: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {displays.map((display) => (
+                    {filteredDisplays.map((display) => (
                       <tr key={display.id}>
+                        <td>
+                          <Form.Check
+                            type="checkbox"
+                            checked={selectedDisplayIds.has(display.id)}
+                            onChange={(e) => handleSelectDisplay(display.id, e.target.checked)}
+                          />
+                        </td>
                         <td>
                           <strong>{display.name}</strong>
                           {display.is_default && (
@@ -248,7 +418,7 @@ const Displays: React.FC = () => {
                               variant="outline-info"
                               size="sm"
                               as="a"
-                              href={`/display/${display.name}`}
+                              href={`/display/${display.name || 'unknown'}`}
                               target="_blank"
                               title="Open Display"
                             >
@@ -325,6 +495,74 @@ const Displays: React.FC = () => {
                 </>
               ) : (
                 'Assign Slideshow'
+              )}
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+
+      {/* Bulk Assignment Modal */}
+      <Modal show={showBulkAssignModal} onHide={() => setShowBulkAssignModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Bulk Assign Slideshow to {selectedDisplayIds.size} Displays
+          </Modal.Title>
+        </Modal.Header>
+        <Form onSubmit={handleBulkAssignSubmit}>
+          <Modal.Body>
+            <Form.Group className="mb-3">
+              <Form.Label>Select Slideshow</Form.Label>
+              <Form.Select
+                value={bulkAssigningSlideshowId || ''}
+                onChange={(e) => setBulkAssigningSlideshowId(e.target.value ? parseInt(e.target.value) : null)}
+                required
+              >
+                <option value="">Remove slideshow assignment</option>
+                {slideshows.filter(s => s.active).map((slideshow) => (
+                  <option key={slideshow.id} value={slideshow.id}>
+                    {slideshow.name}
+                  </option>
+                ))}
+              </Form.Select>
+              <Form.Text className="text-muted">
+                This will assign the selected slideshow to all {selectedDisplayIds.size} selected displays.
+              </Form.Text>
+            </Form.Group>
+
+            <div className="mb-3">
+              <strong>Selected Displays:</strong>
+              <ul className="mt-2">
+                {Array.from(selectedDisplayIds).map(displayId => {
+                  const display = displays.find(d => d.id === displayId);
+                  return display ? (
+                    <li key={displayId}>
+                      {display.name} {display.location && `(${display.location})`}
+                    </li>
+                  ) : null;
+                })}
+              </ul>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button 
+              variant="secondary" 
+              onClick={() => setShowBulkAssignModal(false)}
+              disabled={bulkSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="primary" 
+              type="submit"
+              disabled={bulkSubmitting}
+            >
+              {bulkSubmitting ? (
+                <>
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Assigning...
+                </>
+              ) : (
+                `Assign to ${selectedDisplayIds.size} Displays`
               )}
             </Button>
           </Modal.Footer>

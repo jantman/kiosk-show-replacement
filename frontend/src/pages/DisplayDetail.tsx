@@ -147,6 +147,77 @@ const DisplayDetail: React.FC = () => {
     return Math.floor(diffMs / (1000 * 60 * 60 * 24));
   };
 
+  // Drag and Drop handlers
+  const handleDragStart = (e: React.DragEvent, slideshow: Slideshow) => {
+    e.dataTransfer.setData('text/plain', slideshow.id.toString());
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const slideshowId = parseInt(e.dataTransfer.getData('text/plain'));
+    
+    if (slideshowId && display) {
+      await handleQuickAssign(slideshowId);
+    }
+  };
+
+  const handleQuickAssign = async (slideshowId: number) => {
+    if (!display) return;
+
+    try {
+      const response = await apiClient.assignSlideshowToDisplay(display.name, slideshowId);
+      
+      if (response.success) {
+        // Refresh the display data to get updated assignment
+        const displayResponse = await apiClient.getDisplay(display.id);
+        if (displayResponse.success && displayResponse.data) {
+          setDisplay(displayResponse.data);
+          setFormData({
+            ...formData,
+            current_slideshow_id: slideshowId
+          });
+        }
+        setMessage('Slideshow assigned successfully');
+      } else {
+        setError('Failed to assign slideshow');
+      }
+    } catch (err) {
+      setError('Failed to assign slideshow');
+    }
+  };
+
+  const handleUnassignSlideshow = async () => {
+    if (!display) return;
+
+    try {
+      // For unassigning, we'll need to update the display directly since 
+      // assignSlideshowToDisplay doesn't support null values
+      const response = await apiClient.updateDisplay(display.id, {
+        ...formData,
+        current_slideshow_id: null
+      });
+      
+      if (response.success && response.data) {
+        setDisplay(response.data);
+        setFormData({
+          ...formData,
+          current_slideshow_id: null
+        });
+        setMessage('Slideshow unassigned successfully');
+      } else {
+        setError('Failed to unassign slideshow');
+      }
+    } catch (err) {
+      setError('Failed to unassign slideshow');
+    }
+  };
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
@@ -414,6 +485,84 @@ const DisplayDetail: React.FC = () => {
                   <div className="d-flex align-items-center">
                     <span className="me-2">Heartbeat:</span>
                     <span className="text-muted">{display.heartbeat_interval}s</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Assignment Card */}
+              <div className="card mb-3">
+                <div className="card-header">
+                  <h6 className="card-title mb-0">Quick Assignment</h6>
+                </div>
+                <div className="card-body">
+                  {/* Current Assignment */}
+                  <div className="mb-3">
+                    <label className="form-label">Currently Assigned:</label>
+                    <div 
+                      className={`p-2 border rounded ${!display.assigned_slideshow ? 'border-dashed text-muted' : 'border-success bg-light'}`}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      style={{ minHeight: '50px', cursor: 'pointer' }}
+                    >
+                      {display.assigned_slideshow ? (
+                        <div className="d-flex justify-content-between align-items-center">
+                          <div>
+                            <strong>{display.assigned_slideshow.name}</strong>
+                            <br />
+                            <small className="text-muted">
+                              {display.assigned_slideshow.description || 'No description'}
+                            </small>
+                          </div>
+                          <button
+                            className="btn btn-sm btn-outline-danger"
+                            onClick={handleUnassignSlideshow}
+                            title="Remove Assignment"
+                          >
+                            <i className="bi bi-x"></i>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="text-center">
+                          <i className="bi bi-image text-muted"></i>
+                          <div>Drop slideshow here or use form above</div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Available Slideshows */}
+                  <div>
+                    <label className="form-label">Available Slideshows:</label>
+                    <div className="available-slideshows" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                      {slideshows.filter(s => s.is_active && s.id !== display.current_slideshow_id).map(slideshow => (
+                        <div
+                          key={slideshow.id}
+                          className="p-2 mb-2 border rounded cursor-pointer bg-light"
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, slideshow)}
+                          onClick={() => handleQuickAssign(slideshow.id)}
+                          style={{ cursor: 'grab' }}
+                          title="Drag to assign or click to assign"
+                        >
+                          <div className="d-flex justify-content-between align-items-center">
+                            <div>
+                              <strong>{slideshow.name}</strong>
+                              <br />
+                              <small className="text-muted">
+                                {slideshow.description || 'No description'}
+                              </small>
+                            </div>
+                            <i className="bi bi-grip-vertical text-muted"></i>
+                          </div>
+                        </div>
+                      ))}
+                      {slideshows.filter(s => s.is_active && s.id !== display.current_slideshow_id).length === 0 && (
+                        <div className="text-center text-muted p-3">
+                          <i className="bi bi-info-circle"></i>
+                          <div>No other active slideshows available</div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
