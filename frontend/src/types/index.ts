@@ -21,14 +21,19 @@ export interface Display {
   id: number;
   name: string;
   location?: string;
+  description?: string;
+  resolution?: string;
   resolution_width?: number;
   resolution_height?: number;
-  assigned_slideshow_id?: number;
+  current_slideshow_id?: number | null;
   assigned_slideshow?: Slideshow;
   last_seen_at?: string;
   created_at: string;
   updated_at: string;
-  online: boolean;
+  is_online: boolean;
+  heartbeat_interval?: number;
+  rotation?: number;
+  is_default?: boolean;
 }
 
 // Slideshow types

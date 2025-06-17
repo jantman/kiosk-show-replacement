@@ -8,6 +8,8 @@ import Dashboard from './pages/Dashboard';
 import Slideshows from './pages/Slideshows';
 import SlideshowForm from './pages/SlideshowForm';
 import SlideshowDetail from './pages/SlideshowDetail';
+import Displays from './pages/Displays';
+import DisplayDetail from './pages/DisplayDetail';
 
 // Import Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -35,13 +37,9 @@ const App: React.FC = () => {
             <Route path="slideshows/:id" element={<SlideshowDetail />} />
             <Route path="slideshows/:id/edit" element={<SlideshowForm />} />
             
-            {/* Display Management - placeholder for Milestone 10 */}
-            <Route path="displays" element={
-              <div className="text-center py-5">
-                <h3>Display Management</h3>
-                <p className="text-muted">Coming in Milestone 10</p>
-              </div>
-            } />
+            {/* Display Management */}
+            <Route path="displays" element={<Displays />} />
+            <Route path="displays/:id" element={<DisplayDetail />} />
           </Route>
           
           {/* Default redirect */}
