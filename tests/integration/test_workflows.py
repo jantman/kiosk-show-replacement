@@ -1,8 +1,8 @@
 """
-End-to-end tests for complete user workflows.
+Integration tests for complete user workflows.
 
 These tests simulate real user interactions with the application,
-testing complete workflows from start to finish.
+testing complete workflows from start to finish using Flask's test client.
 """
 
 from kiosk_show_replacement.models import Slideshow

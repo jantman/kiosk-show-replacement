@@ -81,20 +81,21 @@ def test_integration(session):
     )
 
 
-@nox.session(python=DEFAULT_PYTHON, name="test-e2e")
-def test_e2e(session):
-    """Run end-to-end tests with pytest."""
-    session.install("-e", ".")
-    session.install("pytest", "pytest-flask", "pytest-mock", "selenium")
-
-    session.run("pytest", TEST_DIR + "/e2e", *session.posargs)
+# Future E2E Tests (not yet implemented)
+# E2E tests will use Flask's live test server with browser automation
+# @nox.session(python=DEFAULT_PYTHON, name="test-e2e")
+# def test_e2e(session):
+#     """Run end-to-end tests with browser automation."""
+#     session.install("-e", ".")
+#     session.install("pytest", "pytest-flask", "selenium", "playwright")
+#     session.run("pytest", TEST_DIR + "/e2e", *session.posargs)
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-all")
 def test_all(session):
-    """Run all tests (unit, integration, e2e) with coverage."""
+    """Run all tests (unit, integration) with coverage."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock", "selenium")
+    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
 
     # Run all tests with combined coverage
     session.run(
@@ -104,7 +105,7 @@ def test_all(session):
         "--cov-report=term-missing",
         "--cov-report=html:htmlcov",
         "--cov-report=xml:coverage.xml",
-        "--cov-fail-under=30",  # Lower threshold for e2e included
+        "--cov-fail-under=30",
         *session.posargs,
     )
 

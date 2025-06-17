@@ -72,9 +72,6 @@ Then run the development commands:
    # Run integration tests
    nox -s test-integration
 
-   # Run end-to-end tests
-   nox -s test-e2e
-
    # Run all tests with coverage
    nox -s test-all
 
@@ -138,19 +135,58 @@ Located in ``tests/unit/``, these test individual functions and classes in isola
 Integration Tests
 ~~~~~~~~~~~~~~~~~
 
-Located in ``tests/integration/``, these test the interaction between components.
+Located in ``tests/integration/``, these test the interaction between components and complete user workflows using Flask's test client.
+
+**What Integration Tests Cover:**
+
+* **Component Integration**: How different parts of your system work together (API + Database, Routes + Templates, Display + Models)
+* **Complete User Workflows**: Full user journeys from start to finish, simulating real user interactions
+* **Cross-system Validation**: Changes verified across multiple interfaces (Web UI + API + Database)
+* **Business Logic**: End-to-end business workflows and user experience flows
+
+**Key Characteristics:**
+
+* Use Flask's test client to simulate HTTP requests
+* Test multiple components working together in realistic scenarios
+* Verify both technical correctness and user experience
+* Include multi-step workflows (create → edit → view → delete)
+* Test different content types and user scenarios
+
+**Examples:**
+
+* Complete slideshow creation workflow (homepage → create → add slides → preview → verify)
+* User management workflows (registration → login → content management)
+* Display management (registration → assignment → playback → monitoring)
+* API integration with database persistence and template rendering
 
 .. code-block:: bash
 
    nox -s test-integration
 
-End-to-End Tests
-~~~~~~~~~~~~~~~~
+End-to-End Tests (Future)
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Located in ``tests/e2e/``, these test complete user workflows.
+End-to-end tests will use Flask's live test server with real HTTP requests and browser automation.
+
+**Planned E2E Test Features:**
+
+* **Live Server Testing**: Tests run against a real Flask server instance
+* **Browser Automation**: Use Selenium, Playwright, or Cypress for actual browser testing
+* **Real User Interactions**: Click buttons, fill forms, navigate pages like a real user
+* **Cross-browser Testing**: Verify functionality across different browsers
+* **Performance Testing**: Real-world performance and load testing
+* **Visual Regression**: Screenshot comparisons for UI consistency
+
+**When E2E Tests Will Be Added:**
+
+* After core functionality is stable
+* When browser-specific features need testing
+* For complex JavaScript interactions
+* To verify complete system behavior under real conditions
 
 .. code-block:: bash
 
+   # Future command - not yet implemented
    nox -s test-e2e
 
 Test Configuration
