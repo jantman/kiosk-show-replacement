@@ -72,6 +72,9 @@ Then run the development commands:
    # Run integration tests
    nox -s test-integration
 
+   # Run end-to-end tests with Playwright
+   nox -s test-e2e
+
    # Run all tests with coverage
    nox -s test-all
 
@@ -163,31 +166,89 @@ Located in ``tests/integration/``, these test the interaction between components
 
    nox -s test-integration
 
-End-to-End Tests (Future)
-~~~~~~~~~~~~~~~~~~~~~~~~~
+End-to-End Tests
+~~~~~~~~~~~~~~~~
 
-End-to-end tests will use Flask's live test server with real HTTP requests and browser automation.
+Located in ``tests/e2e/``, these test complete user workflows using Playwright browser automation with a live Flask server.
 
-**Planned E2E Test Features:**
+**What E2E Tests Cover:**
 
 * **Live Server Testing**: Tests run against a real Flask server instance
-* **Browser Automation**: Use Selenium, Playwright, or Cypress for actual browser testing
+* **Browser Automation**: Use Playwright to control a real Chromium browser
 * **Real User Interactions**: Click buttons, fill forms, navigate pages like a real user
-* **Cross-browser Testing**: Verify functionality across different browsers
-* **Performance Testing**: Real-world performance and load testing
-* **Visual Regression**: Screenshot comparisons for UI consistency
+* **Authentication Workflows**: Complete login/logout cycles
+* **Cross-page Navigation**: Verify navigation between different pages works correctly
+* **Visual Verification**: Screenshots and videos captured on test failures
 
-**When E2E Tests Will Be Added:**
+**Key Characteristics:**
 
-* After core functionality is stable
-* When browser-specific features need testing
-* For complex JavaScript interactions
-* To verify complete system behavior under real conditions
+* Use Playwright to control a real browser (Chromium)
+* Test against a live Flask server with real HTTP requests
+* Verify complete user workflows from start to finish
+* Include visual feedback (screenshots/videos on failure)
+* Test actual browser behavior including JavaScript execution
+* Verify responsive design and browser compatibility
+
+**Examples:**
+
+* Complete login workflow (visit site → see login → authenticate → access dashboard)
+* Slideshow management workflow (login → create slideshow → add slides → preview)
+* Display management workflow (login → register display → assign slideshow → verify)
+* Responsive design verification across different viewport sizes
 
 .. code-block:: bash
 
-   # Future command - not yet implemented
    nox -s test-e2e
+
+**System Requirements for E2E Tests:**
+
+E2E tests require a system-installed Chrome or Chromium browser. The test framework 
+automatically detects and uses the first available browser from these common locations:
+
+* ``/usr/bin/google-chrome-stable`` (Google Chrome on most Linux distributions)
+* ``/usr/bin/chromium-browser`` (Chromium on Ubuntu/Debian)
+* ``/usr/bin/google-chrome`` (Alternative Chrome location)
+* ``/usr/bin/chromium`` (Chromium on Arch/Fedora)
+
+**Installing Chrome/Chromium:**
+
+.. code-block:: bash
+
+   # ArchLinux
+   sudo pacman -S google-chrome
+   # or
+   sudo pacman -S chromium
+   
+   # Ubuntu/Debian
+   sudo apt install google-chrome-stable
+   # or 
+   sudo apt install chromium-browser
+   
+   # Fedora
+   sudo dnf install google-chrome-stable
+   # or
+   sudo dnf install chromium
+
+**E2E Test Configuration:**
+
+E2E tests use Playwright with the following default settings:
+
+* **Browser**: Chromium (headless by default)
+* **Screenshots**: Captured only on test failures
+* **Videos**: Recorded and retained only on test failures
+* **Live Server**: Automatic Flask server startup for testing
+
+**Running E2E Tests in Headed Mode:**
+
+For development and debugging, you can run tests with a visible browser:
+
+.. code-block:: bash
+
+   # Set environment variable for headed mode
+   PLAYWRIGHT_HEADED=1 nox -s test-e2e
+   
+   # Or run specific tests
+   nox -s test-e2e -- --headed -k "test_login"
 
 Test Configuration
 ~~~~~~~~~~~~~~~~~~
