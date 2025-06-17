@@ -5,6 +5,9 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import Slideshows from './pages/Slideshows';
+import SlideshowForm from './pages/SlideshowForm';
+import SlideshowDetail from './pages/SlideshowDetail';
 
 // Import Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -26,14 +29,13 @@ const App: React.FC = () => {
             {/* Dashboard */}
             <Route index element={<Dashboard />} />
             
-            {/* Placeholder routes for future milestones */}
-            <Route path="slideshows" element={
-              <div className="text-center py-5">
-                <h3>Slideshow Management</h3>
-                <p className="text-muted">Coming in Milestone 9</p>
-              </div>
-            } />
+            {/* Slideshow Management */}
+            <Route path="slideshows" element={<Slideshows />} />
+            <Route path="slideshows/new" element={<SlideshowForm />} />
+            <Route path="slideshows/:id" element={<SlideshowDetail />} />
+            <Route path="slideshows/:id/edit" element={<SlideshowForm />} />
             
+            {/* Display Management - placeholder for Milestone 10 */}
             <Route path="displays" element={
               <div className="text-center py-5">
                 <h3>Display Management</h3>

@@ -37,11 +37,13 @@ export interface Slideshow {
   name: string;
   description?: string;
   is_active: boolean;
+  is_default: boolean;
   default_item_duration: number;
+  transition_type?: string;
   created_at: string;
   updated_at: string;
-  total_duration: number;
-  item_count: number;
+  total_duration?: number;
+  item_count?: number;
   items?: SlideshowItem[];
 }
 
@@ -49,12 +51,14 @@ export interface Slideshow {
 export interface SlideshowItem {
   id: number;
   slideshow_id: number;
-  title: string;
+  title?: string;
   content_type: 'image' | 'video' | 'url' | 'text';
-  content_source: string;
-  display_url: string;
+  url?: string;
+  file_path?: string;
+  text_content?: string;
+  display_url?: string;
   duration?: number;
-  order_index: number;
+  order: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;
