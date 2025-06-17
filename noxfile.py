@@ -34,6 +34,63 @@ def lint(session):
     session.run("pycodestyle", "--max-line-length=88", PACKAGE_DIR, TEST_DIR)
 
 
+@nox.session(python=DEFAULT_PYTHON, name="lint-frontend")
+def lint_frontend(session):
+    """Lint frontend code with ESLint and TypeScript."""
+    import os
+    
+    frontend_dir = "frontend"
+    
+    # Check if frontend directory exists
+    if not os.path.exists(frontend_dir):
+        session.log("Frontend directory not found, skipping frontend linting")
+        return
+    
+    # Check if Node.js and npm are available
+    try:
+        session.run("node", "--version", external=True)
+        session.run("npm", "--version", external=True)
+    except Exception as e:
+        session.error(f"Node.js/npm not available: {e}")
+    
+    # Change to frontend directory
+    session.chdir(frontend_dir)
+    
+    # Install dependencies if node_modules doesn't exist
+    if not os.path.exists("node_modules"):
+        session.log("Installing frontend dependencies...")
+        session.run("npm", "install", external=True)
+    
+    # Run TypeScript type checking
+    session.log("Running TypeScript type checking...")
+    session.run("npm", "run", "type-check", external=True)
+    
+    # Run ESLint
+    session.log("Running ESLint...")
+    session.run("npm", "run", "lint", external=True)
+
+
+@nox.session(python=DEFAULT_PYTHON, name="lint-all")
+def lint_all(session):
+    """Lint all code: backend (Python) and frontend (TypeScript/JavaScript)."""
+    import os
+    
+    session.log("=== Running Comprehensive Linting ===")
+    
+    # 1. Lint backend code
+    session.log("1. Linting backend code...")
+    session.notify("lint")
+    
+    # 2. Lint frontend code if available
+    if os.path.exists("frontend"):
+        session.log("2. Linting frontend code...")
+        session.notify("lint-frontend")
+    else:
+        session.log("2. Skipping frontend linting (frontend directory not found)")
+    
+    session.log("=== Comprehensive Linting Complete ===")
+
+
 @nox.session(python=DEFAULT_PYTHON)
 def type_check(session):
     """Type check with mypy."""
@@ -141,11 +198,11 @@ def test_e2e(session):
 
 @nox.session(python=DEFAULT_PYTHON, name="test-all")
 def test_all(session):
-    """Run all tests (unit, integration) with coverage. E2E tests run separately due to browser requirements."""
+    """Run all backend tests (unit, integration) with coverage. Frontend and E2E tests run separately."""
     session.install("-e", ".")
     session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
 
-    # Run all tests with combined coverage
+    # Run all backend tests with combined coverage
     session.run(
         "pytest",
         TEST_DIR,
@@ -156,6 +213,100 @@ def test_all(session):
         "--cov-fail-under=30",
         *session.posargs,
     )
+
+
+@nox.session(python=DEFAULT_PYTHON, name="test-comprehensive")
+def test_comprehensive(session):
+    """Run all tests: backend (unit, integration), frontend, and E2E tests."""
+    import os
+    
+    session.log("=== Running Comprehensive Test Suite ===")
+    
+    # 1. Run backend tests (unit + integration)
+    session.log("1. Running backend tests...")
+    session.notify("test-all")
+    
+    # 2. Run frontend tests if available
+    if os.path.exists("frontend"):
+        session.log("2. Running frontend tests...")
+        session.notify("test-frontend")
+    else:
+        session.log("2. Skipping frontend tests (frontend directory not found)")
+    
+    # 3. Run E2E tests
+    session.log("3. Running E2E tests...")
+    session.notify("test-e2e")
+    
+    session.log("=== Comprehensive Test Suite Complete ===")
+    session.log("Results:")
+    session.log("- Backend tests: Check output above")
+    session.log("- Frontend tests: Check output above") 
+    session.log("- E2E tests: Check output above")
+
+
+@nox.session(python=DEFAULT_PYTHON, name="test-frontend")
+def test_frontend(session):
+    """Run frontend tests with Vitest."""
+    import os
+    import subprocess
+    
+    frontend_dir = "frontend"
+    
+    # Check if frontend directory exists
+    if not os.path.exists(frontend_dir):
+        session.log("Frontend directory not found, skipping frontend tests")
+        return
+    
+    # Check if Node.js and npm are available
+    try:
+        session.run("node", "--version", external=True)
+        session.run("npm", "--version", external=True)
+    except Exception as e:
+        session.error(f"Node.js/npm not available: {e}")
+    
+    # Change to frontend directory
+    session.chdir(frontend_dir)
+    
+    # Install dependencies if node_modules doesn't exist
+    if not os.path.exists("node_modules"):
+        session.log("Installing frontend dependencies...")
+        session.run("npm", "install", external=True)
+    
+    # Run frontend tests
+    session.log("Running frontend tests with Vitest...")
+    session.run("npm", "run", "test:run", external=True)
+
+
+@nox.session(python=DEFAULT_PYTHON, name="test-frontend-watch")
+def test_frontend_watch(session):
+    """Run frontend tests in watch mode with Vitest."""
+    import os
+    
+    frontend_dir = "frontend"
+    
+    # Check if frontend directory exists
+    if not os.path.exists(frontend_dir):
+        session.log("Frontend directory not found, skipping frontend tests")
+        return
+    
+    # Check if Node.js and npm are available
+    try:
+        session.run("node", "--version", external=True)
+        session.run("npm", "--version", external=True)
+    except Exception as e:
+        session.error(f"Node.js/npm not available: {e}")
+    
+    # Change to frontend directory
+    session.chdir(frontend_dir)
+    
+    # Install dependencies if node_modules doesn't exist
+    if not os.path.exists("node_modules"):
+        session.log("Installing frontend dependencies...")
+        session.run("npm", "install", external=True)
+    
+    # Run frontend tests in watch mode
+    session.log("Running frontend tests in watch mode...")
+    session.run("npm", "run", "test", external=True)
 
 
 @nox.session(python=DEFAULT_PYTHON)
@@ -227,6 +378,9 @@ def clean(session):
 @nox.session(python=DEFAULT_PYTHON, name="dev-setup")
 def dev_setup(session):
     """Set up development environment."""
+    import os
+    
+    # Install Python dependencies
     session.install("-e", ".")
     session.install(
         "black",
@@ -239,11 +393,37 @@ def dev_setup(session):
         "pytest-flask",
         "pytest-mock",
     )
+    
+    # Initialize database
     session.run("kiosk-init-db", "--sample-data")
+    
+    # Set up frontend dependencies if frontend directory exists
+    if os.path.exists("frontend"):
+        session.log("Setting up frontend dependencies...")
+        session.chdir("frontend")
+        try:
+            session.run("npm", "install", external=True)
+            session.log("Frontend dependencies installed successfully!")
+        except Exception as e:
+            session.log(f"Warning: Could not install frontend dependencies: {e}")
+            session.log("Make sure Node.js and npm are installed")
+        session.chdir("..")
+    
     session.log("Development environment setup complete!")
-    session.log("Run 'nox -s format' to format code")
-    session.log("Run 'nox -s lint' to check code style")
-    session.log("Run 'nox -s test' to run unit tests")
+    session.log("Available commands:")
+    session.log("  Backend:")
+    session.log("    nox -s format          # Format code")
+    session.log("    nox -s lint            # Check code style")
+    session.log("    nox -s test            # Run unit tests")
+    session.log("    nox -s test-integration # Run integration tests")
+    session.log("    nox -s test-e2e        # Run E2E tests")
+    session.log("    nox -s test-all        # Run all backend tests")
+    if os.path.exists("frontend"):
+        session.log("  Frontend:")
+        session.log("    nox -s test-frontend   # Run frontend tests")
+        session.log("    nox -s test-frontend-watch # Run frontend tests in watch mode")
+    session.log("  Comprehensive:")
+    session.log("    nox -s test-comprehensive # Run all tests (backend + frontend + E2E)")
 
 
 # Default session when no session is specified

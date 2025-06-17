@@ -13,7 +13,7 @@ export interface User {
   email?: string;
   is_admin: boolean;
   created_at: string;
-  last_login?: string;
+  last_login_at?: string;
 }
 
 // Display types
