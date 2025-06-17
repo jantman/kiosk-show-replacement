@@ -30,6 +30,9 @@ const Navigation: React.FC = () => {
             <LinkContainer to="/admin/displays">
               <Nav.Link>Displays</Nav.Link>
             </LinkContainer>
+            <LinkContainer to="/admin/assignment-history">
+              <Nav.Link>Assignment History</Nav.Link>
+            </LinkContainer>
           </Nav>
           
           <Nav>

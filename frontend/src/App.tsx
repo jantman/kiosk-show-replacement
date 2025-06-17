@@ -10,6 +10,7 @@ import SlideshowForm from './pages/SlideshowForm';
 import SlideshowDetail from './pages/SlideshowDetail';
 import Displays from './pages/Displays';
 import DisplayDetail from './pages/DisplayDetail';
+import AssignmentHistory from './pages/AssignmentHistory';
 
 // Import Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -40,6 +41,9 @@ const App: React.FC = () => {
             {/* Display Management */}
             <Route path="displays" element={<Displays />} />
             <Route path="displays/:id" element={<DisplayDetail />} />
+            
+            {/* Assignment History */}
+            <Route path="assignment-history" element={<AssignmentHistory />} />
           </Route>
           
           {/* Default redirect */}

@@ -5,7 +5,8 @@ import type {
   Slideshow, 
   SlideshowItem,
   SlideshowFormData,
-  SlideshowItemFormData
+  SlideshowItemFormData,
+  AssignmentHistory
 } from '../types';
 
 class ApiClient {
@@ -193,6 +194,44 @@ class ApiClient {
     return this.request<void>(`/api/v1/displays/${displayName}/assign-slideshow`, {
       method: 'POST',
       body: JSON.stringify({ slideshow_id: slideshowId }),
+    });
+  }
+
+  // Assignment History methods
+  async getAssignmentHistory(params?: {
+    limit?: number;
+    offset?: number;
+    display_id?: number;
+    action?: string;
+    user_id?: number;
+  }): Promise<ApiResponse<AssignmentHistory[]>> {
+    const searchParams = new URLSearchParams();
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
+    if (params?.offset) searchParams.append('offset', params.offset.toString());
+    if (params?.display_id) searchParams.append('display_id', params.display_id.toString());
+    if (params?.action) searchParams.append('action', params.action);
+    if (params?.user_id) searchParams.append('user_id', params.user_id.toString());
+    
+    const query = searchParams.toString();
+    const endpoint = query ? `/api/v1/assignment-history?${query}` : '/api/v1/assignment-history';
+    
+    return this.request<AssignmentHistory[]>(endpoint);
+  }
+
+  async getDisplayAssignmentHistory(displayId: number): Promise<ApiResponse<AssignmentHistory[]>> {
+    return this.request<AssignmentHistory[]>(`/api/v1/displays/${displayId}/assignment-history`);
+  }
+
+  async createAssignmentHistory(data: {
+    display_id: number;
+    previous_slideshow_id?: number | null;
+    new_slideshow_id?: number | null;
+    action: 'assign' | 'unassign' | 'change';
+    reason?: string;
+  }): Promise<ApiResponse<AssignmentHistory>> {
+    return this.request<AssignmentHistory>('/api/v1/assignment-history', {
+      method: 'POST',
+      body: JSON.stringify(data),
     });
   }
 

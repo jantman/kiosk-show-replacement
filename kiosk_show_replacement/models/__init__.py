@@ -12,7 +12,7 @@ for tracking creation and modification. Designed for easy migration
 between different database engines (SQLite, PostgreSQL, MariaDB).
 """
 
-__all__ = ["User", "Display", "Slideshow", "SlideshowItem"]
+__all__ = ["User", "Display", "Slideshow", "SlideshowItem", "AssignmentHistory"]
 
 from datetime import datetime, timezone
 from typing import Any, List, Optional
@@ -538,6 +538,93 @@ class SlideshowItem(db.Model):
         if order_index < 0:
             raise ValueError("Order index must be non-negative")
         return order_index
+
+
+class AssignmentHistory(db.Model):
+    """Model for tracking slideshow assignment history and audit trail."""
+
+    __tablename__ = "assignment_history"
+
+    id = Column(Integer, primary_key=True)
+    display_id = Column(Integer, ForeignKey("displays.id"), nullable=False)
+    previous_slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=True)
+    new_slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=True)
+    action = Column(String(50), nullable=False)  # 'assign', 'unassign', 'change'
+    reason = Column(Text, nullable=True)  # Optional reason for the change
+    
+    # Audit fields
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    display = relationship("Display", backref="assignment_history")
+    previous_slideshow = relationship(
+        "Slideshow", foreign_keys=[previous_slideshow_id], backref="previous_assignments"
+    )
+    new_slideshow = relationship(
+        "Slideshow", foreign_keys=[new_slideshow_id], backref="new_assignments"
+    )
+    created_by = relationship("User", foreign_keys=[created_by_id])
+
+    def __repr__(self) -> str:
+        return f"<AssignmentHistory {self.display_id}: {self.action}>"
+
+    @validates("action")
+    def validate_action(self, key: str, action: str) -> str:
+        """Validate assignment action type."""
+        valid_actions = ["assign", "unassign", "change"]
+        if action not in valid_actions:
+            raise ValueError(f"Action must be one of: {', '.join(valid_actions)}")
+        return action
+
+    def to_dict(self) -> dict:
+        """Convert assignment history to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "display_id": self.display_id,
+            "display_name": self.display.name if self.display else None,
+            "previous_slideshow_id": self.previous_slideshow_id,
+            "previous_slideshow_name": self.previous_slideshow.name if self.previous_slideshow else None,
+            "new_slideshow_id": self.new_slideshow_id,
+            "new_slideshow_name": self.new_slideshow.name if self.new_slideshow else None,
+            "action": self.action,
+            "reason": self.reason,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "created_by_id": self.created_by_id,
+            "created_by_username": self.created_by.username if self.created_by else None,
+        }
+
+    @classmethod
+    def create_assignment_record(
+        cls,
+        display_id: int,
+        previous_slideshow_id: Optional[int],
+        new_slideshow_id: Optional[int],
+        created_by_id: Optional[int] = None,
+        reason: Optional[str] = None
+    ) -> "AssignmentHistory":
+        """Create an assignment history record based on the change type."""
+        # Determine action type
+        if previous_slideshow_id is None and new_slideshow_id is not None:
+            action = "assign"
+        elif previous_slideshow_id is not None and new_slideshow_id is None:
+            action = "unassign"
+        elif previous_slideshow_id != new_slideshow_id:
+            action = "change"
+        else:
+            # No actual change
+            return None
+
+        return cls(
+            display_id=display_id,
+            previous_slideshow_id=previous_slideshow_id,
+            new_slideshow_id=new_slideshow_id,
+            action=action,
+            reason=reason,
+            created_by_id=created_by_id
+        )
 
 
 # For backward compatibility with existing code

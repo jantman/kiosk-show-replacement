@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiClient } from '../utils/apiClient';
-import { Display, Slideshow } from '../types';
+import { Display, Slideshow, AssignmentHistory } from '../types';
 
 const DisplayDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [display, setDisplay] = useState<Display | null>(null);
   const [slideshows, setSlideshows] = useState<Slideshow[]>([]);
+  const [assignmentHistory, setAssignmentHistory] = useState<AssignmentHistory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -30,15 +31,21 @@ const DisplayDetail: React.FC = () => {
         setLoading(true);
         setError(null);
 
-        // Fetch display and slideshows in parallel
-        const [displayResponse, slideshowsResponse] = await Promise.all([
+        // Fetch display, slideshows, and assignment history in parallel
+        const [displayResponse, slideshowsResponse, historyResponse] = await Promise.all([
           apiClient.getDisplay(parseInt(id)),
-          apiClient.getSlideshows()
+          apiClient.getSlideshows(),
+          apiClient.getDisplayAssignmentHistory(parseInt(id))
         ]);
 
         if (displayResponse.success && slideshowsResponse.success && displayResponse.data && slideshowsResponse.data) {
           setDisplay(displayResponse.data);
           setSlideshows(slideshowsResponse.data);
+          
+          // Set assignment history if available
+          if (historyResponse.success && historyResponse.data) {
+            setAssignmentHistory(historyResponse.data);
+          }
           
           // Initialize form data
           setFormData({
@@ -585,6 +592,96 @@ const DisplayDetail: React.FC = () => {
                     <span className="me-2">Rotation:</span>
                     <span className="text-muted">{display.rotation}°</span>
                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Assignment History Section */}
+          <div className="row mt-4">
+            <div className="col-12">
+              <div className="card">
+                <div className="card-header d-flex justify-content-between align-items-center">
+                  <h5 className="card-title mb-0">Assignment History</h5>
+                  <Link 
+                    to="/admin/assignment-history" 
+                    className="btn btn-outline-primary btn-sm"
+                  >
+                    View All History
+                  </Link>
+                </div>
+                <div className="card-body">
+                  {assignmentHistory.length > 0 ? (
+                    <div className="table-responsive">
+                      <table className="table table-hover">
+                        <thead className="table-light">
+                          <tr>
+                            <th>Date/Time</th>
+                            <th>Action</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>User</th>
+                            <th>Reason</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {assignmentHistory.slice(0, 10).map((record) => (
+                            <tr key={record.id}>
+                              <td>
+                                <small>
+                                  {new Date(record.created_at).toLocaleDateString()}<br/>
+                                  {new Date(record.created_at).toLocaleTimeString()}
+                                </small>
+                              </td>
+                              <td>
+                                <span className={`badge ${
+                                  record.action === 'assign' ? 'bg-success' :
+                                  record.action === 'unassign' ? 'bg-warning' :
+                                  'bg-info'
+                                }`}>
+                                  {record.action.toUpperCase()}
+                                </span>
+                              </td>
+                              <td>
+                                <small className="text-muted">
+                                  {record.previous_slideshow?.name || 'None'}
+                                </small>
+                              </td>
+                              <td>
+                                <small className="text-muted">
+                                  {record.new_slideshow?.name || 'None'}
+                                </small>
+                              </td>
+                              <td>
+                                <small className="text-muted">
+                                  {record.user?.username || 'System'}
+                                </small>
+                              </td>
+                              <td>
+                                <small className="text-muted">
+                                  {record.reason || '-'}
+                                </small>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {assignmentHistory.length > 10 && (
+                        <div className="text-center mt-3">
+                          <Link 
+                            to={`/admin/assignment-history?display_id=${display?.id}`}
+                            className="btn btn-outline-secondary btn-sm"
+                          >
+                            View {assignmentHistory.length - 10} more records
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center text-muted py-4">
+                      <p>No assignment history found for this display.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

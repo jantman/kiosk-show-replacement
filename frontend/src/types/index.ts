@@ -36,6 +36,22 @@ export interface Display {
   is_default?: boolean;
 }
 
+// Assignment History types
+export interface AssignmentHistory {
+  id: number;
+  display_id: number;
+  display?: Display;
+  previous_slideshow_id?: number | null;
+  previous_slideshow?: Slideshow | null;
+  new_slideshow_id?: number | null;
+  new_slideshow?: Slideshow | null;
+  action: 'assign' | 'unassign' | 'change';
+  reason?: string;
+  user_id?: number | null;
+  user?: User | null;
+  created_at: string;
+}
+
 // Slideshow types
 export interface Slideshow {
   id: number;
