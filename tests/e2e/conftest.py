@@ -6,46 +6,43 @@ Playwright and a live Flask server.
 """
 
 import pytest
-from flask import Flask
 
 from kiosk_show_replacement.app import create_app, db
-from kiosk_show_replacement.models import User, Slideshow, Display
+from kiosk_show_replacement.models import Display, Slideshow, User
 
 
 @pytest.fixture(scope="session")
 def e2e_app():
     """Create application instance for E2E testing."""
     app = create_app()
-    
+
     # Use a temporary database file that both test setup and live server can access
-    import tempfile
     import os
-    
+    import tempfile
+
     # Create temporary database file
-    db_fd, db_path = tempfile.mkstemp(suffix='.db')
+    db_fd, db_path = tempfile.mkstemp(suffix=".db")
     os.close(db_fd)  # Close the file descriptor, we just need the path
-    
+
     # Configure for E2E testing
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
-        "SECRET_KEY": "e2e-test-secret-key",
-        "WTF_CSRF_ENABLED": False,
-        "SQLALCHEMY_ENGINE_OPTIONS": {
-            "pool_recycle": -1,
-            "pool_pre_ping": True,
-        },
-    })
-    
+    app.config.update(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SECRET_KEY": "e2e-test-secret-key",
+            "WTF_CSRF_ENABLED": False,
+            "SQLALCHEMY_ENGINE_OPTIONS": {
+                "pool_recycle": -1,
+                "pool_pre_ping": True,
+            },
+        }
+    )
+
     with app.app_context():
         db.create_all()
 
         # Create test user for authentication using the app's own method
-        test_user = User(
-            username="testuser",
-            email="test@example.com",
-            is_active=True
-        )
+        test_user = User(username="testuser", email="test@example.com", is_active=True)
         # Use the app's set_password method which will generate the correct hash
         test_user.set_password("password")
         db.session.add(test_user)
@@ -57,7 +54,7 @@ def e2e_app():
             description="Slideshow for end-to-end testing",
             owner_id=test_user.id,
             is_active=True,
-            is_default=False
+            is_default=False,
         )
         db.session.add(test_slideshow)
 
@@ -65,13 +62,13 @@ def e2e_app():
         test_display = Display(
             name="e2e-test-display",
             description="Display for E2E testing",
-            is_active=True
+            is_active=True,
         )
         db.session.add(test_display)
         db.session.commit()  # Commit all changes
-        
+
         yield app
-        
+
         # Cleanup
         try:
             db.session.rollback()
@@ -81,7 +78,7 @@ def e2e_app():
             db.engine.dispose()
         except Exception:
             pass
-        
+
         # Clean up the temporary database file
         try:
             os.unlink(db_path)
@@ -104,16 +101,10 @@ def live_server_url(live_server):
 @pytest.fixture
 def test_credentials():
     """Provide test user credentials."""
-    return {
-        "username": "testuser",
-        "password": "password"
-    }
+    return {"username": "testuser", "password": "password"}
 
 
 @pytest.fixture
 def expected_counts():
     """Expected counts for dashboard verification."""
-    return {
-        "slideshows": 1,
-        "displays": 1
-    }
+    return {"slideshows": 1, "displays": 1}

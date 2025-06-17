@@ -237,7 +237,10 @@ class TestDataFactory:
 
     @staticmethod
     def create_slideshow(
-        name="Test Slideshow", description="A slideshow for testing", owner_id=None, **kwargs
+        name="Test Slideshow",
+        description="A slideshow for testing",
+        owner_id=None,
+        **kwargs,
     ):
         """Create a test slideshow."""
         defaults = {
@@ -256,13 +259,13 @@ class TestDataFactory:
         # Map content types to more user-friendly slide titles
         content_type_titles = {
             "text": "Text",
-            "image": "Image", 
+            "image": "Image",
             "url": "Web",
-            "video": "Video"
+            "video": "Video",
         }
-        
+
         defaults = {
-            "title": f"Test {content_type_titles.get(content_type, content_type.title())} Slide",
+            "title": f"Test {content_type_titles.get(content_type, content_type.title())} Slide",  # noqa: E501
             "content_type": content_type,
             "display_duration": 30,
             "order_index": 0,

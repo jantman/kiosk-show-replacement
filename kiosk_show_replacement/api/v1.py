@@ -905,7 +905,7 @@ def get_current_user_info() -> Tuple[Response, int]:
     user = get_current_user()
     if not user:
         return api_error("User not found", 404)
-    
+
     return api_response(user.to_dict(), "User information retrieved successfully")
 
 

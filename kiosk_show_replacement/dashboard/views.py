@@ -17,7 +17,7 @@ from flask import (
     url_for,
 )
 from flask.wrappers import Response
-from sqlalchemy import text  
+from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 
 from ..auth import admin_required, get_current_user, login_required
@@ -97,7 +97,7 @@ def index() -> Union[str, Response]:
             "recent_slideshows": [],
             "user": current_user,
         }
-    
+
     # Don't close the session here - let Flask-SQLAlchemy handle it
     # The session needs to remain open for template rendering
 

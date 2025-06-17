@@ -351,16 +351,18 @@ def display_slideshow(slideshow_id: int) -> Union[str, Response]:
 
 
 @display_bp.route("/<string:display_name>/slideshow/<int:slideshow_id>")
-def display_slideshow_for_display(display_name: str, slideshow_id: int) -> Union[str, Response]:
+def display_slideshow_for_display(
+    display_name: str, slideshow_id: int
+) -> Union[str, Response]:
     """
     Display a specific slideshow on a specific display.
-    
+
     This is used for testing and preview purposes where you want to see
     how a slideshow would look on a particular display.
     """
     # Get or create the display
     display = get_or_create_display(display_name)
-    
+
     # Get the slideshow
     slideshow = Slideshow.query.get_or_404(slideshow_id)
 

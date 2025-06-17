@@ -30,7 +30,7 @@ from flask import (
 
 from ..app import db
 from ..auth.decorators import get_current_user
-from ..models import SlideshowItem, Slideshow
+from ..models import Slideshow, SlideshowItem
 
 __all__: list[str] = []
 
