@@ -5,6 +5,7 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 ## Features
 
 - 🖥️ **Web-based Management**: Create and manage slideshows through an intuitive web interface
+- 🎛️ **Modern Admin Interface**: React-based admin panel with real-time updates and responsive design
 - 📺 **Kiosk Display Mode**: Full-screen slideshow display optimized for kiosk devices
 - 🎯 **Multiple Content Types**: Support for images, web pages, and text slides
 - ⏱️ **Flexible Timing**: Customizable display duration for each slide
@@ -12,6 +13,7 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 - 📱 **Responsive Design**: Works on desktop, tablet, and mobile devices
 - 🛠️ **RESTful API**: Full API for programmatic management
 - 🐍 **Modern Python**: Built with Flask, SQLAlchemy, and modern Python practices
+- ⚡ **Modern Frontend**: React 18 with TypeScript, Bootstrap 5, and Vite build system
 
 ## Quick Start
 
@@ -19,6 +21,7 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 
 - Python 3.9 or higher
 - Poetry (for dependency management)
+- Node.js 18.0 or higher and npm (for the React admin interface)
 
 ### Important: Environment Activation
 
@@ -40,8 +43,14 @@ This activates the Poetry virtual environment **once per terminal session** and 
 
 2. **Install dependencies and activate environment:**
    ```bash
+   # Install Python dependencies
    poetry install
    eval $(poetry env activate)
+   
+   # Install Node.js dependencies for React admin interface
+   cd frontend
+   npm install
+   cd ..
    ```
 
 3. **Initialize the database:**
@@ -64,13 +73,42 @@ This activates the Poetry virtual environment **once per terminal session** and 
    python scripts/init_db.py --sample-data
    ```
 
-4. **Start the development server:**
+4. **Build the React admin interface:**
+   ```bash
+   cd frontend
+   npm run build
+   cd ..
+   ```
+
+5. **Start the development server:**
    ```bash
    python run.py
    ```
 
-5. **Open your browser:**
-   Navigate to `http://localhost:5000` to access the application.
+6. **Open your browser:**
+   - **Admin Interface**: http://localhost:5000/admin (login: admin/admin)  
+   - **Legacy Interface**: http://localhost:5000
+   - **API**: http://localhost:5000/api/v1/
+
+### Development Mode (Frontend Hot Reload)
+
+For frontend development with hot reload:
+
+1. **Start the Flask backend:**
+   ```bash
+   eval $(poetry env activate)
+   python run.py
+   ```
+
+2. **In a separate terminal, start the React dev server:**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+
+This provides:
+- **Flask Backend**: http://localhost:5000 (API and display endpoints)
+- **React Frontend**: http://localhost:3000 (Admin interface with hot reload)
 
 ### Database Initialization Details
 
@@ -100,6 +138,21 @@ The sample data includes:
 - **Simple Announcements**: Basic text-only slides for announcements
 
 ## Usage
+
+### Admin Interface (Recommended)
+
+The modern React admin interface provides the best user experience:
+
+1. **Access the admin interface**: http://localhost:5000/admin
+2. **Login**: Use `admin`/`admin` (change in production!)
+3. **Dashboard**: View system statistics and quick actions
+4. **Manage Slideshows**: Create, edit, and organize slideshow content
+5. **Manage Displays**: Monitor display devices and assign slideshows
+6. **View History**: Track slideshow assignment changes
+
+### Legacy Interface
+
+The original Flask-based interface is still available at the root URL.
 
 ### Creating a Slideshow
 
@@ -151,8 +204,20 @@ kiosk-show-replacement/
 │   ├── models/                      # Database models
 │   ├── slideshow/                   # Slideshow management
 │   ├── static/                      # Static assets
+│   │   └── dist/                    # Built React admin interface
 │   ├── templates/                   # Jinja2 templates
 │   └── utils/                       # Utility functions
+├── frontend/                        # React admin interface
+│   ├── src/                         # React source code
+│   │   ├── components/              # React components
+│   │   ├── pages/                   # Page components
+│   │   ├── contexts/                # React contexts
+│   │   ├── hooks/                   # Custom hooks
+│   │   ├── types/                   # TypeScript types
+│   │   └── utils/                   # Frontend utilities
+│   ├── package.json                 # Node.js dependencies
+│   ├── vite.config.ts              # Vite configuration
+│   └── tsconfig.json               # TypeScript configuration
 ├── tests/                           # Test suite
 ├── docs/                            # Documentation
 ├── pyproject.toml                   # Poetry configuration
@@ -161,7 +226,9 @@ kiosk-show-replacement/
 
 ### Running Tests
 
-The project includes three types of tests:
+The project includes comprehensive testing for both backend and frontend:
+
+**Backend Tests:**
 
 ```bash
 # First, activate the environment
@@ -180,10 +247,27 @@ nox -s test-e2e
 nox -s test-all
 ```
 
+**Frontend Tests:**
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm run test:run
+
+# Run tests with UI
+npm run test:ui
+```
+
 **Test Types:**
-- **Unit Tests**: Test individual components in isolation
-- **Integration Tests**: Test component interactions using Flask test client
-- **End-to-End Tests**: Test complete user workflows using browser automation
+- **Backend Unit Tests**: Test individual components in isolation
+- **Backend Integration Tests**: Test component interactions using Flask test client
+- **Backend E2E Tests**: Test complete user workflows using browser automation
+- **Frontend Tests**: Test React components with Vitest and React Testing Library
 
 **E2E Test Requirements:**
 E2E tests require Chrome or Chromium browser installed:
@@ -219,6 +303,8 @@ DATABASE_URL="sqlite:///test.db" nox -s test
 
 ### Code Quality
 
+**Backend Quality Checks:**
+
 ```bash
 # First, activate the environment
 eval $(poetry env activate)
@@ -234,6 +320,21 @@ nox -s type_check
 
 # Run all quality checks
 nox  # Runs format, lint, and test by default
+```
+
+**Frontend Quality Checks:**
+
+```bash
+cd frontend
+
+# Type checking
+npm run type-check
+
+# Build check
+npm run build
+
+# Development server
+npm run dev
 ```
 
 ### Environment Variables

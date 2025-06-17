@@ -4,10 +4,39 @@ Usage
 Web Interface
 -------------
 
-Management Interface
-~~~~~~~~~~~~~~~~~~~~
+The application provides two main interfaces:
 
-The main management interface is available at the root URL of your application (e.g., ``http://localhost:5000``).
+1. **Admin Management Interface** - Modern React-based admin panel
+2. **Display Kiosk Interface** - Full-screen slideshow display
+
+Admin Management Interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The admin interface is a modern React application accessible at ``/admin`` (e.g., ``http://localhost:5000/admin``).
+
+**Features:**
+* Dashboard with system statistics and quick actions
+* Complete slideshow management (create, edit, delete, preview)
+* Display management and assignment
+* Assignment history and audit trails
+* Bulk operations for display management
+* Drag-and-drop slideshow assignment
+* Real-time status monitoring
+
+**Default Login:**
+* Username: ``admin``
+* Password: ``admin`` (change this in production!)
+
+**Navigation:**
+* **Dashboard** - Overview and quick actions
+* **Slideshows** - Manage slideshow content and settings
+* **Displays** - Monitor and manage display devices
+* **Assignment History** - View slideshow assignment audit trail
+
+Management Interface (Legacy)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The legacy management interface is available at the root URL (e.g., ``http://localhost:5000``).
 
 Creating Slideshows
 ~~~~~~~~~~~~~~~~~~~~
