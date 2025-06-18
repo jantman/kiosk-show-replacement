@@ -65,7 +65,8 @@ class TestingConfig(Config):
     """Testing configuration."""
 
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    # Use DATABASE_URL if explicitly set (for integration tests), otherwise in-memory
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", "sqlite:///:memory:")
     WTF_CSRF_ENABLED = False
 
 

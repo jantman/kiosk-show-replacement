@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navbar, Nav, Container, Dropdown } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 
 const Navigation: React.FC = () => {
@@ -13,26 +13,16 @@ const Navigation: React.FC = () => {
   return (
     <Navbar bg="dark" variant="dark" expand="lg" className="mb-4">
       <Container>
-        <LinkContainer to="/admin">
-          <Navbar.Brand>Kiosk Show Replacement</Navbar.Brand>
-        </LinkContainer>
+        <Navbar.Brand as={Link} to="/admin">Kiosk Show Replacement</Navbar.Brand>
         
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="me-auto">
-            <LinkContainer to="/admin">
-              <Nav.Link>Dashboard</Nav.Link>
-            </LinkContainer>
-            <LinkContainer to="/admin/slideshows">
-              <Nav.Link>Slideshows</Nav.Link>
-            </LinkContainer>
-            <LinkContainer to="/admin/displays">
-              <Nav.Link>Displays</Nav.Link>
-            </LinkContainer>
-            <LinkContainer to="/admin/assignment-history">
-              <Nav.Link>Assignment History</Nav.Link>
-            </LinkContainer>
+            <Nav.Link as={Link} to="/admin">Dashboard</Nav.Link>
+            <Nav.Link as={Link} to="/admin/slideshows">Slideshows</Nav.Link>
+            <Nav.Link as={Link} to="/admin/displays">Displays</Nav.Link>
+            <Nav.Link as={Link} to="/admin/assignment-history">Assignment History</Nav.Link>
           </Nav>
           
           <Nav>

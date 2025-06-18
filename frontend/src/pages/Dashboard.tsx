@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Card, Alert, Button, Spinner } from 'react-bootstrap';
-import { LinkContainer } from 'react-router-bootstrap';
+import { Row, Col, Card, Alert, Spinner } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../utils/apiClient';
 import type { Slideshow, Display } from '../types';
@@ -117,21 +117,17 @@ const Dashboard: React.FC = () => {
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Recent Slideshows</h5>
-              <LinkContainer to="/admin/slideshows">
-                <Button variant="outline-primary" size="sm">
-                  View All
-                </Button>
-              </LinkContainer>
+              <Link to="/admin/slideshows" className="btn btn-outline-primary btn-sm">
+                View All
+              </Link>
             </Card.Header>
             <Card.Body>
               {activeSlideShows.length === 0 ? (
                 <div className="text-center text-muted py-3">
                   <p>No active slideshows found.</p>
-                  <LinkContainer to="/admin/slideshows/new">
-                    <Button variant="primary" size="sm">
-                      Create First Slideshow
-                    </Button>
-                  </LinkContainer>
+                  <Link to="/admin/slideshows/new" className="btn btn-primary btn-sm">
+                    Create First Slideshow
+                  </Link>
                 </div>
               ) : (
                 <div className="list-group list-group-flush">
@@ -161,11 +157,9 @@ const Dashboard: React.FC = () => {
           <Card>
             <Card.Header className="d-flex justify-content-between align-items-center">
               <h5 className="mb-0">Display Status</h5>
-              <LinkContainer to="/admin/displays">
-                <Button variant="outline-primary" size="sm">
-                  View All
-                </Button>
-              </LinkContainer>
+              <Link to="/admin/displays" className="btn btn-outline-primary btn-sm">
+                View All
+              </Link>
             </Card.Header>
             <Card.Body>
               {displays.length === 0 ? (
@@ -215,25 +209,19 @@ const Dashboard: React.FC = () => {
             <Card.Body>
               <Row>
                 <Col md={4}>
-                  <LinkContainer to="/admin/slideshows/new">
-                    <Button variant="primary" className="w-100 mb-2">
-                      Create New Slideshow
-                    </Button>
-                  </LinkContainer>
+                  <Link to="/admin/slideshows/new" className="btn btn-primary w-100 mb-2">
+                    Create New Slideshow
+                  </Link>
                 </Col>
                 <Col md={4}>
-                  <LinkContainer to="/admin/slideshows">
-                    <Button variant="outline-primary" className="w-100 mb-2">
-                      Manage Slideshows
-                    </Button>
-                  </LinkContainer>
+                  <Link to="/admin/slideshows" className="btn btn-outline-primary w-100 mb-2">
+                    Manage Slideshows
+                  </Link>
                 </Col>
                 <Col md={4}>
-                  <LinkContainer to="/admin/displays">
-                    <Button variant="outline-secondary" className="w-100 mb-2">
-                      Monitor Displays
-                    </Button>
-                  </LinkContainer>
+                  <Link to="/admin/displays" className="btn btn-outline-secondary w-100 mb-2">
+                    Monitor Displays
+                  </Link>
                 </Col>
               </Row>
             </Card.Body>
