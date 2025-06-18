@@ -111,6 +111,10 @@ Testing
 
 The project uses pytest for testing with three types of tests:
 
+1. **Unit Tests** (``tests/unit/``): Test individual functions and classes in isolation
+2. **Integration Tests** (``tests/integration/``): Full-stack browser tests of React frontend + Flask backend
+3. **End-to-End Tests** (``tests/e2e/``): Browser tests of Flask server-rendered pages
+
 **Important**: First activate your Poetry environment in any new terminal session:
 
 .. code-block:: bash
@@ -129,63 +133,76 @@ Located in ``tests/unit/``, these test individual functions and classes in isola
 Integration Tests
 ~~~~~~~~~~~~~~~~~
 
-Located in ``tests/integration/``, these test the interaction between components and complete user workflows using Flask's test client.
+Located in ``tests/integration/``, these test the complete React frontend + Flask backend integration through a real browser using Playwright.
 
 **What Integration Tests Cover:**
 
-* **Component Integration**: How different parts of your system work together (API + Database, Routes + Templates, Display + Models)
-* **Complete User Workflows**: Full user journeys from start to finish, simulating real user interactions
-* **Cross-system Validation**: Changes verified across multiple interfaces (Web UI + API + Database)
-* **Business Logic**: End-to-end business workflows and user experience flows
+* **Full-Stack Integration**: React frontend communicating with Flask backend through real HTTP requests
+* **Real Browser Testing**: Uses Playwright to control system Chrome/Chromium browser
+* **Complete User Workflows**: Full user journeys from login to dashboard interaction
+* **Authentication Integration**: Tests session-based authentication across frontend and backend
+* **API Communication**: Validates REST API endpoints work correctly with React frontend
+* **Database Integration**: Tests data persistence across the full application stack
 
 **Key Characteristics:**
 
-* Use Flask's test client to simulate HTTP requests
-* Test multiple components working together in realistic scenarios
-* Verify both technical correctness and user experience
-* Include multi-step workflows (create → edit → view → delete)
-* Test different content types and user scenarios
+* Use Playwright to automate a real Chrome/Chromium browser
+* Start both Flask backend (port 5000) and Vite frontend (port 3001) servers
+* Test actual user interactions (clicking, typing, form submission)
+* Verify complete authentication workflows and dashboard functionality
+* Include multi-step user journeys that span multiple application components
+* Test real-world scenarios that users actually experience
 
 **Examples:**
 
-* Complete slideshow creation workflow (homepage → create → add slides → preview → verify)
-* User management workflows (registration → login → content management)
-* Display management (registration → assignment → playback → monitoring)
-* API integration with database persistence and template rendering
+* Complete login workflow (visit frontend → authenticate → access dashboard → see content)
+* Frontend-backend authentication integration (session cookies, API calls)
+* Dashboard data loading from Flask backend APIs
+* User interface responsiveness and error handling
 
 .. code-block:: bash
 
    nox -s test-integration
 
+**System Requirements for Integration Tests:**
+
+Integration tests require a system-installed Chrome or Chromium browser and Node.js for the frontend development server. The test framework automatically detects and uses the first available browser from these common locations:
+
+* ``/usr/bin/google-chrome-stable`` (Google Chrome on most Linux distributions)
+* ``/usr/bin/chromium-browser`` (Chromium on Ubuntu/Debian)
+* ``/usr/bin/google-chrome`` (Alternative Chrome location)
+* ``/usr/bin/chromium`` (Chromium on Arch/Fedora)
+
 End-to-End Tests
 ~~~~~~~~~~~~~~~~
 
-Located in ``tests/e2e/``, these test complete user workflows using Playwright browser automation with a live Flask server.
+Located in ``tests/e2e/``, these test complete user workflows using Playwright browser automation with a live Flask server (backend-only, no React frontend).
 
 **What E2E Tests Cover:**
 
-* **Live Server Testing**: Tests run against a real Flask server instance
+* **Flask Server Testing**: Tests run against a live Flask server instance with traditional Jinja2 templates
 * **Browser Automation**: Use Playwright to control a real Chromium browser
-* **Real User Interactions**: Click buttons, fill forms, navigate pages like a real user
-* **Authentication Workflows**: Complete login/logout cycles
-* **Cross-page Navigation**: Verify navigation between different pages works correctly
+* **Server-Rendered Pages**: Test traditional Flask views and forms (non-React pages)
+* **Basic User Interactions**: Click buttons, fill forms, navigate pages like a real user
+* **Authentication Workflows**: Complete login/logout cycles using Flask's built-in auth
+* **Cross-page Navigation**: Verify navigation between different Flask template pages
 * **Visual Verification**: Screenshots and videos captured on test failures
 
 **Key Characteristics:**
 
 * Use Playwright to control a real browser (Chromium)
-* Test against a live Flask server with real HTTP requests
-* Verify complete user workflows from start to finish
+* Test against a live Flask server with server-rendered templates
+* Focus on traditional Flask web pages (not the React admin interface)
+* Verify backend-only workflows and basic web functionality
 * Include visual feedback (screenshots/videos on failure)
-* Test actual browser behavior including JavaScript execution
-* Verify responsive design and browser compatibility
+* Test browser behavior for server-rendered content
 
 **Examples:**
 
-* Complete login workflow (visit site → see login → authenticate → access dashboard)
-* Slideshow management workflow (login → create slideshow → add slides → preview)
-* Display management workflow (login → register display → assign slideshow → verify)
-* Responsive design verification across different viewport sizes
+* Basic server access and Flask template rendering
+* Traditional Flask form submission and validation
+* Server-side authentication and session management
+* Flask route navigation and error handling
 
 .. code-block:: bash
 
@@ -260,6 +277,17 @@ Database Testing
 ~~~~~~~~~~~~~~~~
 
 Tests use an in-memory SQLite database for speed. The test database is automatically created and destroyed for each test session.
+
+Test Type Summary
+~~~~~~~~~~~~~~~~~
+
+**When to use each test type:**
+
+* **Unit Tests** (``nox -s test``): Testing individual functions, classes, or small components in isolation. Fast and focused.
+* **Integration Tests** (``nox -s test-integration``): Testing the complete React + Flask application stack through a real browser. Use for validating user experiences and frontend-backend integration.
+* **E2E Tests** (``nox -s test-e2e``): Testing Flask server-rendered pages (non-React) through a browser. Use for basic server functionality and traditional web page testing.
+
+**Test execution speed:** Unit < E2E < Integration (Integration tests are slowest due to starting both servers)
 
 Project Structure
 -----------------
