@@ -794,8 +794,6 @@ class TestAPIAuthenticationEndpoints:
         # This test simulates the scenario where two requests try to create
         # the same user simultaneously
         with app.app_context():
-            from unittest.mock import patch
-
             from kiosk_show_replacement.models import User, db
 
             # Create a user manually to simulate race condition

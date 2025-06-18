@@ -6,7 +6,7 @@ any additional setup needed for full-stack integration testing.
 """
 
 import pytest
-from playwright.sync_api import Browser, BrowserContext, Page
+from playwright.sync_api import Page
 
 
 @pytest.fixture(scope="session")

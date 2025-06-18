@@ -10,7 +10,6 @@ Run with: nox -s test-integration
 
 import os
 import subprocess
-import tempfile
 import threading
 import time
 from pathlib import Path
@@ -180,7 +179,10 @@ def test_database(project_root):
         [
             "bash",
             "-c",
-            f"cd {project_root} && eval $(poetry env activate) && python scripts/init_db.py",
+            (
+                f"cd {project_root} && eval $(poetry env activate) && "
+                "python scripts/init_db.py"
+            ),
         ],
         env=env,
         capture_output=True,
@@ -320,9 +322,10 @@ class TestFullUserExperience:
                 print(f"⚠️ Indicator check failed: {e}")
                 continue
 
-        assert (
-            dashboard_visible
-        ), f"Dashboard should be visible after login. Checked indicators but none were visible."
+        assert dashboard_visible, (
+            "Dashboard should be visible after login. "
+            "Checked indicators but none were visible."
+        )
 
         print(f"✓ Dashboard is visible with indicators: {visible_indicators}")
 

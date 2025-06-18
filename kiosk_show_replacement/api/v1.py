@@ -900,7 +900,8 @@ def create_assignment_history() -> Tuple[Response, int]:
         db.session.commit()
 
         current_app.logger.info(
-            f"User {current_user.username} created assignment history record for display {display.name}"
+            f"User {current_user.username} created assignment history record "
+            f"for display {display.name}"
         )
 
         return api_response(
