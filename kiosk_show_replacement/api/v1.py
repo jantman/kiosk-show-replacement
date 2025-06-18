@@ -605,7 +605,7 @@ def update_display(display_id: int) -> Tuple[Response, int]:
     """Update display configuration including slideshow assignment."""
     try:
         from ..models import AssignmentHistory
-        
+
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -628,25 +628,25 @@ def update_display(display_id: int) -> Tuple[Response, int]:
             display.location = data["location"]
         if "description" in data:
             display.description = data["description"]
-        
+
         # Handle slideshow assignment
         slideshow_assignment_changed = False
         if "current_slideshow_id" in data:
             new_slideshow_id = data["current_slideshow_id"]
-            
+
             # Validate slideshow if provided
             if new_slideshow_id is not None:
                 slideshow = Slideshow.query.get(new_slideshow_id)
                 if not slideshow or not slideshow.is_active:
                     return api_error("Slideshow not found or inactive", 404)
-            
+
             # Check if assignment actually changed
             if previous_slideshow_id != new_slideshow_id:
                 display.current_slideshow_id = new_slideshow_id
                 slideshow_assignment_changed = True
 
         display.updated_by_id = current_user.id
-        
+
         # Create assignment history record if slideshow assignment changed
         if slideshow_assignment_changed:
             history_record = AssignmentHistory.create_assignment_record(
@@ -654,7 +654,7 @@ def update_display(display_id: int) -> Tuple[Response, int]:
                 previous_slideshow_id=previous_slideshow_id,
                 new_slideshow_id=display.current_slideshow_id,
                 created_by_id=current_user.id,
-                reason="Updated via display configuration"
+                reason="Updated via display configuration",
             )
             if history_record:
                 db.session.add(history_record)
@@ -685,7 +685,7 @@ def assign_slideshow_to_display(display_name: str) -> Tuple[Response, int]:
     """Assign a slideshow to a display."""
     try:
         from ..models import AssignmentHistory
-        
+
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -701,7 +701,7 @@ def assign_slideshow_to_display(display_name: str) -> Tuple[Response, int]:
         # Store previous slideshow ID for history tracking
         previous_slideshow_id = display.current_slideshow_id
         new_slideshow_id = data.get("slideshow_id")
-        
+
         # Validate slideshow if provided
         if new_slideshow_id is not None:
             slideshow = Slideshow.query.get(new_slideshow_id)
@@ -711,16 +711,16 @@ def assign_slideshow_to_display(display_name: str) -> Tuple[Response, int]:
         # Update display assignment
         display.current_slideshow_id = new_slideshow_id
         display.updated_by_id = current_user.id
-        
+
         # Create assignment history record
         history_record = AssignmentHistory.create_assignment_record(
             display_id=display.id,
             previous_slideshow_id=previous_slideshow_id,
             new_slideshow_id=new_slideshow_id,
             created_by_id=current_user.id,
-            reason=data.get("reason", "Direct slideshow assignment")
+            reason=data.get("reason", "Direct slideshow assignment"),
         )
-        
+
         if history_record:
             db.session.add(history_record)
 
@@ -787,7 +787,7 @@ def get_display_assignment_history(display_id: int) -> Tuple[Response, int]:
     """Get assignment history for a specific display."""
     try:
         from ..models import AssignmentHistory
-        
+
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -798,18 +798,19 @@ def get_display_assignment_history(display_id: int) -> Tuple[Response, int]:
 
         # Get assignment history ordered by most recent first
         history = (
-            AssignmentHistory.query
-            .filter_by(display_id=display_id)
+            AssignmentHistory.query.filter_by(display_id=display_id)
             .order_by(AssignmentHistory.created_at.desc())
             .all()
         )
 
         history_data = [record.to_dict() for record in history]
-        
+
         return api_response(history_data)
 
     except Exception as e:
-        current_app.logger.error(f"Error fetching assignment history for display {display_id}: {e}")
+        current_app.logger.error(
+            f"Error fetching assignment history for display {display_id}: {e}"
+        )
         return api_error("Failed to fetch assignment history", 500)
 
 
@@ -819,17 +820,17 @@ def get_all_assignment_history() -> Tuple[Response, int]:
     """Get assignment history for all displays with optional filtering."""
     try:
         from ..models import AssignmentHistory
-        
+
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
 
         # Get query parameters for filtering
-        limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
-        display_id = request.args.get('display_id', type=int)
-        action = request.args.get('action')
-        user_id = request.args.get('user_id', type=int)
+        limit = request.args.get("limit", 50, type=int)
+        offset = request.args.get("offset", 0, type=int)
+        display_id = request.args.get("display_id", type=int)
+        action = request.args.get("action")
+        user_id = request.args.get("user_id", type=int)
 
         # Build query
         query = AssignmentHistory.query
@@ -844,15 +845,14 @@ def get_all_assignment_history() -> Tuple[Response, int]:
 
         # Order by most recent first and apply pagination
         history = (
-            query
-            .order_by(AssignmentHistory.created_at.desc())
+            query.order_by(AssignmentHistory.created_at.desc())
             .offset(offset)
             .limit(limit)
             .all()
         )
 
         history_data = [record.to_dict() for record in history]
-        
+
         return api_response(history_data)
 
     except Exception as e:
@@ -866,7 +866,7 @@ def create_assignment_history() -> Tuple[Response, int]:
     """Create a new assignment history record."""
     try:
         from ..models import AssignmentHistory
-        
+
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -893,7 +893,7 @@ def create_assignment_history() -> Tuple[Response, int]:
             new_slideshow_id=data.get("new_slideshow_id"),
             action=data["action"],
             reason=data.get("reason"),
-            created_by_id=current_user.id
+            created_by_id=current_user.id,
         )
 
         db.session.add(history_record)
@@ -902,8 +902,12 @@ def create_assignment_history() -> Tuple[Response, int]:
         current_app.logger.info(
             f"User {current_user.username} created assignment history record for display {display.name}"
         )
-        
-        return api_response(history_record.to_dict(), "Assignment history record created successfully", 201)
+
+        return api_response(
+            history_record.to_dict(),
+            "Assignment history record created successfully",
+            201,
+        )
 
     except ValueError as e:
         db.session.rollback()
@@ -1097,28 +1101,29 @@ def api_status() -> Tuple[Response, int]:
 def api_login() -> Tuple[Response, int]:
     """API login endpoint that accepts JSON data."""
     data = request.get_json()
-    
+
     if not data:
         return api_error("No JSON data provided", 400)
-    
+
     username = data.get("username", "").strip()
     password = data.get("password", "")
-    
+
     # Basic validation
     if not username:
         return api_error("Username is required", 400)
-    
+
     if not password:
         return api_error("Password is required", 400)
-    
+
     # Permissive authentication logic (same as web interface)
     try:
         from datetime import datetime, timezone
+
         from sqlalchemy.exc import IntegrityError
-        
+
         # Check if user already exists
         user = User.query.filter_by(username=username).first()
-        
+
         if user:
             # For existing users, accept any password but update their password hash
             # In permissive mode, we accept any password but store the latest one
@@ -1126,7 +1131,7 @@ def api_login() -> Tuple[Response, int]:
                 user.set_password(password)
                 user.updated_at = datetime.now(timezone.utc)
                 db.session.commit()
-                
+
                 current_app.logger.info(
                     "API user password updated during login",
                     extra={
@@ -1135,16 +1140,16 @@ def api_login() -> Tuple[Response, int]:
                         "action": "api_password_update",
                     },
                 )
-            
+
             # Log successful login
             user.last_login_at = datetime.now(timezone.utc)
             db.session.commit()
-            
+
             # Set up session
             session["user_id"] = user.id
             session["username"] = user.username
             session["is_admin"] = user.is_admin
-            
+
             current_app.logger.info(
                 "API user login successful",
                 extra={
@@ -1154,7 +1159,7 @@ def api_login() -> Tuple[Response, int]:
                     "ip_address": request.remote_addr,
                 },
             )
-            
+
             return api_response(user.to_dict(), "Login successful")
         else:
             # Create new user (permissive authentication)
@@ -1164,19 +1169,19 @@ def api_login() -> Tuple[Response, int]:
                 is_admin=True,  # All users get admin privileges in permissive mode
             )
             new_user.set_password(password)
-            
+
             db.session.add(new_user)
             db.session.commit()
-            
+
             # Log successful login
             new_user.last_login_at = datetime.now(timezone.utc)
             db.session.commit()
-            
+
             # Set up session
             session["user_id"] = new_user.id
             session["username"] = new_user.username
             session["is_admin"] = new_user.is_admin
-            
+
             current_app.logger.info(
                 "API new user created and logged in",
                 extra={
@@ -1186,9 +1191,9 @@ def api_login() -> Tuple[Response, int]:
                     "ip_address": request.remote_addr,
                 },
             )
-            
+
             return api_response(new_user.to_dict(), "User created and login successful")
-            
+
     except ValueError as e:
         # Handle validation errors (e.g., username too long, invalid email)
         db.session.rollback()
@@ -1201,7 +1206,7 @@ def api_login() -> Tuple[Response, int]:
             },
         )
         return api_error(str(e), 400)
-        
+
     except IntegrityError:
         # Handle race condition where user was created between check and insert
         db.session.rollback()
@@ -1219,9 +1224,9 @@ def api_login() -> Tuple[Response, int]:
             session["user_id"] = user.id
             session["username"] = user.username
             session["is_admin"] = user.is_admin
-            
+
             return api_response(user.to_dict(), "Login successful")
-    
+
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(
@@ -1232,7 +1237,7 @@ def api_login() -> Tuple[Response, int]:
                 "error": str(e),
             },
         )
-    
+
     return api_error("Login failed. Please try again.", 500)
 
 

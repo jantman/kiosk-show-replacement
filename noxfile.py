@@ -38,33 +38,33 @@ def lint(session):
 def lint_frontend(session):
     """Lint frontend code with ESLint and TypeScript."""
     import os
-    
+
     frontend_dir = "frontend"
-    
+
     # Check if frontend directory exists
     if not os.path.exists(frontend_dir):
         session.log("Frontend directory not found, skipping frontend linting")
         return
-    
+
     # Check if Node.js and npm are available
     try:
         session.run("node", "--version", external=True)
         session.run("npm", "--version", external=True)
     except Exception as e:
         session.error(f"Node.js/npm not available: {e}")
-    
+
     # Change to frontend directory
     session.chdir(frontend_dir)
-    
+
     # Install dependencies if node_modules doesn't exist
     if not os.path.exists("node_modules"):
         session.log("Installing frontend dependencies...")
         session.run("npm", "install", external=True)
-    
+
     # Run TypeScript type checking
     session.log("Running TypeScript type checking...")
     session.run("npm", "run", "type-check", external=True)
-    
+
     # Run ESLint
     session.log("Running ESLint...")
     session.run("npm", "run", "lint", external=True)
@@ -74,20 +74,20 @@ def lint_frontend(session):
 def lint_all(session):
     """Lint all code: backend (Python) and frontend (TypeScript/JavaScript)."""
     import os
-    
+
     session.log("=== Running Comprehensive Linting ===")
-    
+
     # 1. Lint backend code
     session.log("1. Linting backend code...")
     session.notify("lint")
-    
+
     # 2. Lint frontend code if available
     if os.path.exists("frontend"):
         session.log("2. Linting frontend code...")
         session.notify("lint-frontend")
     else:
         session.log("2. Skipping frontend linting (frontend directory not found)")
-    
+
     session.log("=== Comprehensive Linting Complete ===")
 
 
@@ -122,13 +122,8 @@ def test(session):
     )
 
 
-@nox.session(python=DEFAULT_PYTHON, name="test-integration")
-def test_integration(session):
-    """Run full-stack integration tests with React frontend + Flask backend through browser."""
-    session.install("-e", ".")
-    session.install("pytest", "pytest-flask", "playwright", "pytest-playwright", "requests")
-
-    # Find system Chrome/Chromium executable
+def _find_system_chrome() -> str | None:
+    """Find system Chrome/Chromium executable."""
     import os
 
     chrome_paths = [
@@ -138,28 +133,46 @@ def test_integration(session):
         "/usr/bin/chromium",  # Chromium on Arch/Fedora
     ]
 
-    chrome_path = None
     for path in chrome_paths:
         if os.path.exists(path):
-            chrome_path = path
-            break
+            return path
+    return None
+
+
+@nox.session(python=DEFAULT_PYTHON, name="test-integration")
+def test_integration(session):
+    """Run integration tests: React frontend + Flask backend through real browser."""
+    session.install("-e", ".")
+    session.install(
+        "pytest", "pytest-flask", "playwright", "pytest-playwright", "requests"
+    )
+
+    chrome_path = _find_system_chrome()
 
     if chrome_path:
         session.log(f"Using system Chrome at: {chrome_path}")
-        # Use browser channel to force system Chrome instead of managed browsers
+        # Set environment variable to use system Chrome
+        session.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] = chrome_path
+
+        # Run full-stack integration tests
         session.run(
             "pytest",
             TEST_DIR + "/integration",
-            "--browser-channel",
-            "chrome",
+            "--browser",
+            "chromium",
+            "--video",
+            "retain-on-failure",
             "--screenshot",
             "only-on-failure",
             "-v",
+            "-s",  # Don't capture output so we can see print statements
             *session.posargs,
         )
     else:
         session.log("Warning: No system Chrome found. Integration tests may fail.")
-        session.log(f"Checked paths: {', '.join(chrome_paths)}")
+        session.log(
+            "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
+        )
         # Try with the 'chrome' channel which might find system Chrome
         session.run(
             "pytest",
@@ -170,33 +183,19 @@ def test_integration(session):
             "retain-on-failure",
             "--screenshot",
             "only-on-failure",
-            "--headless",
             "-v",
+            "-s",
             *session.posargs,
         )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-e2e")
 def test_e2e(session):
-    """Run end-to-end tests with Playwright browser automation using system Chrome."""
+    """Run end-to-end tests: Flask server-rendered pages through browser automation."""
     session.install("-e", ".")
     session.install("pytest", "pytest-flask", "playwright", "pytest-playwright")
 
-    # Find system Chrome/Chromium executable
-    import os
-
-    chrome_paths = [
-        "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
-        "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
-        "/usr/bin/google-chrome",  # Alternative Chrome location
-        "/usr/bin/chromium",  # Chromium on Arch/Fedora
-    ]
-
-    chrome_path = None
-    for path in chrome_paths:
-        if os.path.exists(path):
-            chrome_path = path
-            break
+    chrome_path = _find_system_chrome()
 
     if chrome_path:
         session.log(f"Using system Chrome at: {chrome_path}")
@@ -218,7 +217,9 @@ def test_e2e(session):
         )
     else:
         session.log("Warning: No system Chrome found. E2E tests may fail.")
-        session.log(f"Checked paths: {', '.join(chrome_paths)}")
+        session.log(
+            "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
+        )
         # Try with the 'chrome' channel which might find system Chrome
         session.run(
             "pytest",
@@ -236,14 +237,14 @@ def test_e2e(session):
 
 @nox.session(python=DEFAULT_PYTHON, name="test-all")
 def test_all(session):
-    """Run all backend tests (unit, integration) with coverage. Frontend and E2E tests run separately."""
+    """Run all backend tests (unit only) with coverage. Integration and E2E tests run separately."""
     session.install("-e", ".")
     session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
 
-    # Run all backend tests with combined coverage
+    # Run only unit tests with coverage
     session.run(
         "pytest",
-        TEST_DIR,
+        TEST_DIR + "/unit",
         "--cov=" + PACKAGE_DIR,
         "--cov-report=term-missing",
         "--cov-report=html:htmlcov",
@@ -255,30 +256,35 @@ def test_all(session):
 
 @nox.session(python=DEFAULT_PYTHON, name="test-comprehensive")
 def test_comprehensive(session):
-    """Run all tests: backend (unit, integration), frontend, and E2E tests."""
+    """Run all tests: backend unit tests, integration tests, frontend tests, and E2E tests."""
     import os
-    
+
     session.log("=== Running Comprehensive Test Suite ===")
-    
-    # 1. Run backend tests (unit + integration)
-    session.log("1. Running backend tests...")
+
+    # 1. Run backend unit tests
+    session.log("1. Running backend unit tests...")
     session.notify("test-all")
-    
-    # 2. Run frontend tests if available
+
+    # 2. Run integration tests
+    session.log("2. Running integration tests...")
+    session.notify("test-integration")
+
+    # 3. Run frontend tests if available
     if os.path.exists("frontend"):
-        session.log("2. Running frontend tests...")
+        session.log("3. Running frontend tests...")
         session.notify("test-frontend")
     else:
-        session.log("2. Skipping frontend tests (frontend directory not found)")
-    
-    # 3. Run E2E tests
-    session.log("3. Running E2E tests...")
+        session.log("3. Skipping frontend tests (frontend directory not found)")
+
+    # 4. Run E2E tests
+    session.log("4. Running E2E tests...")
     session.notify("test-e2e")
-    
+
     session.log("=== Comprehensive Test Suite Complete ===")
     session.log("Results:")
-    session.log("- Backend tests: Check output above")
-    session.log("- Frontend tests: Check output above") 
+    session.log("- Backend unit tests: Check output above")
+    session.log("- Integration tests: Check output above")
+    session.log("- Frontend tests: Check output above")
     session.log("- E2E tests: Check output above")
 
 
@@ -287,29 +293,29 @@ def test_frontend(session):
     """Run frontend tests with Vitest."""
     import os
     import subprocess
-    
+
     frontend_dir = "frontend"
-    
+
     # Check if frontend directory exists
     if not os.path.exists(frontend_dir):
         session.log("Frontend directory not found, skipping frontend tests")
         return
-    
+
     # Check if Node.js and npm are available
     try:
         session.run("node", "--version", external=True)
         session.run("npm", "--version", external=True)
     except Exception as e:
         session.error(f"Node.js/npm not available: {e}")
-    
+
     # Change to frontend directory
     session.chdir(frontend_dir)
-    
+
     # Install dependencies if node_modules doesn't exist
     if not os.path.exists("node_modules"):
         session.log("Installing frontend dependencies...")
         session.run("npm", "install", external=True)
-    
+
     # Run frontend tests
     session.log("Running frontend tests with Vitest...")
     session.run("npm", "run", "test:run", external=True)
@@ -319,29 +325,29 @@ def test_frontend(session):
 def test_frontend_watch(session):
     """Run frontend tests in watch mode with Vitest."""
     import os
-    
+
     frontend_dir = "frontend"
-    
+
     # Check if frontend directory exists
     if not os.path.exists(frontend_dir):
         session.log("Frontend directory not found, skipping frontend tests")
         return
-    
+
     # Check if Node.js and npm are available
     try:
         session.run("node", "--version", external=True)
         session.run("npm", "--version", external=True)
     except Exception as e:
         session.error(f"Node.js/npm not available: {e}")
-    
+
     # Change to frontend directory
     session.chdir(frontend_dir)
-    
+
     # Install dependencies if node_modules doesn't exist
     if not os.path.exists("node_modules"):
         session.log("Installing frontend dependencies...")
         session.run("npm", "install", external=True)
-    
+
     # Run frontend tests in watch mode
     session.log("Running frontend tests in watch mode...")
     session.run("npm", "run", "test", external=True)
@@ -417,7 +423,7 @@ def clean(session):
 def dev_setup(session):
     """Set up development environment."""
     import os
-    
+
     # Install Python dependencies
     session.install("-e", ".")
     session.install(
@@ -431,10 +437,10 @@ def dev_setup(session):
         "pytest-flask",
         "pytest-mock",
     )
-    
+
     # Initialize database
     session.run("kiosk-init-db", "--sample-data")
-    
+
     # Set up frontend dependencies if frontend directory exists
     if os.path.exists("frontend"):
         session.log("Setting up frontend dependencies...")
@@ -446,7 +452,7 @@ def dev_setup(session):
             session.log(f"Warning: Could not install frontend dependencies: {e}")
             session.log("Make sure Node.js and npm are installed")
         session.chdir("..")
-    
+
     session.log("Development environment setup complete!")
     session.log("Available commands:")
     session.log("  Backend:")
@@ -461,68 +467,9 @@ def dev_setup(session):
         session.log("    nox -s test-frontend   # Run frontend tests")
         session.log("    nox -s test-frontend-watch # Run frontend tests in watch mode")
     session.log("  Comprehensive:")
-    session.log("    nox -s test-comprehensive # Run all tests (backend + frontend + E2E)")
-
-
-@nox.session(python=DEFAULT_PYTHON, name="test-integration-full-stack")
-def test_integration_full_stack(session):
-    """Run full-stack integration tests with React frontend + Flask backend using system Chrome."""
-    session.install("-e", ".")
-    session.install("pytest", "pytest-flask", "playwright", "pytest-playwright", "requests")
-
-    # Find system Chrome/Chromium executable
-    import os
-
-    chrome_paths = [
-        "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
-        "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
-        "/usr/bin/google-chrome",  # Alternative Chrome location
-        "/usr/bin/chromium",  # Chromium on Arch/Fedora
-    ]
-
-    chrome_path = None
-    for path in chrome_paths:
-        if os.path.exists(path):
-            chrome_path = path
-            break
-
-    if chrome_path:
-        session.log(f"Using system Chrome at: {chrome_path}")
-        # Set environment variable to use system Chrome
-        session.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] = chrome_path
-
-        # Run full-stack integration tests
-        session.run(
-            "pytest",
-            TEST_DIR + "/integration/test_full_user_experience.py",
-            "--browser",
-            "chromium",
-            "--video",
-            "retain-on-failure",
-            "--screenshot",
-            "only-on-failure",
-            # Remove --headless to run in headed mode for debugging
-            "-v",
-            "-s",  # Don't capture output so we can see print statements
-            *session.posargs,
-        )
-    else:
-        session.log("Warning: No system Chrome found. Full-stack integration tests may fail.")
-        session.log(f"Checked paths: {', '.join(chrome_paths)}")
-        # Try with the 'chrome' channel which might find system Chrome
-        session.run(
-            "pytest",
-            TEST_DIR + "/integration/test_full_user_experience.py",
-            "--browser-channel",
-            "chrome",
-            "--video",
-            "retain-on-failure",
-            "--screenshot",
-            "only-on-failure",
-            "-v",
-            "-s",
-            *session.posargs,
-        )
+    session.log(
+        "    nox -s test-comprehensive # Run all tests (backend + frontend + E2E)"
+    )
 
 
 # Default session when no session is specified

@@ -23,7 +23,7 @@ def browser_context_args(browser_context_args):
     }
 
 
-@pytest.fixture(scope="session") 
+@pytest.fixture(scope="session")
 def browser_type_launch_args(browser_type_launch_args):
     """Configure browser launch arguments for integration tests."""
     return {
@@ -45,9 +45,9 @@ def page(page: Page):
     # Set longer timeout for integration tests since we're starting servers
     page.set_default_timeout(30000)  # 30 seconds
     page.set_default_navigation_timeout(30000)  # 30 seconds
-    
+
     # Enable console logging to help with debugging
     page.on("console", lambda msg: print(f"🌐 Browser console: {msg.text}"))
     page.on("pageerror", lambda exc: print(f"🚨 Browser error: {exc}"))
-    
+
     return page

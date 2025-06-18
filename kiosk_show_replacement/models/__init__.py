@@ -551,7 +551,7 @@ class AssignmentHistory(db.Model):
     new_slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=True)
     action = Column(String(50), nullable=False)  # 'assign', 'unassign', 'change'
     reason = Column(Text, nullable=True)  # Optional reason for the change
-    
+
     # Audit fields
     created_at = Column(
         DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
@@ -561,7 +561,9 @@ class AssignmentHistory(db.Model):
     # Relationships
     display = relationship("Display", backref="assignment_history")
     previous_slideshow = relationship(
-        "Slideshow", foreign_keys=[previous_slideshow_id], backref="previous_assignments"
+        "Slideshow",
+        foreign_keys=[previous_slideshow_id],
+        backref="previous_assignments",
     )
     new_slideshow = relationship(
         "Slideshow", foreign_keys=[new_slideshow_id], backref="new_assignments"
@@ -586,14 +588,20 @@ class AssignmentHistory(db.Model):
             "display_id": self.display_id,
             "display_name": self.display.name if self.display else None,
             "previous_slideshow_id": self.previous_slideshow_id,
-            "previous_slideshow_name": self.previous_slideshow.name if self.previous_slideshow else None,
+            "previous_slideshow_name": (
+                self.previous_slideshow.name if self.previous_slideshow else None
+            ),
             "new_slideshow_id": self.new_slideshow_id,
-            "new_slideshow_name": self.new_slideshow.name if self.new_slideshow else None,
+            "new_slideshow_name": (
+                self.new_slideshow.name if self.new_slideshow else None
+            ),
             "action": self.action,
             "reason": self.reason,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "created_by_id": self.created_by_id,
-            "created_by_username": self.created_by.username if self.created_by else None,
+            "created_by_username": (
+                self.created_by.username if self.created_by else None
+            ),
         }
 
     @classmethod
@@ -603,7 +611,7 @@ class AssignmentHistory(db.Model):
         previous_slideshow_id: Optional[int],
         new_slideshow_id: Optional[int],
         created_by_id: Optional[int] = None,
-        reason: Optional[str] = None
+        reason: Optional[str] = None,
     ) -> "AssignmentHistory":
         """Create an assignment history record based on the change type."""
         # Determine action type
@@ -623,7 +631,7 @@ class AssignmentHistory(db.Model):
             new_slideshow_id=new_slideshow_id,
             action=action,
             reason=reason,
-            created_by_id=created_by_id
+            created_by_id=created_by_id,
         )
 
 
