@@ -46,8 +46,8 @@ const Dashboard: React.FC = () => {
   };
 
   const activeSlideShows = slideshows.filter(s => s.is_active);
-  const onlineDisplays = displays.filter(d => d.online);
-  const assignedDisplays = displays.filter(d => d.assigned_slideshow_id);
+  const onlineDisplays = displays.filter(d => d.is_online);
+  const assignedDisplays = displays.filter(d => d.current_slideshow_id);
 
   if (loading) {
     return (
@@ -186,9 +186,9 @@ const Dashboard: React.FC = () => {
                           </small>
                         </div>
                         <span 
-                          className={`badge ${display.online ? 'bg-success' : 'bg-secondary'}`}
+                          className={`badge ${display.is_online ? 'bg-success' : 'bg-secondary'}`}
                         >
-                          {display.online ? 'Online' : 'Offline'}
+                          {display.is_online ? 'Online' : 'Offline'}
                         </span>
                       </div>
                       {display.assigned_slideshow && (

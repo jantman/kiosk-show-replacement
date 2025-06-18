@@ -15,7 +15,7 @@ from flask import Blueprint, Response, current_app, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
 
 from ..auth.decorators import get_current_user
-from ..models import Display, Slideshow, SlideshowItem, db
+from ..models import Display, Slideshow, SlideshowItem, User, db
 
 # Create API v1 blueprint
 api_v1_bp = Blueprint("api_v1", __name__)
@@ -1091,6 +1091,149 @@ def api_status() -> Tuple[Response, int]:
 # =============================================================================
 # Authentication API Endpoints
 # =============================================================================
+
+
+@api_v1_bp.route("/auth/login", methods=["POST"])
+def api_login() -> Tuple[Response, int]:
+    """API login endpoint that accepts JSON data."""
+    data = request.get_json()
+    
+    if not data:
+        return api_error("No JSON data provided", 400)
+    
+    username = data.get("username", "").strip()
+    password = data.get("password", "")
+    
+    # Basic validation
+    if not username:
+        return api_error("Username is required", 400)
+    
+    if not password:
+        return api_error("Password is required", 400)
+    
+    # Permissive authentication logic (same as web interface)
+    try:
+        from datetime import datetime, timezone
+        from sqlalchemy.exc import IntegrityError
+        
+        # Check if user already exists
+        user = User.query.filter_by(username=username).first()
+        
+        if user:
+            # For existing users, accept any password but update their password hash
+            # In permissive mode, we accept any password but store the latest one
+            if not user.check_password(password):
+                user.set_password(password)
+                user.updated_at = datetime.now(timezone.utc)
+                db.session.commit()
+                
+                current_app.logger.info(
+                    "API user password updated during login",
+                    extra={
+                        "user_id": user.id,
+                        "username": user.username,
+                        "action": "api_password_update",
+                    },
+                )
+            
+            # Log successful login
+            user.last_login_at = datetime.now(timezone.utc)
+            db.session.commit()
+            
+            # Set up session
+            session["user_id"] = user.id
+            session["username"] = user.username
+            session["is_admin"] = user.is_admin
+            
+            current_app.logger.info(
+                "API user login successful",
+                extra={
+                    "user_id": user.id,
+                    "username": user.username,
+                    "action": "api_login",
+                    "ip_address": request.remote_addr,
+                },
+            )
+            
+            return api_response(user.to_dict(), "Login successful")
+        else:
+            # Create new user (permissive authentication)
+            new_user = User(
+                username=username,
+                email=None,  # Email not required for permissive auth
+                is_admin=True,  # All users get admin privileges in permissive mode
+            )
+            new_user.set_password(password)
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            # Log successful login
+            new_user.last_login_at = datetime.now(timezone.utc)
+            db.session.commit()
+            
+            # Set up session
+            session["user_id"] = new_user.id
+            session["username"] = new_user.username
+            session["is_admin"] = new_user.is_admin
+            
+            current_app.logger.info(
+                "API new user created and logged in",
+                extra={
+                    "user_id": new_user.id,
+                    "username": new_user.username,
+                    "action": "api_user_creation",
+                    "ip_address": request.remote_addr,
+                },
+            )
+            
+            return api_response(new_user.to_dict(), "User created and login successful")
+            
+    except ValueError as e:
+        # Handle validation errors (e.g., username too long, invalid email)
+        db.session.rollback()
+        current_app.logger.warning(
+            "API authentication failed due to validation error",
+            extra={
+                "username": username,
+                "action": "api_validation_error",
+                "error": str(e),
+            },
+        )
+        return api_error(str(e), 400)
+        
+    except IntegrityError:
+        # Handle race condition where user was created between check and insert
+        db.session.rollback()
+        current_app.logger.warning(
+            "User creation failed due to integrity error, retrying",
+            extra={
+                "username": username,
+                "action": "api_user_creation_retry",
+            },
+        )
+        # Try to get the user that was created by another request
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
+            # Set up session
+            session["user_id"] = user.id
+            session["username"] = user.username
+            session["is_admin"] = user.is_admin
+            
+            return api_response(user.to_dict(), "Login successful")
+    
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            "Unexpected error during API authentication",
+            extra={
+                "username": username,
+                "action": "api_authentication_error",
+                "error": str(e),
+            },
+        )
+    
+    return api_error("Login failed. Please try again.", 500)
 
 
 @api_v1_bp.route("/auth/user", methods=["GET"])

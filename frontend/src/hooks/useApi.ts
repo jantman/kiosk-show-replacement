@@ -94,7 +94,7 @@ export const useApi = (): UseApiResult => {
         return await apiClient.getCurrentUser();
       }
       
-      if (url === '/auth/login' && method === 'POST') {
+      if (url === '/api/v1/auth/login' && method === 'POST') {
         const data = JSON.parse(options?.body as string);
         return await apiClient.login(data.username, data.password);
       }
