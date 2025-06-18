@@ -79,6 +79,7 @@ mypy = "^1.6.0"
 types-requests = "^2.32.4.20250611"
 types-flask-cors = "^6.0.0.20250520"
 types-flask-migrate = "^4.1.0.20250112"
+requests = "^2.32.4"
 
 [tool.poetry.group.test.dependencies]
 # Additional testing utilities

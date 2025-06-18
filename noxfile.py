@@ -124,18 +124,56 @@ def test(session):
 
 @nox.session(python=DEFAULT_PYTHON, name="test-integration")
 def test_integration(session):
-    """Run integration tests with pytest."""
+    """Run full-stack integration tests with React frontend + Flask backend through browser."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
+    session.install("pytest", "pytest-flask", "playwright", "pytest-playwright", "requests")
 
-    session.run(
-        "pytest",
-        TEST_DIR + "/integration",
-        "--cov=" + PACKAGE_DIR,
-        "--cov-report=term-missing",
-        "--cov-append",
-        *session.posargs,
-    )
+    # Find system Chrome/Chromium executable
+    import os
+
+    chrome_paths = [
+        "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
+        "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
+        "/usr/bin/google-chrome",  # Alternative Chrome location
+        "/usr/bin/chromium",  # Chromium on Arch/Fedora
+    ]
+
+    chrome_path = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_path = path
+            break
+
+    if chrome_path:
+        session.log(f"Using system Chrome at: {chrome_path}")
+        # Use browser channel to force system Chrome instead of managed browsers
+        session.run(
+            "pytest",
+            TEST_DIR + "/integration",
+            "--browser-channel",
+            "chrome",
+            "--screenshot",
+            "only-on-failure",
+            "-v",
+            *session.posargs,
+        )
+    else:
+        session.log("Warning: No system Chrome found. Integration tests may fail.")
+        session.log(f"Checked paths: {', '.join(chrome_paths)}")
+        # Try with the 'chrome' channel which might find system Chrome
+        session.run(
+            "pytest",
+            TEST_DIR + "/integration",
+            "--browser-channel",
+            "chrome",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
+            "--headless",
+            "-v",
+            *session.posargs,
+        )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-e2e")
@@ -424,6 +462,67 @@ def dev_setup(session):
         session.log("    nox -s test-frontend-watch # Run frontend tests in watch mode")
     session.log("  Comprehensive:")
     session.log("    nox -s test-comprehensive # Run all tests (backend + frontend + E2E)")
+
+
+@nox.session(python=DEFAULT_PYTHON, name="test-integration-full-stack")
+def test_integration_full_stack(session):
+    """Run full-stack integration tests with React frontend + Flask backend using system Chrome."""
+    session.install("-e", ".")
+    session.install("pytest", "pytest-flask", "playwright", "pytest-playwright", "requests")
+
+    # Find system Chrome/Chromium executable
+    import os
+
+    chrome_paths = [
+        "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
+        "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
+        "/usr/bin/google-chrome",  # Alternative Chrome location
+        "/usr/bin/chromium",  # Chromium on Arch/Fedora
+    ]
+
+    chrome_path = None
+    for path in chrome_paths:
+        if os.path.exists(path):
+            chrome_path = path
+            break
+
+    if chrome_path:
+        session.log(f"Using system Chrome at: {chrome_path}")
+        # Set environment variable to use system Chrome
+        session.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] = chrome_path
+
+        # Run full-stack integration tests
+        session.run(
+            "pytest",
+            TEST_DIR + "/integration/test_full_user_experience.py",
+            "--browser",
+            "chromium",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
+            # Remove --headless to run in headed mode for debugging
+            "-v",
+            "-s",  # Don't capture output so we can see print statements
+            *session.posargs,
+        )
+    else:
+        session.log("Warning: No system Chrome found. Full-stack integration tests may fail.")
+        session.log(f"Checked paths: {', '.join(chrome_paths)}")
+        # Try with the 'chrome' channel which might find system Chrome
+        session.run(
+            "pytest",
+            TEST_DIR + "/integration/test_full_user_experience.py",
+            "--browser-channel",
+            "chrome",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
+            "-v",
+            "-s",
+            *session.posargs,
+        )
 
 
 # Default session when no session is specified
