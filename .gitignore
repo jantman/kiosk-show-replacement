@@ -284,4 +284,4 @@ frontend/build/
 
 # Temporary folders
 tmp/
-temp/
+temp/test-results/
