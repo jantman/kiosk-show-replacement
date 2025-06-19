@@ -157,7 +157,7 @@ class TestSlideshowAPI:
         assert data["success"] is True
 
         # Verify slideshow is soft-deleted
-        slideshow = Slideshow.query.get(sample_slideshow.id)
+        slideshow = db.session.get(Slideshow, sample_slideshow.id)
         assert slideshow.is_active is False
 
     def test_delete_slideshow_assigned_to_display(
@@ -185,7 +185,7 @@ class TestSlideshowAPI:
         assert data["success"] is True
 
         # Verify slideshow is marked as default
-        slideshow = Slideshow.query.get(sample_slideshow.id)
+        slideshow = db.session.get(Slideshow, sample_slideshow.id)
         assert slideshow.is_default is True
 
 
@@ -299,7 +299,7 @@ class TestSlideshowItemAPI:
         assert data["success"] is True
 
         # Verify item is soft-deleted
-        deleted_item = SlideshowItem.query.get(item.id)
+        deleted_item = db.session.get(SlideshowItem, item.id)
         assert deleted_item.is_active is False
 
     def test_reorder_slideshow_item(
@@ -389,7 +389,7 @@ class TestDisplayAPI:
         assert data["success"] is True
 
         # Verify display is deleted
-        deleted_display = Display.query.get(display_id)
+        deleted_display = db.session.get(Display, display_id)
         assert deleted_display is None
 
 
@@ -524,7 +524,7 @@ class TestAPIAuthenticationEndpoints:
             assert user_data["id"] == user_id
 
             # Verify password was updated
-            updated_user = User.query.get(user_id)
+            updated_user = db.session.get(User, user_id)
             assert updated_user.check_password("newpass")
             assert not updated_user.check_password("oldpass")
 
@@ -668,7 +668,7 @@ class TestAPIAuthenticationEndpoints:
             assert response.status_code == 200
 
             # Verify password was updated
-            updated_user = User.query.get(user_id)
+            updated_user = db.session.get(User, user_id)
             assert updated_user.check_password("new_password")
             assert not updated_user.check_password("initial_password")
 
@@ -697,7 +697,7 @@ class TestAPIAuthenticationEndpoints:
             assert response.status_code == 200
 
             # Verify last_login_at was updated
-            updated_user = User.query.get(user_id)
+            updated_user = db.session.get(User, user_id)
             assert updated_user.last_login_at is not None
             # Check that last_login_at is recent (within the last 5 seconds)
             # Convert to UTC timezone-aware datetime for comparison

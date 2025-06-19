@@ -458,7 +458,7 @@ def get_display_slideshow(display: Display) -> Optional[Slideshow]:
     """
     # Check for specific assignment
     if display.current_slideshow_id:
-        slideshow = Slideshow.query.get(display.current_slideshow_id)
+        slideshow = db.session.get(Slideshow, display.current_slideshow_id)
         if slideshow and slideshow.is_active:
             return slideshow
 

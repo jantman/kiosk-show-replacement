@@ -165,7 +165,7 @@ def get_slideshow_by_id(slideshow_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        slideshow = Slideshow.query.get(slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -189,7 +189,7 @@ def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        slideshow = Slideshow.query.get(slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -243,7 +243,7 @@ def delete_slideshow(slideshow_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        slideshow = Slideshow.query.get(slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -289,7 +289,7 @@ def set_default_slideshow(slideshow_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        slideshow = Slideshow.query.get(slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -327,7 +327,7 @@ def list_slideshow_items(slideshow_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        slideshow = Slideshow.query.get(slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id)
         if not slideshow:
             return api_error("Slideshow not found", 404)
 
@@ -354,7 +354,7 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        slideshow = Slideshow.query.get(slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -415,7 +415,7 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        item = SlideshowItem.query.get(item_id)
+        item = db.session.get(SlideshowItem, item_id)
         if not item or not item.is_active:
             return api_error("Slideshow item not found", 404)
 
@@ -460,7 +460,7 @@ def delete_slideshow_item(item_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        item = SlideshowItem.query.get(item_id)
+        item = db.session.get(SlideshowItem, item_id)
         if not item or not item.is_active:
             return api_error("Slideshow item not found", 404)
 
@@ -493,7 +493,7 @@ def reorder_slideshow_item(item_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        item = SlideshowItem.query.get(item_id)
+        item = db.session.get(SlideshowItem, item_id)
         if not item or not item.is_active:
             return api_error("Slideshow item not found", 404)
 
@@ -588,7 +588,7 @@ def get_display(display_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        display = Display.query.get(display_id)
+        display = db.session.get(Display, display_id)
         if not display:
             return api_error("Display not found", 404)
 
@@ -610,7 +610,7 @@ def update_display(display_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        display = Display.query.get(display_id)
+        display = db.session.get(Display, display_id)
         if not display:
             return api_error("Display not found", 404)
 
@@ -636,7 +636,7 @@ def update_display(display_id: int) -> Tuple[Response, int]:
 
             # Validate slideshow if provided
             if new_slideshow_id is not None:
-                slideshow = Slideshow.query.get(new_slideshow_id)
+                slideshow = db.session.get(Slideshow, new_slideshow_id)
                 if not slideshow or not slideshow.is_active:
                     return api_error("Slideshow not found or inactive", 404)
 
@@ -757,7 +757,7 @@ def delete_display(display_id: int) -> Tuple[Response, int]:
         if not current_user:
             return api_error("Authentication required", 401)
 
-        display = Display.query.get(display_id)
+        display = db.session.get(Display, display_id)
         if not display:
             return api_error("Display not found", 404)
 
@@ -953,7 +953,7 @@ def upload_image() -> Tuple[Response, int]:
         return api_error("Invalid slideshow_id", 400)
 
     # Verify slideshow exists
-    slideshow = Slideshow.query.get(slideshow_id)
+    slideshow = db.session.get(Slideshow, slideshow_id)
     if not slideshow:
         return api_error("Slideshow not found", 404)
 
@@ -998,7 +998,7 @@ def upload_video() -> Tuple[Response, int]:
         return api_error("Invalid slideshow_id", 400)
 
     # Verify slideshow exists
-    slideshow = Slideshow.query.get(slideshow_id)
+    slideshow = db.session.get(Slideshow, slideshow_id)
     if not slideshow:
         return api_error("Slideshow not found", 404)
 

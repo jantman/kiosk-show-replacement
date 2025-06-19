@@ -13,6 +13,7 @@ from typing import Any, Callable, Optional
 
 from flask import current_app, g, redirect, request, session, url_for
 
+from ..app import db
 from ..models import User
 
 
@@ -106,7 +107,7 @@ def get_current_user() -> Optional[User]:
 
     # Use g to cache the user object for the request
     if not hasattr(g, "current_user"):
-        g.current_user = User.query.get(user_id)
+        g.current_user = db.session.get(User, user_id)
 
     return g.current_user
 

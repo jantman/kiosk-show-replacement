@@ -135,14 +135,11 @@ def _find_system_chrome() -> str | None:
     return None
 
 
-@nox.session(python=DEFAULT_PYTHON, name="test-integration")
-def test_integration(session):
-    """Run integration tests: React frontend + Flask backend through real browser."""
-    session.install("-e", ".")
-    session.install(
-        "pytest", "pytest-flask", "playwright", "pytest-playwright", "requests"
-    )
-
+def _setup_playwright_browser_testing(session):
+    """Set up Playwright dependencies and browser configuration for testing."""
+    # Install Playwright dependencies
+    session.install("playwright", "pytest-playwright")
+    
     # Create ffmpeg symlink for Playwright video recording
     playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
     playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
@@ -154,99 +151,76 @@ def test_integration(session):
         os.symlink(system_ffmpeg, playwright_ffmpeg_path)
         session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
 
+
+def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None = None):
+    """Run Playwright tests with proper browser configuration."""
     chrome_path = _find_system_chrome()
+    
+    # Base pytest arguments for all browser tests
+    base_args = [
+        "pytest",
+        test_dir,
+        "--video",
+        "retain-on-failure", 
+        "--screenshot",
+        "only-on-failure",
+        "-v",
+    ]
+    
+    # Add extra arguments if provided
+    if extra_args:
+        base_args.extend(extra_args)
 
     if chrome_path:
         session.log(f"Using system Chrome at: {chrome_path}")
-
-        # Run full-stack integration tests with system Chrome and video recording
         session.run(
-            "pytest",
-            TEST_DIR + "/integration",
+            *base_args,
             "--browser-channel",
             "chrome",
-            "--video",
-            "retain-on-failure",
-            "--screenshot",
-            "only-on-failure",
-            "-v",
-            "-s",  # Don't capture output so we can see print statements
             *session.posargs,
         )
     else:
-        session.log("Warning: No system Chrome found. Integration tests may fail.")
+        session.log("Warning: No system Chrome found. Tests may fail.")
         session.log(
             "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
         )
         # Fallback to default Playwright behavior
         session.run(
-            "pytest",
-            TEST_DIR + "/integration",
+            *base_args,
             "--browser",
             "chromium",
-            "--video",
-            "retain-on-failure",
-            "--screenshot",
-            "only-on-failure",
-            "-v",
-            "-s",
             *session.posargs,
         )
+
+
+@nox.session(python=DEFAULT_PYTHON, name="test-integration")
+def test_integration(session):
+    """Run integration tests: React frontend + Flask backend through real browser."""
+    session.install("-e", ".")
+    session.install("pytest", "pytest-flask", "requests")
+    
+    # Set up Playwright browser environment
+    _setup_playwright_browser_testing(session)
+    
+    # Run integration tests with special output capturing for debugging
+    _run_playwright_tests(
+        session, 
+        TEST_DIR + "/integration", 
+        extra_args=["-s"]  # Don't capture output so we can see print statements
+    )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-e2e")
 def test_e2e(session):
     """Run end-to-end tests: Flask server-rendered pages through browser automation."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-flask", "playwright", "pytest-playwright")
-
-    # Create ffmpeg symlink for Playwright video recording
-    playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
-    playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
-    system_ffmpeg = "/usr/bin/ffmpeg"
-
-    if os.path.exists(system_ffmpeg) and not os.path.exists(playwright_ffmpeg_path):
-        session.log("Creating ffmpeg symlink for Playwright video recording...")
-        os.makedirs(playwright_ffmpeg_dir, exist_ok=True)
-        os.symlink(system_ffmpeg, playwright_ffmpeg_path)
-        session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
-
-    chrome_path = _find_system_chrome()
-
-    if chrome_path:
-        session.log(f"Using system Chrome at: {chrome_path}")
-
-        # Run E2E tests with system Chrome and video recording
-        session.run(
-            "pytest",
-            TEST_DIR + "/e2e",
-            "--browser-channel",
-            "chrome",
-            "--video",
-            "retain-on-failure",
-            "--screenshot",
-            "only-on-failure",
-            "-v",
-            *session.posargs,
-        )
-    else:
-        session.log("Warning: No system Chrome found. E2E tests may fail.")
-        session.log(
-            "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
-        )
-        # Fallback to default Playwright behavior
-        session.run(
-            "pytest",
-            TEST_DIR + "/e2e",
-            "--browser",
-            "chromium",
-            "--video",
-            "retain-on-failure",
-            "--screenshot",
-            "only-on-failure",
-            "-v",
-            *session.posargs,
-        )
+    session.install("pytest", "pytest-flask")
+    
+    # Set up Playwright browser environment
+    _setup_playwright_browser_testing(session)
+    
+    # Run E2E tests
+    _run_playwright_tests(session, TEST_DIR + "/e2e")
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-all")
@@ -272,32 +246,153 @@ def test_all(session):
 def test_comprehensive(session):
     """Run all tests: backend unit tests, integration tests, frontend tests, and E2E tests."""
     session.log("=== Running Comprehensive Test Suite ===")
+    
+    # Track results
+    results = []
+    
+    try:
+        # 1. Run backend unit tests
+        session.log("1. Running backend unit tests...")
+        session.install("-e", ".")
+        session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
+        
+        session.run(
+            "pytest",
+            TEST_DIR + "/unit",
+            "--cov=" + PACKAGE_DIR,
+            "--cov-report=term-missing",
+            "--cov-report=html:htmlcov",
+            "--cov-report=xml:coverage.xml",
+            "--cov-fail-under=30",
+        )
+        results.append("✅ Backend unit tests: PASSED")
+        
+    except Exception as e:
+        results.append("❌ Backend unit tests: FAILED")
+        session.log(f"Backend unit tests failed: {e}")
 
-    # 1. Run backend unit tests
-    session.log("1. Running backend unit tests...")
-    session.notify("test-all")
+    try:
+        # 2. Run integration tests
+        session.log("2. Running integration tests...")
+        session.install("playwright", "pytest-playwright", "requests")
+        
+        # Create ffmpeg symlink for Playwright video recording
+        playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
+        playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
+        system_ffmpeg = "/usr/bin/ffmpeg"
 
-    # 2. Run integration tests
-    session.log("2. Running integration tests...")
-    session.notify("test-integration")
+        if os.path.exists(system_ffmpeg) and not os.path.exists(playwright_ffmpeg_path):
+            session.log("Creating ffmpeg symlink for Playwright video recording...")
+            os.makedirs(playwright_ffmpeg_dir, exist_ok=True)
+            os.symlink(system_ffmpeg, playwright_ffmpeg_path)
+
+        chrome_path = _find_system_chrome()
+        if chrome_path:
+            session.run(
+                "pytest",
+                TEST_DIR + "/integration",
+                "--browser-channel",
+                "chrome",
+                "--video",
+                "retain-on-failure",
+                "--screenshot",
+                "only-on-failure",
+                "-v",
+                "-s",
+            )
+        else:
+            session.run(
+                "pytest",
+                TEST_DIR + "/integration",
+                "--browser",
+                "chromium",
+                "--video",
+                "retain-on-failure",
+                "--screenshot",
+                "only-on-failure",
+                "-v",
+                "-s",
+            )
+        results.append("✅ Integration tests: PASSED")
+        
+    except Exception as e:
+        results.append("❌ Integration tests: FAILED")
+        session.log(f"Integration tests failed: {e}")
 
     # 3. Run frontend tests if available
     if os.path.exists("frontend"):
-        session.log("3. Running frontend tests...")
-        session.notify("test-frontend")
+        try:
+            session.log("3. Running frontend tests...")
+            # Check if Node.js and npm are available
+            session.run("node", "--version", external=True)
+            session.run("npm", "--version", external=True)
+            
+            # Change to frontend directory and run tests
+            session.chdir("frontend")
+            
+            # Install dependencies if needed
+            if not os.path.exists("node_modules"):
+                session.run("npm", "install", external=True)
+            
+            # Run comprehensive frontend CI tests
+            session.run("npm", "run", "test:ci", external=True)
+            results.append("✅ Frontend tests: PASSED")
+            
+        except Exception as e:
+            results.append("❌ Frontend tests: FAILED")
+            session.log(f"Frontend tests failed: {e}")
+        finally:
+            # Change back to root directory
+            session.chdir("..")
     else:
-        session.log("3. Skipping frontend tests (frontend directory not found)")
+        results.append("⏭️ Frontend tests: SKIPPED (frontend directory not found)")
 
-    # 4. Run E2E tests
-    session.log("4. Running E2E tests...")
-    session.notify("test-e2e")
+    try:
+        # 4. Run E2E tests
+        session.log("4. Running E2E tests...")
+        chrome_path = _find_system_chrome()
+        if chrome_path:
+            session.run(
+                "pytest",
+                TEST_DIR + "/e2e",
+                "--browser-channel",
+                "chrome",
+                "--video",
+                "retain-on-failure",
+                "--screenshot",
+                "only-on-failure",
+                "-v",
+            )
+        else:
+            session.run(
+                "pytest",
+                TEST_DIR + "/e2e",
+                "--browser",
+                "chromium",
+                "--video",
+                "retain-on-failure",
+                "--screenshot",
+                "only-on-failure",
+                "-v",
+            )
+        results.append("✅ E2E tests: PASSED")
+        
+    except Exception as e:
+        results.append("❌ E2E tests: FAILED")
+        session.log(f"E2E tests failed: {e}")
 
+    # Final results summary
     session.log("=== Comprehensive Test Suite Complete ===")
     session.log("Results:")
-    session.log("- Backend unit tests: Check output above")
-    session.log("- Integration tests: Check output above")
-    session.log("- Frontend tests: Check output above")
-    session.log("- E2E tests: Check output above")
+    for result in results:
+        session.log(f"  {result}")
+    
+    # Fail the session if any tests failed
+    failed_tests = [r for r in results if "FAILED" in r]
+    if failed_tests:
+        session.error(f"Some tests failed: {len(failed_tests)} out of {len(results)} test suites failed")
+    
+    session.log("🎉 All test suites completed successfully!")
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-frontend")
