@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Alert, Spinner, Row, Col, Card } from 'react-bootstrap';
+import { Form, Button, Alert, Spinner, Row, Col } from 'react-bootstrap';
 import { useApi } from '../hooks/useApi';
 import { SlideshowItem } from '../types';
 
@@ -10,7 +10,7 @@ interface SlideshowItemFormProps {
   onCancel: () => void;
 }
 
-interface SlideshowItemFormData {
+interface SlideshowItemFormState {
   title: string;
   content_type: 'image' | 'video' | 'url' | 'text';
   url: string;
@@ -29,7 +29,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   const { apiCall } = useApi();
   const isEditing = Boolean(item);
 
-  const [formData, setFormData] = useState<SlideshowItemFormData>({
+  const [formData, setFormData] = useState<SlideshowItemFormState>({
     title: '',
     content_type: 'image',
     url: '',
@@ -48,11 +48,11 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     if (item) {
       setFormData({
         title: item.title || '',
-        content_type: item.content_type as any,
+        content_type: item.content_type as 'image' | 'video' | 'url' | 'text',
         url: item.url || '',
         text_content: item.text_content || '',
         file_path: item.file_path || '',
-        duration: item.duration,
+        duration: item.duration ?? null,
         is_active: item.is_active,
       });
     }
@@ -153,9 +153,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       setUploadingFile(true);
       setError(null);
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('slideshow_id', slideshowId.toString());
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('slideshow_id', slideshowId.toString());
 
       const endpoint = file.type.startsWith('image/') ? 
         '/api/v1/uploads/image' : 
@@ -163,13 +163,14 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
 
       const response = await apiCall(endpoint, {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
       });
 
       if (response.success) {
+        const uploadData = response.data as { file_path: string };
         setFormData(prev => ({
           ...prev,
-          file_path: response.data.file_path,
+          file_path: uploadData.file_path,
           content_type: file.type.startsWith('image/') ? 'image' : 'video',
         }));
         // Clear any URL when file is uploaded
@@ -187,7 +188,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     }
   };
 
-  const handleInputChange = (field: keyof SlideshowItemFormData, value: any) => {
+  const handleInputChange = (field: keyof SlideshowItemFormState, value: string | number | boolean | null) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error when user starts typing
     if (validationErrors[field]) {

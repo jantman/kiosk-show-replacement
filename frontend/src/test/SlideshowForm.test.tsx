@@ -117,7 +117,7 @@ describe('SlideshowForm', () => {
     mockUseParams.mockReturnValue({});
     mockApiCall.mockResolvedValueOnce({
       success: true,
-      data: { id: 1, ...mockSlideshow }
+      data: { ...mockSlideshow, id: 2 }
     });
 
     render(
@@ -155,7 +155,7 @@ describe('SlideshowForm', () => {
       });
     });
 
-    expect(mockNavigate).toHaveBeenCalledWith('/admin/slideshows/1');
+    expect(mockNavigate).toHaveBeenCalledWith('/admin/slideshows/2');
   });
 
   it('handles form submission for edit', async () => {

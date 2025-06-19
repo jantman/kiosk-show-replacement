@@ -5,6 +5,8 @@ This file defines automated tasks for testing, linting, formatting,
 and other development activities using nox.
 """
 
+import os
+
 import nox
 
 # Python versions to test against
@@ -37,8 +39,6 @@ def lint(session):
 @nox.session(python=DEFAULT_PYTHON, name="lint-frontend")
 def lint_frontend(session):
     """Lint frontend code with ESLint and TypeScript."""
-    import os
-
     frontend_dir = "frontend"
 
     # Check if frontend directory exists
@@ -73,8 +73,6 @@ def lint_frontend(session):
 @nox.session(python=DEFAULT_PYTHON, name="lint-all")
 def lint_all(session):
     """Lint all code: backend (Python) and frontend (TypeScript/JavaScript)."""
-    import os
-
     session.log("=== Running Comprehensive Linting ===")
 
     # 1. Lint backend code
@@ -124,8 +122,6 @@ def test(session):
 
 def _find_system_chrome() -> str | None:
     """Find system Chrome/Chromium executable."""
-    import os
-
     chrome_paths = [
         "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
         "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
@@ -147,19 +143,28 @@ def test_integration(session):
         "pytest", "pytest-flask", "playwright", "pytest-playwright", "requests"
     )
 
+    # Create ffmpeg symlink for Playwright video recording
+    playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
+    playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
+    system_ffmpeg = "/usr/bin/ffmpeg"
+
+    if os.path.exists(system_ffmpeg) and not os.path.exists(playwright_ffmpeg_path):
+        session.log("Creating ffmpeg symlink for Playwright video recording...")
+        os.makedirs(playwright_ffmpeg_dir, exist_ok=True)
+        os.symlink(system_ffmpeg, playwright_ffmpeg_path)
+        session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
+
     chrome_path = _find_system_chrome()
 
     if chrome_path:
         session.log(f"Using system Chrome at: {chrome_path}")
-        # Set environment variable to use system Chrome
-        session.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] = chrome_path
 
-        # Run full-stack integration tests
+        # Run full-stack integration tests with system Chrome and video recording
         session.run(
             "pytest",
             TEST_DIR + "/integration",
-            "--browser",
-            "chromium",
+            "--browser-channel",
+            "chrome",
             "--video",
             "retain-on-failure",
             "--screenshot",
@@ -173,12 +178,12 @@ def test_integration(session):
         session.log(
             "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
         )
-        # Try with the 'chrome' channel which might find system Chrome
+        # Fallback to default Playwright behavior
         session.run(
             "pytest",
             TEST_DIR + "/integration",
-            "--browser-channel",
-            "chrome",
+            "--browser",
+            "chromium",
             "--video",
             "retain-on-failure",
             "--screenshot",
@@ -195,19 +200,28 @@ def test_e2e(session):
     session.install("-e", ".")
     session.install("pytest", "pytest-flask", "playwright", "pytest-playwright")
 
+    # Create ffmpeg symlink for Playwright video recording
+    playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
+    playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
+    system_ffmpeg = "/usr/bin/ffmpeg"
+
+    if os.path.exists(system_ffmpeg) and not os.path.exists(playwright_ffmpeg_path):
+        session.log("Creating ffmpeg symlink for Playwright video recording...")
+        os.makedirs(playwright_ffmpeg_dir, exist_ok=True)
+        os.symlink(system_ffmpeg, playwright_ffmpeg_path)
+        session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
+
     chrome_path = _find_system_chrome()
 
     if chrome_path:
         session.log(f"Using system Chrome at: {chrome_path}")
-        # Set environment variable to use system Chrome
-        session.env["PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH"] = chrome_path
 
-        # Run E2E tests
+        # Run E2E tests with system Chrome and video recording
         session.run(
             "pytest",
             TEST_DIR + "/e2e",
-            "--browser",
-            "chromium",
+            "--browser-channel",
+            "chrome",
             "--video",
             "retain-on-failure",
             "--screenshot",
@@ -220,12 +234,12 @@ def test_e2e(session):
         session.log(
             "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
         )
-        # Try with the 'chrome' channel which might find system Chrome
+        # Fallback to default Playwright behavior
         session.run(
             "pytest",
             TEST_DIR + "/e2e",
-            "--browser-channel",
-            "chrome",
+            "--browser",
+            "chromium",
             "--video",
             "retain-on-failure",
             "--screenshot",
@@ -257,8 +271,6 @@ def test_all(session):
 @nox.session(python=DEFAULT_PYTHON, name="test-comprehensive")
 def test_comprehensive(session):
     """Run all tests: backend unit tests, integration tests, frontend tests, and E2E tests."""
-    import os
-
     session.log("=== Running Comprehensive Test Suite ===")
 
     # 1. Run backend unit tests
@@ -290,10 +302,7 @@ def test_comprehensive(session):
 
 @nox.session(python=DEFAULT_PYTHON, name="test-frontend")
 def test_frontend(session):
-    """Run frontend tests with Vitest."""
-    import os
-    import subprocess
-
+    """Run frontend tests with Vitest and verify build."""
     frontend_dir = "frontend"
 
     # Check if frontend directory exists
@@ -316,16 +325,14 @@ def test_frontend(session):
         session.log("Installing frontend dependencies...")
         session.run("npm", "install", external=True)
 
-    # Run frontend tests
-    session.log("Running frontend tests with Vitest...")
-    session.run("npm", "run", "test:run", external=True)
+    # Run comprehensive frontend CI tests (lint, type-check, test, build)
+    session.log("Running comprehensive frontend tests...")
+    session.run("npm", "run", "test:ci", external=True)
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-frontend-watch")
 def test_frontend_watch(session):
     """Run frontend tests in watch mode with Vitest."""
-    import os
-
     frontend_dir = "frontend"
 
     # Check if frontend directory exists
@@ -387,7 +394,6 @@ def docs_serve(session):
 @nox.session(python=DEFAULT_PYTHON)
 def clean(session):
     """Clean up build artifacts and cache files."""
-    import os
     import shutil
 
     directories_to_clean = [
@@ -422,8 +428,6 @@ def clean(session):
 @nox.session(python=DEFAULT_PYTHON, name="dev-setup")
 def dev_setup(session):
     """Set up development environment."""
-    import os
-
     # Install Python dependencies
     session.install("-e", ".")
     session.install(

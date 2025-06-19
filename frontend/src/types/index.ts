@@ -1,5 +1,5 @@
 // API response types based on Flask backend
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
@@ -79,7 +79,7 @@ export interface SlideshowItem {
   text_content?: string;
   display_url?: string;
   duration?: number;
-  order: number;
+  order_index: number;
   is_active: boolean;
   created_at: string;
   updated_at: string;

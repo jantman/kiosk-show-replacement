@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import React from 'react';
 import ProtectedRoute from '../components/ProtectedRoute';
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 // Mock the useAuth hook
 vi.mock('../contexts/AuthContext', async () => {
@@ -13,7 +14,6 @@ vi.mock('../contexts/AuthContext', async () => {
   };
 });
 
-import { useAuth } from '../contexts/AuthContext';
 const mockUseAuth = vi.mocked(useAuth);
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (

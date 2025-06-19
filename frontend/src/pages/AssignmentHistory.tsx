@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Alert, Spinner, Badge, Table, Form } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
-import apiClient from '../utils/apiClient';
 
 interface AssignmentHistoryRecord {
   id: number;
@@ -29,11 +28,7 @@ const AssignmentHistory: React.FC = () => {
   const [userFilter, setUserFilter] = useState<string>('');
   const [limit, setLimit] = useState<number>(50);
 
-  useEffect(() => {
-    loadAssignmentHistory();
-  }, [displayFilter, actionFilter, userFilter, limit]);
-
-  const loadAssignmentHistory = async () => {
+  const loadAssignmentHistory = useCallback(async () => {
     setLoading(true);
     setError('');
 
@@ -58,7 +53,11 @@ const AssignmentHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [displayFilter, actionFilter, userFilter, limit]);
+
+  useEffect(() => {
+    loadAssignmentHistory();
+  }, [loadAssignmentHistory]);
 
   const formatDateTime = (dateString: string): string => {
     const date = new Date(dateString);

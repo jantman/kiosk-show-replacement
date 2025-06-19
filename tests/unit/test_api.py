@@ -362,7 +362,7 @@ class TestDisplayAPI:
         db.session.add(display)
         db.session.commit()
 
-        update_data = {"slideshow_id": sample_slideshow.id}
+        update_data = {"current_slideshow_id": sample_slideshow.id}
 
         response = client.put(
             f"/api/v1/displays/{display.id}",

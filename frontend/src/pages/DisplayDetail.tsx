@@ -57,7 +57,7 @@ const DisplayDetail: React.FC = () => {
         } else {
           setError('Failed to fetch display details');
         }
-      } catch (err) {
+      } catch {
         setError('Failed to fetch display details');
       } finally {
         setLoading(false);
@@ -98,7 +98,7 @@ const DisplayDetail: React.FC = () => {
       } else {
         setError('Failed to update display');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to update display');
     }
   };
@@ -116,7 +116,7 @@ const DisplayDetail: React.FC = () => {
       } else {
         setError('Failed to delete display');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to delete display');
     } finally {
       setShowDeleteModal(false);
@@ -194,7 +194,7 @@ const DisplayDetail: React.FC = () => {
       } else {
         setError('Failed to assign slideshow');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to assign slideshow');
     }
   };
@@ -220,7 +220,7 @@ const DisplayDetail: React.FC = () => {
       } else {
         setError('Failed to unassign slideshow');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to unassign slideshow');
     }
   };

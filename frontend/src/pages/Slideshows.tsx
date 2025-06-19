@@ -12,7 +12,7 @@ const Slideshows: React.FC = () => {
 
   useEffect(() => {
     fetchSlideshows();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSlideshows = async () => {
     try {
@@ -20,7 +20,7 @@ const Slideshows: React.FC = () => {
       setError(null);
       const response = await apiCall('/api/v1/slideshows');
       if (response.success) {
-        setSlideshows(response.data);
+        setSlideshows(response.data as Slideshow[]);
       } else {
         setError(response.error || 'Failed to fetch slideshows');
       }
@@ -54,7 +54,7 @@ const Slideshows: React.FC = () => {
     }
   };
 
-  const handleSetDefault = async (id: number, name: string) => {
+  const handleSetDefault = async (id: number, _name: string) => {
     try {
       const response = await apiCall(`/api/v1/slideshows/${id}/set-default`, {
         method: 'POST'

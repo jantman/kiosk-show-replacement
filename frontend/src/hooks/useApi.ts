@@ -72,7 +72,7 @@ export const useApi = (): UseApiResult => {
       if (url.endsWith('/reorder') && method === 'POST') {
         const itemId = parseInt(url.split('/')[3]);
         const data = JSON.parse(options?.body as string);
-        return await apiClient.reorderSlideshowItem(itemId, data.order_index);
+        return await apiClient.reorderSlideshowItem(itemId, data.new_order);
       }
       
       if (url.startsWith('/api/v1/uploads/')) {
@@ -99,7 +99,7 @@ export const useApi = (): UseApiResult => {
         return await apiClient.login(data.username, data.password);
       }
       
-      if (url === '/auth/logout' && method === 'POST') {
+      if (url === '/api/v1/auth/logout' && method === 'POST') {
         return await apiClient.logout();
       }
       

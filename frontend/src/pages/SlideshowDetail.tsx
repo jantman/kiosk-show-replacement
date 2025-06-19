@@ -21,7 +21,7 @@ const SlideshowDetail: React.FC = () => {
     if (id) {
       fetchSlideshowData(parseInt(id));
     }
-  }, [id]);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSlideshowData = async (slideshowId: number) => {
     try {
@@ -35,14 +35,14 @@ const SlideshowDetail: React.FC = () => {
       ]);
 
       if (slideshowResponse.success) {
-        setSlideshow(slideshowResponse.data);
+        setSlideshow(slideshowResponse.data as Slideshow);
       } else {
         setError(slideshowResponse.error || 'Failed to fetch slideshow');
         return;
       }
 
       if (itemsResponse.success) {
-        setItems(itemsResponse.data);
+        setItems(itemsResponse.data as SlideshowItem[]);
       } else {
         console.warn('Failed to fetch slideshow items:', itemsResponse.error);
         setItems([]);
@@ -99,7 +99,7 @@ const SlideshowDetail: React.FC = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ order: newOrder }),
+        body: JSON.stringify({ new_order: newOrder }),
       });
       
       if (response.success) {
@@ -194,14 +194,13 @@ const SlideshowDetail: React.FC = () => {
               </div>
             </div>
             <div className="d-flex gap-2">
-              <Button 
-                variant="outline-secondary" 
-                as={Link}
+              <Link 
                 to={`/admin/slideshows/${slideshow.id}/edit`}
+                className="btn btn-outline-secondary"
               >
                 <i className="bi bi-pencil me-2"></i>
                 Edit Details
-              </Button>
+              </Link>
               <Button 
                 variant="outline-secondary" 
                 onClick={() => navigate('/admin/slideshows')}
@@ -312,12 +311,12 @@ const SlideshowDetail: React.FC = () => {
                 <Table responsive striped hover className="mb-0">
                   <thead className="table-light">
                     <tr>
-                      <th width="60">Order</th>
+                      <th style={{ width: '60px' }}>Order</th>
                       <th>Content</th>
                       <th>Type</th>
                       <th>Duration</th>
                       <th>Status</th>
-                      <th width="120">Actions</th>
+                      <th style={{ width: '120px' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -326,14 +325,14 @@ const SlideshowDetail: React.FC = () => {
                         <td>
                           <div className="d-flex flex-column gap-1">
                             <span className="badge bg-light text-dark">
-                              {item.order}
+                              {item.order_index}
                             </span>
                             <div className="btn-group-vertical btn-group-sm">
                               {index > 0 && (
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
-                                  onClick={() => handleReorderItem(item.id, item.order - 1)}
+                                  onClick={() => handleReorderItem(item.id, item.order_index - 1)}
                                   title="Move Up"
                                 >
                                   <i className="bi bi-arrow-up"></i>
@@ -343,7 +342,7 @@ const SlideshowDetail: React.FC = () => {
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
-                                  onClick={() => handleReorderItem(item.id, item.order + 1)}
+                                  onClick={() => handleReorderItem(item.id, item.order_index + 1)}
                                   title="Move Down"
                                 >
                                   <i className="bi bi-arrow-down"></i>

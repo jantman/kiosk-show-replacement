@@ -28,7 +28,7 @@ const Displays: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadData = async () => {
     try {
@@ -42,13 +42,13 @@ const Displays: React.FC = () => {
       ]);
 
       if (displaysResponse.success) {
-        setDisplays(displaysResponse.data);
+        setDisplays(displaysResponse.data as Display[]);
       } else {
         throw new Error(displaysResponse.error || 'Failed to load displays');
       }
 
       if (slideshowsResponse.success) {
-        setSlideshows(slideshowsResponse.data);
+        setSlideshows(slideshowsResponse.data as Slideshow[]);
       } else {
         throw new Error(slideshowsResponse.error || 'Failed to load slideshows');
       }
@@ -99,13 +99,15 @@ const Displays: React.FC = () => {
       setBulkSubmitting(true);
       
       // Assign slideshow to all selected displays
-      const promises = Array.from(selectedDisplayIds).map(displayId =>
-        apiCall(`/api/v1/displays/${displayId}`, {
-          method: 'PUT',
+      const promises = Array.from(selectedDisplayIds).map(displayId => {
+        const display = displays.find(d => d.id === displayId);
+        if (!display) throw new Error(`Display with ID ${displayId} not found`);
+        return apiCall(`/api/v1/displays/${display.name}/assign-slideshow`, {
+          method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ slideshow_id: bulkAssigningSlideshowId })
-        })
-      );
+        });
+      });
 
       const results = await Promise.all(promises);
       const failures = results.filter(result => !result.success);
@@ -147,8 +149,8 @@ const Displays: React.FC = () => {
     try {
       setSubmitting(true);
       
-      const response = await apiCall(`/api/v1/displays/${selectedDisplay.id}`, {
-        method: 'PUT',
+      const response = await apiCall(`/api/v1/displays/${selectedDisplay.name}/assign-slideshow`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slideshow_id: assigningSlideshowId })
       });
@@ -389,7 +391,7 @@ const Displays: React.FC = () => {
                         </td>
                         <td>
                           <span className="text-muted">
-                            {formatLastSeen(display.last_seen_at)}
+                            {formatLastSeen(display.last_seen_at || null)}
                           </span>
                         </td>
                         <td>
@@ -518,7 +520,7 @@ const Displays: React.FC = () => {
                 required
               >
                 <option value="">Remove slideshow assignment</option>
-                {slideshows.filter(s => s.active).map((slideshow) => (
+                {slideshows.filter(s => s.is_active).map((slideshow) => (
                   <option key={slideshow.id} value={slideshow.id}>
                     {slideshow.name}
                   </option>

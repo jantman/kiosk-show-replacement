@@ -193,8 +193,8 @@ describe('Displays', () => {
     fireEvent.click(assignButton);
 
     await waitFor(() => {
-      expect(mockApiCall).toHaveBeenCalledWith('/api/v1/displays/2', {
-        method: 'PUT',
+      expect(mockApiCall).toHaveBeenCalledWith('/api/v1/displays/conference-room-a/assign-slideshow', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slideshow_id: 2 })
       });

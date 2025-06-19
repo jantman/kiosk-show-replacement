@@ -287,3 +287,4 @@ tmp/
 temp/
 
 test-results/
+/test*.txt

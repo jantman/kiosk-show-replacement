@@ -12,6 +12,7 @@ vi.mock('../utils/apiClient', () => ({
     getSlideshows: vi.fn(),
     updateDisplay: vi.fn(),
     deleteDisplay: vi.fn(),
+    getDisplayAssignmentHistory: vi.fn(),
   }
 }));
 
@@ -89,6 +90,10 @@ describe('DisplayDetail', () => {
     vi.mocked(apiClient.getSlideshows).mockResolvedValue({ 
       success: true, 
       data: mockSlideshows 
+    });
+    vi.mocked(apiClient.getDisplayAssignmentHistory).mockResolvedValue({ 
+      success: true, 
+      data: [] 
     });
 
     renderWithRouter(<DisplayDetail />);

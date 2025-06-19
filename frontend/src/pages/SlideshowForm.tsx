@@ -37,7 +37,7 @@ const SlideshowForm: React.FC = () => {
     if (isEditing && id) {
       fetchSlideshow(parseInt(id));
     }
-  }, [id, isEditing]);
+  }, [id, isEditing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSlideshow = async (slideshowId: number) => {
     try {
@@ -45,7 +45,7 @@ const SlideshowForm: React.FC = () => {
       setError(null);
       const response = await apiCall(`/api/v1/slideshows/${slideshowId}`);
       if (response.success) {
-        const slideshow: Slideshow = response.data;
+        const slideshow = response.data as Slideshow;
         setFormData({
           name: slideshow.name,
           description: slideshow.description || '',
@@ -129,7 +129,7 @@ const SlideshowForm: React.FC = () => {
 
       if (response.success) {
         // Navigate to the slideshow detail page
-        const slideshowId = isEditing ? id : response.data.id;
+        const slideshowId = isEditing ? id : (response.data as { id: number }).id;
         navigate(`/admin/slideshows/${slideshowId}`);
       } else {
         setError(response.error || 'Failed to save slideshow');
@@ -142,7 +142,7 @@ const SlideshowForm: React.FC = () => {
     }
   };
 
-  const handleInputChange = (field: keyof SlideshowFormData, value: any) => {
+  const handleInputChange = (field: keyof SlideshowFormData, value: string | number | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear validation error when user starts typing
     if (validationErrors[field]) {

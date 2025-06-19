@@ -1,4 +1,3 @@
-import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import SlideshowItemForm from '../components/SlideshowItemForm';
@@ -22,6 +21,7 @@ const mockItem = {
   display_url: '/uploads/images/test.jpg',
   duration: 10,
   order: 1,
+  order_index: 1,
   is_active: true,
   created_at: '2023-01-01T00:00:00Z',
   updated_at: '2023-01-01T00:00:00Z'

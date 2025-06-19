@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
+import React from 'react';
 import Dashboard from '../pages/Dashboard';
-import { AuthProvider } from '../contexts/AuthContext';
+import { AuthProvider, useAuth } from '../contexts/AuthContext';
 
 // Mock the API client
 vi.mock('../utils/apiClient', () => ({
@@ -44,7 +45,6 @@ vi.mock('../contexts/AuthContext', async () => {
   };
 });
 
-import { useAuth } from '../contexts/AuthContext';
 const mockUseAuth = vi.mocked(useAuth);
 
 const TestWrapper = ({ children }: { children: React.ReactNode }) => (

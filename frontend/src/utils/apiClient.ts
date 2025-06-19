@@ -83,7 +83,7 @@ class ApiClient {
   }
 
   async logout(): Promise<ApiResponse<void>> {
-    return this.request<void>('/auth/logout', {
+    return this.request<void>('/api/v1/auth/logout', {
       method: 'POST',
     });
   }
@@ -161,7 +161,7 @@ class ApiClient {
   async reorderSlideshowItem(id: number, newOrder: number): Promise<ApiResponse<void>> {
     return this.request<void>(`/api/v1/slideshow-items/${id}/reorder`, {
       method: 'POST',
-      body: JSON.stringify({ order_index: newOrder }),
+      body: JSON.stringify({ new_order: newOrder }),
     });
   }
 
@@ -236,28 +236,28 @@ class ApiClient {
   }
 
   // File upload methods
-  async uploadImage(file: File, slideshowId?: number): Promise<ApiResponse<any>> {
+  async uploadImage(file: File, slideshowId?: number): Promise<ApiResponse<{ file_path: string; url: string }>> {
     const formData = new FormData();
     formData.append('file', file);
     if (slideshowId) {
       formData.append('slideshow_id', slideshowId.toString());
     }
 
-    return this.request<any>('/api/v1/uploads/image', {
+    return this.request<{ file_path: string; url: string }>('/api/v1/uploads/image', {
       method: 'POST',
       body: formData,
       headers: {}, // Don't set Content-Type for FormData
     });
   }
 
-  async uploadVideo(file: File, slideshowId?: number): Promise<ApiResponse<any>> {
+  async uploadVideo(file: File, slideshowId?: number): Promise<ApiResponse<{ file_path: string; url: string }>> {
     const formData = new FormData();
     formData.append('file', file);
     if (slideshowId) {
       formData.append('slideshow_id', slideshowId.toString());
     }
 
-    return this.request<any>('/api/v1/uploads/video', {
+    return this.request<{ file_path: string; url: string }>('/api/v1/uploads/video', {
       method: 'POST',
       body: formData,
       headers: {}, // Don't set Content-Type for FormData
@@ -265,8 +265,8 @@ class ApiClient {
   }
 
   // Health check
-  async getStatus(): Promise<ApiResponse<any>> {
-    return this.request<any>('/api/v1/status');
+  async getStatus(): Promise<ApiResponse<{ status: string; timestamp: string }>> {
+    return this.request<{ status: string; timestamp: string }>('/api/v1/status');
   }
 }
 

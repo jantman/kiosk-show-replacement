@@ -42,7 +42,7 @@ const Login: React.FC = () => {
       if (!success) {
         setError('Login failed. Please check your credentials.');
       }
-    } catch (err) {
+    } catch {
       setError('An error occurred during login. Please try again.');
     } finally {
       setIsSubmitting(false);

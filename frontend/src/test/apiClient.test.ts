@@ -82,7 +82,11 @@ describe('API Client', () => {
     });
 
     it('creates slideshow successfully', async () => {
-      const newSlideshow = { name: 'New Slideshow', description: 'Test description' };
+      const newSlideshow = { 
+        name: 'New Slideshow', 
+        description: 'Test description',
+        default_item_duration: 10
+      };
       const createdSlideshow = { id: 1, ...newSlideshow, item_count: 0 };
 
       mockFetch.mockResolvedValueOnce({
