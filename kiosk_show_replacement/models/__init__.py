@@ -12,7 +12,7 @@ for tracking creation and modification. Designed for easy migration
 between different database engines (SQLite, PostgreSQL, MariaDB).
 """
 
-__all__ = ["User", "Display", "Slideshow", "SlideshowItem", "AssignmentHistory"]
+__all__ = ["User", "Display", "Slideshow", "SlideshowItem", "AssignmentHistory", "DisplayConfigurationTemplate"]
 
 from datetime import datetime, timezone
 from typing import Any, List, Optional
@@ -143,6 +143,9 @@ class Display(db.Model):
     rotation = Column(Integer, default=0, nullable=False)  # 0, 90, 180, or 270 degrees
     location = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_archived = Column(Boolean, default=False, nullable=False)
+    archived_at = Column(DateTime, nullable=True)
+    archived_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     # Connection tracking
     last_seen_at = Column(DateTime, nullable=True)
@@ -169,6 +172,7 @@ class Display(db.Model):
     owner = relationship("User", back_populates="displays", foreign_keys=[owner_id])
     created_by = relationship("User", foreign_keys=[created_by_id])
     updated_by = relationship("User", foreign_keys=[updated_by_id])
+    archived_by = relationship("User", foreign_keys=[archived_by_id])
     current_slideshow = relationship("Slideshow", foreign_keys=[current_slideshow_id])
 
     # Unique constraint: display names must be globally unique
@@ -230,6 +234,11 @@ class Display(db.Model):
             "rotation": self.rotation,
             "location": self.location,
             "is_active": self.is_active,
+            "is_archived": self.is_archived,
+            "archived_at": (
+                self.archived_at.isoformat() if self.archived_at else None
+            ),
+            "archived_by_id": self.archived_by_id,
             "is_online": self.is_online,
             "online": self.is_online,  # Alias for API consistency
             "last_seen_at": (
@@ -267,6 +276,51 @@ class Display(db.Model):
                 f"Rotation must be one of: {', '.join(map(str, allowed_rotations))}"
             )
         return rotation
+
+    def archive(self, archived_by_user: "User") -> None:
+        """Archive this display."""
+        self.is_archived = True
+        self.archived_at = datetime.now(timezone.utc)
+        self.archived_by_id = archived_by_user.id
+        self.is_active = False  # Archived displays are also inactive
+        # Clear slideshow assignment when archiving
+        self.current_slideshow_id = None
+
+    def restore(self) -> None:
+        """Restore this display from archive."""
+        self.is_archived = False
+        self.archived_at = None
+        self.archived_by_id = None
+        self.is_active = True  # Restored displays are active by default
+
+    @property
+    def can_be_assigned(self) -> bool:
+        """Check if display can be assigned a slideshow."""
+        return self.is_active and not self.is_archived
+
+    def get_configuration_dict(self) -> dict:
+        """Get display configuration for templates and migration."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "resolution_width": self.resolution_width,
+            "resolution_height": self.resolution_height,
+            "rotation": self.rotation,
+            "location": self.location,
+            "heartbeat_interval": self.heartbeat_interval,
+        }
+
+    def apply_configuration(self, config: dict, updated_by_user: "User") -> None:
+        """Apply configuration from template or migration."""
+        self.name = config.get("name", self.name)
+        self.description = config.get("description", self.description)
+        self.resolution_width = config.get("resolution_width", self.resolution_width)
+        self.resolution_height = config.get("resolution_height", self.resolution_height)
+        self.rotation = config.get("rotation", self.rotation)
+        self.location = config.get("location", self.location)
+        self.heartbeat_interval = config.get("heartbeat_interval", self.heartbeat_interval)
+        self.updated_by_id = updated_by_user.id
+        self.updated_at = datetime.now(timezone.utc)
 
 
 class Slideshow(db.Model):
@@ -637,3 +691,107 @@ class AssignmentHistory(db.Model):
 
 # For backward compatibility with existing code
 SlideItem = SlideshowItem
+
+
+class DisplayConfigurationTemplate(db.Model):
+    """Model for storing display configuration templates."""
+
+    __tablename__ = "display_configuration_templates"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    
+    # Configuration fields
+    template_resolution_width = Column(Integer, nullable=True)
+    template_resolution_height = Column(Integer, nullable=True)
+    template_rotation = Column(Integer, default=0, nullable=False)
+    template_heartbeat_interval = Column(Integer, default=60, nullable=False)
+    template_location = Column(String(200), nullable=True)
+    
+    # Template metadata
+    is_default = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+
+    # Ownership and audit fields
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    created_at = Column(
+        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )
+    updated_at = Column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # Relationships
+    owner = relationship("User", foreign_keys=[owner_id])
+    created_by = relationship("User", foreign_keys=[created_by_id])
+    updated_by = relationship("User", foreign_keys=[updated_by_id])
+
+    # Unique constraint: template names must be unique per owner
+    __table_args__ = (
+        UniqueConstraint("name", "owner_id", name="unique_template_name_per_owner"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<DisplayConfigurationTemplate {self.name}>"
+
+    def to_dict(self) -> dict:
+        """Convert template to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "template_resolution_width": self.template_resolution_width,
+            "template_resolution_height": self.template_resolution_height,
+            "template_rotation": self.template_rotation,
+            "template_heartbeat_interval": self.template_heartbeat_interval,
+            "template_location": self.template_location,
+            "is_default": self.is_default,
+            "is_active": self.is_active,
+            "owner_id": self.owner_id,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+            "created_by_id": self.created_by_id,
+            "updated_by_id": self.updated_by_id,
+        }
+
+    def to_configuration_dict(self) -> dict:
+        """Convert template to configuration dictionary for applying to displays."""
+        return {
+            "resolution_width": self.template_resolution_width,
+            "resolution_height": self.template_resolution_height,
+            "rotation": self.template_rotation,
+            "heartbeat_interval": self.template_heartbeat_interval,
+            "location": self.template_location,
+        }
+
+    @validates("name")
+    def validate_name(self, key: str, name: str) -> str:
+        """Validate template name format and length."""
+        if not name or len(name.strip()) < 2:
+            raise ValueError("Template name must be at least 2 characters long")
+        if len(name) > 100:
+            raise ValueError("Template name must be 100 characters or less")
+        return name.strip()
+
+    @validates("template_rotation")
+    def validate_template_rotation(self, key: str, rotation: int) -> int:
+        """Validate template rotation value."""
+        allowed_rotations = [0, 90, 180, 270]
+        if rotation not in allowed_rotations:
+            raise ValueError(
+                f"Template rotation must be one of: {', '.join(map(str, allowed_rotations))}"
+            )
+        return rotation
+
+    @validates("template_resolution_width", "template_resolution_height")
+    def validate_template_resolution(self, key: str, value: Optional[int]) -> Optional[int]:
+        """Validate template resolution values."""
+        if value is not None and (value < 1 or value > 10000):
+            raise ValueError(f"{key} must be between 1 and 10000 pixels")
+        return value

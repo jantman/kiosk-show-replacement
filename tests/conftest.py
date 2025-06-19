@@ -94,6 +94,44 @@ def sample_user(app):
 
 
 @pytest.fixture
+def admin_user(app):
+    """Create an admin user for testing."""
+    import uuid
+
+    with app.app_context():
+        # Use unique username to avoid conflicts in integration tests
+        unique_id = str(uuid.uuid4())[:8]
+        user = TestDataFactory.create_user(
+            username=f"admin_user_{unique_id}", 
+            email=f"admin_{unique_id}@example.com"
+        )
+        user.is_admin = True
+        db.session.add(user)
+        db.session.commit()
+        yield user
+        # Cleanup happens in cleanup_db_session fixture
+
+
+@pytest.fixture
+def regular_user(app):
+    """Create a regular (non-admin) user for testing."""
+    import uuid
+
+    with app.app_context():
+        # Use unique username to avoid conflicts in integration tests
+        unique_id = str(uuid.uuid4())[:8]
+        user = TestDataFactory.create_user(
+            username=f"regular_user_{unique_id}", 
+            email=f"regular_{unique_id}@example.com"
+        )
+        user.is_admin = False
+        db.session.add(user)
+        db.session.commit()
+        yield user
+        # Cleanup happens in cleanup_db_session fixture
+
+
+@pytest.fixture
 def sample_slideshow(app, sample_user):
     """Create a sample slideshow for testing."""
     with app.app_context():
@@ -219,6 +257,17 @@ def authenticated_user(app, client):
 
         yield user
         # Cleanup happens in cleanup_db_session fixture
+
+
+@pytest.fixture
+def auth_headers(client, admin_user):
+    """Create authentication headers for API testing (actually sets up session)."""
+    with client.session_transaction() as sess:
+        sess["user_id"] = admin_user.id
+        sess["username"] = admin_user.username
+        sess["is_admin"] = admin_user.is_admin
+    # Return empty dict since we use session-based auth, not header-based
+    return {}
 
 
 class TestDataFactory:

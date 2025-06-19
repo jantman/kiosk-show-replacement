@@ -15,7 +15,7 @@ from flask import Blueprint, Response, current_app, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
 
 from ..auth.decorators import get_current_user
-from ..models import Display, Slideshow, SlideshowItem, User, db
+from ..models import Display, DisplayConfigurationTemplate, Slideshow, SlideshowItem, User, db
 
 # Create API v1 blueprint
 api_v1_bp = Blueprint("api_v1", __name__)
@@ -777,96 +777,115 @@ def delete_display(display_id: int) -> Tuple[Response, int]:
 
 
 # =============================================================================
-# Assignment History Endpoints
+# Display Lifecycle Management Endpoints
 # =============================================================================
 
-
-@api_v1_bp.route("/displays/<int:display_id>/assignment-history", methods=["GET"])
+@api_v1_bp.route("/displays/<int:display_id>/archive", methods=["POST"])
 @api_auth_required
-def get_display_assignment_history(display_id: int) -> Tuple[Response, int]:
-    """Get assignment history for a specific display."""
+def archive_display(display_id: int) -> Tuple[Response, int]:
+    """Archive a display."""
     try:
-        from ..models import AssignmentHistory
-
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
 
-        display = Display.query.get(display_id)
+        display = db.session.get(Display, display_id)
         if not display:
             return api_error("Display not found", 404)
 
-        # Get assignment history ordered by most recent first
-        history = (
-            AssignmentHistory.query.filter_by(display_id=display_id)
-            .order_by(AssignmentHistory.created_at.desc())
-            .all()
+        if display.is_archived:
+            return api_error("Display is already archived", 400)
+
+        display.archive(current_user)
+        db.session.commit()
+
+        current_app.logger.info(
+            f"User {current_user.username} archived display {display.name}"
         )
-
-        history_data = [record.to_dict() for record in history]
-
-        return api_response(history_data)
+        return api_response(display.to_dict(), "Display archived successfully")
 
     except Exception as e:
-        current_app.logger.error(
-            f"Error fetching assignment history for display {display_id}: {e}"
-        )
-        return api_error("Failed to fetch assignment history", 500)
+        db.session.rollback()
+        current_app.logger.error(f"Error archiving display {display_id}: {e}")
+        return api_error("Failed to archive display", 500)
 
 
-@api_v1_bp.route("/assignment-history", methods=["GET"])
+@api_v1_bp.route("/displays/<int:display_id>/restore", methods=["POST"])
 @api_auth_required
-def get_all_assignment_history() -> Tuple[Response, int]:
-    """Get assignment history for all displays with optional filtering."""
+def restore_display(display_id: int) -> Tuple[Response, int]:
+    """Restore a display from archive."""
     try:
-        from ..models import AssignmentHistory
-
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
 
-        # Get query parameters for filtering
-        limit = request.args.get("limit", 50, type=int)
-        offset = request.args.get("offset", 0, type=int)
-        display_id = request.args.get("display_id", type=int)
-        action = request.args.get("action")
-        user_id = request.args.get("user_id", type=int)
+        display = db.session.get(Display, display_id)
+        if not display:
+            return api_error("Display not found", 404)
 
-        # Build query
-        query = AssignmentHistory.query
+        if not display.is_archived:
+            return api_error("Display is not archived", 400)
 
-        # Apply filters
-        if display_id:
-            query = query.filter_by(display_id=display_id)
-        if action:
-            query = query.filter_by(action=action)
-        if user_id:
-            query = query.filter_by(created_by_id=user_id)
+        display.restore()
+        display.updated_by_id = current_user.id
+        db.session.commit()
 
-        # Order by most recent first and apply pagination
-        history = (
-            query.order_by(AssignmentHistory.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-            .all()
+        current_app.logger.info(
+            f"User {current_user.username} restored display {display.name}"
         )
-
-        history_data = [record.to_dict() for record in history]
-
-        return api_response(history_data)
+        return api_response(display.to_dict(), "Display restored successfully")
 
     except Exception as e:
-        current_app.logger.error(f"Error fetching assignment history: {e}")
-        return api_error("Failed to fetch assignment history", 500)
+        db.session.rollback()
+        current_app.logger.error(f"Error restoring display {display_id}: {e}")
+        return api_error("Failed to restore display", 500)
 
 
-@api_v1_bp.route("/assignment-history", methods=["POST"])
+@api_v1_bp.route("/displays/archived", methods=["GET"])
 @api_auth_required
-def create_assignment_history() -> Tuple[Response, int]:
-    """Create a new assignment history record."""
+def list_archived_displays() -> Tuple[Response, int]:
+    """List all archived displays."""
     try:
-        from ..models import AssignmentHistory
+        displays = Display.query.filter_by(is_archived=True).all()
+        display_data = [display.to_dict() for display in displays]
 
+        return api_response(display_data, "Archived displays retrieved successfully")
+
+    except Exception as e:
+        current_app.logger.error(f"Error listing archived displays: {e}")
+        return api_error("Failed to retrieve archived displays", 500)
+
+
+# =============================================================================
+# Display Configuration Template Endpoints
+# =============================================================================
+
+@api_v1_bp.route("/display-templates", methods=["GET"])
+@api_auth_required
+def list_display_templates() -> Tuple[Response, int]:
+    """List all display configuration templates."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        templates = DisplayConfigurationTemplate.query.filter_by(
+            owner_id=current_user.id, is_active=True
+        ).all()
+        template_data = [template.to_dict() for template in templates]
+
+        return api_response(template_data, "Templates retrieved successfully")
+
+    except Exception as e:
+        current_app.logger.error(f"Error listing display templates: {e}")
+        return api_error("Failed to retrieve display templates", 500)
+
+
+@api_v1_bp.route("/display-templates", methods=["POST"])
+@api_auth_required
+def create_display_template() -> Tuple[Response, int]:
+    """Create a new display configuration template."""
+    try:
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -876,201 +895,286 @@ def create_assignment_history() -> Tuple[Response, int]:
             return api_error("No data provided", 400)
 
         # Validate required fields
-        required_fields = ["display_id", "action"]
-        for field in required_fields:
-            if field not in data:
-                return api_error(f"Missing required field: {field}", 400)
+        if not data.get("name"):
+            return api_error("Template name is required", 400)
 
-        # Validate display exists
-        display = Display.query.get(data["display_id"])
-        if not display:
-            return api_error("Display not found", 404)
+        # Check for duplicate template name
+        existing_template = DisplayConfigurationTemplate.query.filter_by(
+            name=data["name"], owner_id=current_user.id
+        ).first()
+        if existing_template:
+            return api_error("Template with this name already exists", 400)
 
-        # Create assignment history record
-        history_record = AssignmentHistory(
-            display_id=data["display_id"],
-            previous_slideshow_id=data.get("previous_slideshow_id"),
-            new_slideshow_id=data.get("new_slideshow_id"),
-            action=data["action"],
-            reason=data.get("reason"),
+        # Create new template
+        template = DisplayConfigurationTemplate(
+            name=data["name"],
+            description=data.get("description"),
+            template_resolution_width=data.get("template_resolution_width"),
+            template_resolution_height=data.get("template_resolution_height"),
+            template_rotation=data.get("template_rotation", 0),
+            template_heartbeat_interval=data.get("template_heartbeat_interval", 60),
+            template_location=data.get("template_location"),
+            is_default=data.get("is_default", False),
+            owner_id=current_user.id,
             created_by_id=current_user.id,
         )
 
-        db.session.add(history_record)
+        db.session.add(template)
         db.session.commit()
 
         current_app.logger.info(
-            f"User {current_user.username} created assignment history record "
-            f"for display {display.name}"
+            f"User {current_user.username} created display template {template.name}"
         )
+        return api_response(template.to_dict(), "Display template created successfully", 201)
 
-        return api_response(
-            history_record.to_dict(),
-            "Assignment history record created successfully",
-            201,
+    except ValueError as e:
+        db.session.rollback()
+        return api_error(str(e), 400)
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Integrity error creating template: {e}")
+        return api_error("Template with this name already exists", 400)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error creating display template: {e}")
+        return api_error("Failed to create display template", 500)
+
+
+@api_v1_bp.route("/display-templates/<int:template_id>", methods=["GET"])
+@api_auth_required
+def get_display_template(template_id: int) -> Tuple[Response, int]:
+    """Get a specific display configuration template."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        template = db.session.get(DisplayConfigurationTemplate, template_id)
+        if not template:
+            return api_error("Template not found", 404)
+
+        if template.owner_id != current_user.id:
+            return api_error("Access denied", 403)
+
+        return api_response(template.to_dict(), "Template retrieved successfully")
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting display template {template_id}: {e}")
+        return api_error("Failed to retrieve display template", 500)
+
+
+@api_v1_bp.route("/display-templates/<int:template_id>", methods=["PUT"])
+@api_auth_required
+def update_display_template(template_id: int) -> Tuple[Response, int]:
+    """Update a display configuration template."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        template = db.session.get(DisplayConfigurationTemplate, template_id)
+        if not template:
+            return api_error("Template not found", 404)
+
+        if template.owner_id != current_user.id:
+            return api_error("Access denied", 403)
+
+        data = request.get_json()
+        if not data:
+            return api_error("No data provided", 400)
+
+        # Update template fields
+        if "name" in data:
+            # Check for duplicate name (excluding current template)
+            existing_template = (
+                DisplayConfigurationTemplate.query.filter_by(
+                    name=data["name"], owner_id=current_user.id
+                )
+                .filter(DisplayConfigurationTemplate.id != template_id)
+                .first()
+            )
+            if existing_template:
+                return api_error("Template with this name already exists", 400)
+            template.name = data["name"]
+
+        if "description" in data:
+            template.description = data["description"]
+        if "template_resolution_width" in data:
+            template.template_resolution_width = data["template_resolution_width"]
+        if "template_resolution_height" in data:
+            template.template_resolution_height = data["template_resolution_height"]
+        if "template_rotation" in data:
+            template.template_rotation = data["template_rotation"]
+        if "template_heartbeat_interval" in data:
+            template.template_heartbeat_interval = data["template_heartbeat_interval"]
+        if "template_location" in data:
+            template.template_location = data["template_location"]
+        if "is_default" in data:
+            template.is_default = data["is_default"]
+
+        template.updated_by_id = current_user.id
+        db.session.commit()
+
+        current_app.logger.info(
+            f"User {current_user.username} updated display template {template.name}"
         )
+        return api_response(template.to_dict(), "Template updated successfully")
+
+    except ValueError as e:
+        db.session.rollback()
+        return api_error(str(e), 400)
+    except IntegrityError as e:
+        db.session.rollback()
+        current_app.logger.error(f"Integrity error updating template: {e}")
+        return api_error("Template with this name already exists", 400)
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating display template {template_id}: {e}")
+        return api_error("Failed to update display template", 500)
+
+
+@api_v1_bp.route("/display-templates/<int:template_id>", methods=["DELETE"])
+@api_auth_required
+def delete_display_template(template_id: int) -> Tuple[Response, int]:
+    """Delete a display configuration template."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        template = db.session.get(DisplayConfigurationTemplate, template_id)
+        if not template:
+            return api_error("Template not found", 404)
+
+        if template.owner_id != current_user.id:
+            return api_error("Access denied", 403)
+
+        template_name = template.name
+        db.session.delete(template)
+        db.session.commit()
+
+        current_app.logger.info(
+            f"User {current_user.username} deleted display template {template_name}"
+        )
+        return api_response(None, "Template deleted successfully")
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error deleting display template {template_id}: {e}")
+        return api_error("Failed to delete display template", 500)
+
+
+@api_v1_bp.route("/displays/<int:display_id>/apply-template/<int:template_id>", methods=["POST"])
+@api_auth_required
+def apply_template_to_display(display_id: int, template_id: int) -> Tuple[Response, int]:
+    """Apply a configuration template to a display."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        display = db.session.get(Display, display_id)
+        if not display:
+            return api_error("Display not found", 404)
+
+        template = db.session.get(DisplayConfigurationTemplate, template_id)
+        if not template:
+            return api_error("Template not found", 404)
+
+        if template.owner_id != current_user.id:
+            return api_error("Access denied", 403)
+
+        if display.is_archived:
+            return api_error("Cannot apply template to archived display", 400)
+
+        # Apply template configuration
+        config = template.to_configuration_dict()
+        display.apply_configuration(config, current_user)
+        db.session.commit()
+
+        current_app.logger.info(
+            f"User {current_user.username} applied template {template.name} to display {display.name}"
+        )
+        return api_response(display.to_dict(), "Template applied successfully")
 
     except ValueError as e:
         db.session.rollback()
         return api_error(str(e), 400)
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error creating assignment history: {e}")
-        return api_error("Failed to create assignment history record", 500)
+        current_app.logger.error(f"Error applying template {template_id} to display {display_id}: {e}")
+        return api_error("Failed to apply template", 500)
 
 
-# =============================================================================
-# File Upload Endpoints
-# =============================================================================
-
-
-@api_v1_bp.route("/uploads/image", methods=["POST"])
+@api_v1_bp.route("/displays/bulk-apply-template", methods=["POST"])
 @api_auth_required
-def upload_image() -> Tuple[Response, int]:
-    """Upload an image file."""
-    from ..storage import get_storage_manager
-
-    current_user = get_current_user()
-    if not current_user:
-        return api_error("Authentication required", 401)
-
-    # Check if file is present
-    if "file" not in request.files:
-        return api_error("No file provided", 400)
-
-    file = request.files["file"]
-    if file.filename == "":
-        return api_error("No file selected", 400)
-
-    # Get slideshow ID from form data
-    slideshow_id = request.form.get("slideshow_id")
-    if not slideshow_id:
-        return api_error("slideshow_id is required", 400)
-
+def bulk_apply_template() -> Tuple[Response, int]:
+    """Apply a configuration template to multiple displays."""
     try:
-        slideshow_id = int(slideshow_id)
-    except ValueError:
-        return api_error("Invalid slideshow_id", 400)
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
 
-    # Verify slideshow exists
-    slideshow = db.session.get(Slideshow, slideshow_id)
-    if not slideshow:
-        return api_error("Slideshow not found", 404)
+        data = request.get_json()
+        if not data:
+            return api_error("No data provided", 400)
 
-    # Upload the file
-    storage_manager = get_storage_manager()
-    success, message, file_info = storage_manager.save_file(
-        file, "image", current_user.id, slideshow_id
-    )
+        display_ids = data.get("display_ids", [])
+        template_id = data.get("template_id")
 
-    if not success:
-        return api_error(message, 400)
+        if not display_ids:
+            return api_error("No display IDs provided", 400)
+        if not template_id:
+            return api_error("Template ID is required", 400)
 
-    return api_response(file_info, message, 201)
+        template = db.session.get(DisplayConfigurationTemplate, template_id)
+        if not template:
+            return api_error("Template not found", 404)
 
+        if template.owner_id != current_user.id:
+            return api_error("Access denied", 403)
 
-@api_v1_bp.route("/uploads/video", methods=["POST"])
-@api_auth_required
-def upload_video() -> Tuple[Response, int]:
-    """Upload a video file."""
-    from ..storage import get_storage_manager
+        # Apply template to all displays
+        config = template.to_configuration_dict()
+        applied_displays = []
+        failed_displays = []
 
-    current_user = get_current_user()
-    if not current_user:
-        return api_error("Authentication required", 401)
+        for display_id in display_ids:
+            try:
+                display = db.session.get(Display, display_id)
+                if not display:
+                    failed_displays.append({"id": display_id, "error": "Display not found"})
+                    continue
 
-    # Check if file is present
-    if "file" not in request.files:
-        return api_error("No file provided", 400)
+                if display.is_archived:
+                    failed_displays.append({"id": display_id, "error": "Display is archived"})
+                    continue
 
-    file = request.files["file"]
-    if file.filename == "":
-        return api_error("No file selected", 400)
+                display.apply_configuration(config, current_user)
+                applied_displays.append(display.to_dict())
 
-    # Get slideshow ID from form data
-    slideshow_id = request.form.get("slideshow_id")
-    if not slideshow_id:
-        return api_error("slideshow_id is required", 400)
+            except Exception as e:
+                failed_displays.append({"id": display_id, "error": str(e)})
 
-    try:
-        slideshow_id = int(slideshow_id)
-    except ValueError:
-        return api_error("Invalid slideshow_id", 400)
+        db.session.commit()
 
-    # Verify slideshow exists
-    slideshow = db.session.get(Slideshow, slideshow_id)
-    if not slideshow:
-        return api_error("Slideshow not found", 404)
+        current_app.logger.info(
+            f"User {current_user.username} bulk applied template {template.name} to {len(applied_displays)} displays"
+        )
 
-    # Upload the file
-    storage_manager = get_storage_manager()
-    success, message, file_info = storage_manager.save_file(
-        file, "video", current_user.id, slideshow_id
-    )
+        result = {
+            "applied_displays": applied_displays,
+            "failed_displays": failed_displays,
+            "total_applied": len(applied_displays),
+            "total_failed": len(failed_displays),
+        }
 
-    if not success:
-        return api_error(message, 400)
+        return api_response(result, f"Template applied to {len(applied_displays)} displays")
 
-    return api_response(file_info, message, 201)
-
-
-@api_v1_bp.route("/uploads/<int:file_id>", methods=["GET"])
-@api_auth_required
-def get_file_info(file_id: int) -> Tuple[Response, int]:
-    """Get information about an uploaded file."""
-    # For now, this will be a placeholder since we don't have a File model yet
-    # In a future enhancement, we could add a File model to track uploaded files
-    return api_error("File info endpoint not yet implemented", 501)
-
-
-@api_v1_bp.route("/uploads/<int:file_id>", methods=["DELETE"])
-@api_auth_required
-def delete_file(file_id: int) -> Tuple[Response, int]:
-    """Delete an uploaded file."""
-    # For now, this will be a placeholder since we don't have a File model yet
-    # In a future enhancement, we could add a File model to track uploaded files
-    return api_error("File deletion endpoint not yet implemented", 501)
-
-
-@api_v1_bp.route("/uploads/stats", methods=["GET"])
-@api_auth_required
-def get_upload_stats() -> Tuple[Response, int]:
-    """Get storage statistics."""
-    from ..storage import get_storage_manager
-
-    current_user = get_current_user()
-    if not current_user:
-        return api_error("Authentication required", 401)
-
-    storage_manager = get_storage_manager()
-    stats = storage_manager.get_storage_stats()
-
-    # Convert byte sizes to human-readable format
-    def format_size(size_bytes):
-        if size_bytes == 0:
-            return "0 B"
-        size_names = ["B", "KB", "MB", "GB"]
-        i = 0
-        while size_bytes >= 1024 and i < len(size_names) - 1:
-            size_bytes /= 1024
-            i += 1
-        return f"{size_bytes:.1f} {size_names[i]}"
-
-    formatted_stats = {
-        "total_size": stats["total_size"],
-        "total_size_formatted": format_size(stats["total_size"]),
-        "image_size": stats["image_size"],
-        "image_size_formatted": format_size(stats["image_size"]),
-        "video_size": stats["video_size"],
-        "video_size_formatted": format_size(stats["video_size"]),
-        "total_files": stats["total_files"],
-        "image_files": stats["image_files"],
-        "video_files": stats["video_files"],
-        "users_with_files": stats["users_with_files"],
-        "slideshows_with_files": stats["slideshows_with_files"],
-    }
-
-    return api_response(formatted_stats, "Storage statistics retrieved")
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error bulk applying template: {e}")
+        return api_error("Failed to bulk apply template", 500)
 
 
 # =============================================================================
