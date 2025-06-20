@@ -16,6 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..auth.decorators import get_current_user
 from ..models import Display, DisplayConfigurationTemplate, Slideshow, SlideshowItem, User, db
+from ..storage import get_storage_manager
 
 # Create API v1 blueprint
 api_v1_bp = Blueprint("api_v1", __name__)
@@ -1364,3 +1365,182 @@ def api_logout() -> Tuple[Response, int]:
 
     session.clear()
     return api_response(message="Successfully logged out")
+
+
+# =============================================================================
+# File Upload API Endpoints
+# =============================================================================
+
+
+@api_v1_bp.route("/uploads/image", methods=["POST"])
+@api_auth_required
+def upload_image() -> Tuple[Response, int]:
+    """Upload an image file."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+        
+        # Check if file is present
+        if 'file' not in request.files:
+            return api_error("No file provided", 400)
+        
+        file = request.files['file']
+        if file.filename == '':
+            return api_error("No file provided", 400)
+        
+        # Get slideshow_id
+        slideshow_id = request.form.get('slideshow_id')
+        if not slideshow_id:
+            return api_error("slideshow_id is required", 400)
+        
+        # Validate slideshow_id
+        try:
+            slideshow_id = int(slideshow_id)
+        except ValueError:
+            return api_error("Invalid slideshow_id", 400)
+        
+        # Check if slideshow exists
+        slideshow = db.session.get(Slideshow, slideshow_id)
+        if not slideshow or not slideshow.is_active:
+            return api_error("Slideshow not found", 404)
+        
+        # Get storage manager and upload file
+        storage = get_storage_manager()
+        
+        # Validate file
+        is_valid, error_message = storage.validate_file(file, "image")
+        if not is_valid:
+            return api_error(error_message, 400)
+        
+        # Save file
+        success, message, file_info = storage.save_file(
+            file, "image", current_user.id, slideshow_id
+        )
+        
+        if not success:
+            return api_error(message, 400)
+        
+        # Add URL to response
+        file_info["url"] = storage.get_file_url(file_info["file_path"])
+        
+        current_app.logger.info(
+            f"User {current_user.username} uploaded image {file_info['original_filename']} "
+            f"to slideshow {slideshow.name}"
+        )
+        
+        return api_response(file_info, "Image uploaded successfully", 201)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error uploading image: {e}")
+        return api_error("Failed to upload image", 500)
+
+
+@api_v1_bp.route("/uploads/video", methods=["POST"])
+@api_auth_required
+def upload_video() -> Tuple[Response, int]:
+    """Upload a video file."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+        
+        # Check if file is present
+        if 'file' not in request.files:
+            return api_error("No file provided", 400)
+        
+        file = request.files['file']
+        if file.filename == '':
+            return api_error("No file provided", 400)
+        
+        # Get slideshow_id
+        slideshow_id = request.form.get('slideshow_id')
+        if not slideshow_id:
+            return api_error("slideshow_id is required", 400)
+        
+        # Validate slideshow_id
+        try:
+            slideshow_id = int(slideshow_id)
+        except ValueError:
+            return api_error("Invalid slideshow_id", 400)
+        
+        # Check if slideshow exists
+        slideshow = db.session.get(Slideshow, slideshow_id)
+        if not slideshow or not slideshow.is_active:
+            return api_error("Slideshow not found", 404)
+        
+        # Get storage manager and upload file
+        storage = get_storage_manager()
+        
+        # Validate file
+        is_valid, error_message = storage.validate_file(file, "video")
+        if not is_valid:
+            return api_error(error_message, 400)
+        
+        # Save file
+        success, message, file_info = storage.save_file(
+            file, "video", current_user.id, slideshow_id
+        )
+        
+        if not success:
+            return api_error(message, 400)
+        
+        # Add URL to response
+        file_info["url"] = storage.get_file_url(file_info["file_path"])
+        
+        current_app.logger.info(
+            f"User {current_user.username} uploaded video {file_info['original_filename']} "
+            f"to slideshow {slideshow.name}"
+        )
+        
+        return api_response(file_info, "Video uploaded successfully", 201)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error uploading video: {e}")
+        return api_error("Failed to upload video", 500)
+
+
+@api_v1_bp.route("/uploads/stats", methods=["GET"])
+@api_auth_required
+def get_upload_stats() -> Tuple[Response, int]:
+    """Get upload statistics."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+        
+        # Get storage manager and stats
+        storage = get_storage_manager()
+        stats = storage.get_storage_stats()
+        
+        # Add formatted sizes
+        def format_bytes(size):
+            for unit in ['B', 'KB', 'MB', 'GB']:
+                if size < 1024:
+                    return f"{size:.1f} {unit}"
+                size /= 1024
+            return f"{size:.1f} TB"
+        
+        stats["total_size_formatted"] = format_bytes(stats["total_size"])
+        stats["image_size_formatted"] = format_bytes(stats["image_size"])
+        stats["video_size_formatted"] = format_bytes(stats["video_size"])
+        
+        return api_response(stats, "Upload statistics retrieved successfully")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting upload stats: {e}")
+        return api_error("Failed to get upload statistics", 500)
+
+
+@api_v1_bp.route("/uploads/<int:file_id>", methods=["GET"])
+@api_auth_required
+def get_file_info(file_id: int) -> Tuple[Response, int]:
+    """Get file information (placeholder - not yet implemented)."""
+    return api_error("File info endpoint not yet implemented", 501)
+
+
+@api_v1_bp.route("/uploads/<int:file_id>", methods=["DELETE"])
+@api_auth_required
+def delete_file(file_id: int) -> Tuple[Response, int]:
+    """Delete uploaded file (placeholder - not yet implemented)."""
+    return api_error("File deletion endpoint not yet implemented", 501)
