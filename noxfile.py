@@ -298,6 +298,7 @@ def test_comprehensive(session):
         # 2. Run integration tests
         session.log("2. Running integration tests...")
         session.install("playwright", "pytest-playwright", "requests")
+        session.install("pytest-asyncio")  # Required for asyncio arguments
         
         # Create ffmpeg symlink for Playwright video recording
         playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")

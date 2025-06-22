@@ -1255,8 +1255,6 @@ def api_login() -> Tuple[Response, int]:
     try:
         from datetime import datetime, timezone
 
-        from sqlalchemy.exc import IntegrityError
-
         # Check if user already exists
         user = User.query.filter_by(username=username).first()
 
@@ -1634,18 +1632,91 @@ def display_events_stream(display_name: str):
 @api_v1_bp.route("/events/stats", methods=["GET"])
 @api_auth_required
 def sse_stats() -> Tuple[Response, int]:
-    """Get SSE connection statistics."""
+    """Get SSE connection statistics with detailed connection information."""
     try:
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
         
+        # Get basic stats
         stats = sse_manager.get_connection_stats()
+        
+        # Add detailed connection information
+        detailed_connections = []
+        with sse_manager.connections_lock:
+            for conn_id, conn in sse_manager.connections.items():
+                conn_info = {
+                    "connection_id": conn_id,
+                    "connection_type": conn.connection_type,
+                    "user_id": conn.user_id,
+                    "connected_at": conn.connected_at.isoformat(),
+                    "events_sent": len(conn.event_queue),
+                    "last_activity": conn.connected_at.isoformat()  # Can be enhanced with actual last activity
+                }
+                
+                # Add display-specific info if available
+                if hasattr(conn, 'display_name'):
+                    conn_info["display_name"] = conn.display_name
+                if hasattr(conn, 'display_id'):
+                    conn_info["display_id"] = conn.display_id
+                    
+                detailed_connections.append(conn_info)
+        
+        # Add detailed connection list to stats
+        stats["connections"] = detailed_connections
+        stats["connection_details"] = {
+            "by_type": {
+                "admin": [c for c in detailed_connections if c["connection_type"] == "admin"],
+                "display": [c for c in detailed_connections if c["connection_type"] == "display"]
+            }
+        }
+        
         return api_response(stats, "SSE statistics retrieved successfully")
         
     except Exception as e:
         current_app.logger.error(f"Error getting SSE stats: {e}")
         return api_error("Failed to get SSE statistics", 500)
+
+
+@api_v1_bp.route("/events/test", methods=["POST"])
+@api_auth_required
+def broadcast_test_event() -> Tuple[Response, int]:
+    """Broadcast a test event for SSE debugging."""
+    try:
+        from datetime import datetime, timezone
+        
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+        
+        data = request.get_json() or {}
+        event_type = data.get("type", "test_event")
+        message = data.get("message", "Test event from admin interface")
+        
+        # Create test event
+        test_data = {
+            "message": message,
+            "user_id": current_user.id,
+            "username": current_user.username,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "test_event": True
+        }
+        
+        # Broadcast to all admin connections
+        sent_count = broadcast_system_event(event_type, test_data)
+        
+        current_app.logger.info(f"Test event broadcast by user {current_user.username}, sent to {sent_count} connections")
+        
+        return api_response({
+            "event_type": event_type,
+            "message": message,
+            "connections_notified": sent_count,
+            "broadcast_at": test_data["timestamp"]
+        }, "Test event broadcast successfully")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error broadcasting test event: {e}")
+        return api_error("Failed to broadcast test event", 500)
 
 
 # =============================================================================

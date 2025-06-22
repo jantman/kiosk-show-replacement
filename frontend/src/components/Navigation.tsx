@@ -23,6 +23,7 @@ const Navigation: React.FC = () => {
             <Nav.Link as={Link} to="/admin/slideshows">Slideshows</Nav.Link>
             <Nav.Link as={Link} to="/admin/displays">Displays</Nav.Link>
             <Nav.Link as={Link} to="/admin/assignment-history">Assignment History</Nav.Link>
+            <Nav.Link as={Link} to="/admin/monitoring">System Monitoring</Nav.Link>
           </Nav>
           
           <Nav>

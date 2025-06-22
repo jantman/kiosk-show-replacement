@@ -11,6 +11,7 @@ import SlideshowDetail from './pages/SlideshowDetail';
 import Displays from './pages/Displays';
 import DisplayDetail from './pages/DisplayDetail';
 import AssignmentHistory from './pages/AssignmentHistory';
+import SystemMonitoring from './pages/SystemMonitoring';
 
 // Import Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -44,6 +45,9 @@ const App: React.FC = () => {
             
             {/* Assignment History */}
             <Route path="assignment-history" element={<AssignmentHistory />} />
+            
+            {/* System Monitoring */}
+            <Route path="monitoring" element={<SystemMonitoring />} />
           </Route>
           
           {/* Default redirect */}
