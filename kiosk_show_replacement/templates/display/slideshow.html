@@ -774,7 +774,7 @@
                         console.log('Assignment changed:', data);
                         
                         // If this display's assignment changed, reload the page
-                        if (data.name === this.displayName) {
+                        if (data.display_name === this.displayName || data.name === this.displayName) {
                             console.log('This display assignment changed, reloading...');
                             window.location.reload();
                         }
@@ -792,12 +792,37 @@
                         }
                     });
                     
+                    // Handle slideshow creation (might affect default assignment)
+                    this.eventSource.addEventListener('slideshow.created', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('New slideshow created:', data);
+                        
+                        // If this is a new default slideshow and current display has no specific assignment
+                        if (data.is_default) {
+                            console.log('New default slideshow created, checking assignment...');
+                            // Defer reload to allow backend to process assignment
+                            setTimeout(() => window.location.reload(), 2000);
+                        }
+                    });
+                    
+                    // Handle slideshow deletion
+                    this.eventSource.addEventListener('slideshow.deleted', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('Slideshow deleted:', data);
+                        
+                        // If the current slideshow was deleted, reload immediately
+                        if (data.slideshow_id === {{ slideshow.id }}) {
+                            console.log('Current slideshow was deleted, reloading...');
+                            window.location.reload();
+                        }
+                    });
+                    
                     // Handle configuration changes
                     this.eventSource.addEventListener('display.configuration_changed', (event) => {
                         const data = JSON.parse(event.data);
                         console.log('Configuration changed:', data);
                         
-                        if (data.name === this.displayName) {
+                        if (data.display_name === this.displayName || data.name === this.displayName) {
                             console.log('Display configuration changed, reloading...');
                             window.location.reload();
                         }

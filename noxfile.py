@@ -139,7 +139,7 @@ def _setup_playwright_browser_testing(session):
         session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
 
 
-def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: int = 60, extra_args: list[str] | None = None):
+def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: int = 60, extra_args: list[str] | None = None, enable_asyncio: bool = False):
     """Run Playwright tests with process-level timeout to prevent hanging."""
     
     # Base pytest arguments for all browser tests
@@ -155,6 +155,13 @@ def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: 
         "-x",  # Stop on first failure
     ]
     
+    # Add asyncio configuration if needed
+    if enable_asyncio:
+        base_args.extend([
+            "--asyncio-mode=auto",
+            "--asyncio-default-fixture-loop-scope=session"
+        ])
+    
     # Add extra arguments if provided
     if extra_args:
         base_args.extend(extra_args)
@@ -169,7 +176,7 @@ def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: 
     )
 
 
-def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None = None):
+def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None = None, enable_asyncio: bool = False):
     """Run Playwright tests with proper browser configuration."""
     
     # Base pytest arguments for all browser tests
@@ -182,6 +189,13 @@ def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None =
         "only-on-failure",
         "-v",
     ]
+    
+    # Add asyncio configuration if needed
+    if enable_asyncio:
+        base_args.extend([
+            "--asyncio-mode=auto",
+            "--asyncio-default-fixture-loop-scope=session"
+        ])
     
     # Add extra arguments if provided
     if extra_args:
@@ -209,7 +223,8 @@ def test_integration(session):
     _run_playwright_tests(
         session, 
         TEST_DIR + "/integration", 
-        extra_args=["-s"]  # Don't capture output so we can see print statements
+        extra_args=["-s"],  # Don't capture output so we can see print statements
+        enable_asyncio=True  # Enable asyncio support for integration tests
     )
 
 
@@ -228,7 +243,8 @@ def test_e2e(session):
         session, 
         TEST_DIR + "/e2e",
         timeout_seconds=60,
-        extra_args=["--tb=short"]  # Shorter traceback for better error visibility
+        extra_args=["--tb=short"],  # Shorter traceback for better error visibility
+        enable_asyncio=True  # Enable asyncio support for E2E tests
     )
 
 
@@ -304,6 +320,8 @@ def test_comprehensive(session):
             "retain-on-failure",
             "--screenshot",
             "only-on-failure",
+            "--asyncio-mode=auto",
+            "--asyncio-default-fixture-loop-scope=session",
             "-v",
             "-s",
         )
@@ -355,6 +373,8 @@ def test_comprehensive(session):
             "retain-on-failure",
             "--screenshot",
             "only-on-failure",
+            "--asyncio-mode=auto",
+            "--asyncio-default-fixture-loop-scope=session",
             "-v",
         )
         results.append("✅ E2E tests: PASSED")
