@@ -158,8 +158,7 @@ def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: 
     # Add asyncio configuration if needed
     if enable_asyncio:
         base_args.extend([
-            "--asyncio-mode=auto",
-            "--asyncio-default-fixture-loop-scope=session"
+            "--asyncio-mode=auto"
         ])
     
     # Add extra arguments if provided
@@ -193,8 +192,7 @@ def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None =
     # Add asyncio configuration if needed
     if enable_asyncio:
         base_args.extend([
-            "--asyncio-mode=auto",
-            "--asyncio-default-fixture-loop-scope=session"
+            "--asyncio-mode=auto"
         ])
     
     # Add extra arguments if provided
@@ -321,7 +319,6 @@ def test_comprehensive(session):
             "--screenshot",
             "only-on-failure",
             "--asyncio-mode=auto",
-            "--asyncio-default-fixture-loop-scope=session",
             "-v",
             "-s",
         )
@@ -374,7 +371,6 @@ def test_comprehensive(session):
             "--screenshot",
             "only-on-failure",
             "--asyncio-mode=auto",
-            "--asyncio-default-fixture-loop-scope=session",
             "-v",
         )
         results.append("✅ E2E tests: PASSED")
