@@ -288,8 +288,14 @@ class TestFullUserExperience:
         print("📊 Waiting for dashboard...")
 
         # Wait for the login to complete and dashboard to load
-        # This should happen automatically after successful login
-        page.wait_for_load_state("networkidle", timeout=15000)
+        # Note: We can't use networkidle because SSE connections keep network active
+        # Instead, wait for specific dashboard elements to appear
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+        
+        # Wait for the login form to disappear (indicating successful redirect)
+        page.locator("input[name='username'], input[placeholder*='username' i]").wait_for(
+            state="hidden", timeout=10000
+        )
 
         # Verify we're no longer on the login page
         login_form_present = page.locator("input[name='username']").is_visible()
@@ -300,12 +306,17 @@ class TestFullUserExperience:
         # Step 5: Verify dashboard content is visible
         print("🎯 Checking dashboard content...")
 
-        # Look for dashboard indicators - check for unique, specific elements
+        # Wait for the dashboard to load (it might show loading spinner first)
+        # First wait for the main Dashboard heading to appear
+        page.locator("h1").filter(has_text="Dashboard").wait_for(
+            state="visible", timeout=10000
+        )
+
+        # Look for dashboard indicators - check for actual elements from Dashboard.tsx
         dashboard_indicators = [
-            page.locator("h1").filter(has_text="Dashboard"),  # More specific selector
-            page.locator("text=Welcome back"),
-            page.locator("text=Quick Actions"),
-            page.locator("button").filter(has_text="Create New Slideshow"),
+            page.locator("h1").filter(has_text="Dashboard"),  # Main dashboard heading
+            page.locator("text=Welcome back"),  # Welcome message
+            page.locator("strong").filter(has_text="admin"),  # Username in welcome
         ]
 
         # At least one dashboard indicator should be visible

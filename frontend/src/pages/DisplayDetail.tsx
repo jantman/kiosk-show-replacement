@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { apiClient } from '../utils/apiClient';
+import { useDisplayEvents } from '../hooks/useSSE';
 import { Display, Slideshow, AssignmentHistory } from '../types';
 
 const DisplayDetail: React.FC = () => {
@@ -66,6 +67,24 @@ const DisplayDetail: React.FC = () => {
 
     fetchData();
   }, [id]);
+
+  // Real-time updates via SSE
+  const handleDisplayUpdate = (updatedDisplay: Display) => {
+    if (display && updatedDisplay.id === display.id) {
+      setDisplay(updatedDisplay);
+      // Update form data if not currently editing
+      if (!isEditing) {
+        setFormData({
+          name: updatedDisplay.name,
+          location: updatedDisplay.location || '',
+          description: updatedDisplay.description || '',
+          current_slideshow_id: updatedDisplay.current_slideshow_id ?? null,
+        });
+      }
+    }
+  };
+
+  useDisplayEvents(handleDisplayUpdate);
 
   const handleEdit = () => {
     setIsEditing(true);

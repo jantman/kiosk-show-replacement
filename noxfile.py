@@ -139,6 +139,8 @@ def _setup_playwright_browser_testing(session):
     """Set up Playwright dependencies and browser configuration for testing."""
     # Install Playwright dependencies
     session.install("playwright", "pytest-playwright")
+    session.install("pytest-asyncio")  # Required for async test functions
+    session.install("pytest-timeout")  # Required for test timeouts
     
     # Create ffmpeg symlink for Playwright video recording
     playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
@@ -215,12 +217,20 @@ def test_e2e(session):
     """Run end-to-end tests: Flask server-rendered pages through browser automation."""
     session.install("-e", ".")
     session.install("pytest", "pytest-flask")
+    session.install("pytest-asyncio")  # Required for async test functions
     
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
     
-    # Run E2E tests
-    _run_playwright_tests(session, TEST_DIR + "/e2e")
+    # Run E2E tests with specific configuration for async timeout handling
+    _run_playwright_tests(
+        session, 
+        TEST_DIR + "/e2e",
+        extra_args=[
+            "--tb=short",  # Shorter traceback for better error visibility
+            "-x",  # Stop on first failure to prevent hanging
+        ]
+    )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-all")
@@ -350,6 +360,8 @@ def test_comprehensive(session):
     try:
         # 4. Run E2E tests
         session.log("4. Running E2E tests...")
+        session.install("pytest-asyncio")  # Required for async test functions
+        session.install("pytest-timeout")  # Required for test timeouts
         chrome_path = _find_system_chrome()
         if chrome_path:
             session.run(

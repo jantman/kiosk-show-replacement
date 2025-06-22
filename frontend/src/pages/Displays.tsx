@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Table, Badge, Button, Spinner, Alert, Modal, Form } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
+import { useDisplayEvents } from '../hooks/useSSE';
+import LiveDataIndicator from '../components/LiveDataIndicator';
 import { Display, Slideshow } from '../types';
 
 const Displays: React.FC = () => {
@@ -25,6 +27,17 @@ const Displays: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'offline'>('all');
   const [assignmentFilter, setAssignmentFilter] = useState<'all' | 'assigned' | 'unassigned'>('all');
+
+  // SSE integration for real-time updates
+  const handleDisplayUpdate = (updatedDisplay: Display) => {
+    setDisplays(prevDisplays => 
+      prevDisplays.map(display => 
+        display.id === updatedDisplay.id ? updatedDisplay : display
+      )
+    );
+  };
+
+  useDisplayEvents(handleDisplayUpdate);
 
   useEffect(() => {
     loadData();
@@ -127,7 +140,7 @@ const Displays: React.FC = () => {
   };
 
   // Filter displays based on search and filter criteria
-  const filteredDisplays = displays.filter(display => {
+  const filteredDisplays = (displays || []).filter(display => {
     const matchesSearch = display.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          (display.location || '').toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -204,9 +217,9 @@ const Displays: React.FC = () => {
 
   const getStatusBadge = (display: Display) => {
     return display.is_online ? (
-      <Badge bg="success">Online</Badge>
+      <Badge bg="success" className="badge-success">Online</Badge>
     ) : (
-      <Badge bg="secondary">Offline</Badge>
+      <Badge bg="danger" className="badge-danger">Offline</Badge>
     );
   };
 
@@ -248,10 +261,16 @@ const Displays: React.FC = () => {
             <Card.Header>
               <Row className="align-items-center">
                 <Col>
-                  <h5 className="mb-0">
-                    <i className="bi bi-display me-2"></i>
-                    All Displays ({filteredDisplays.length} of {displays.length})
-                  </h5>
+                  <div className="d-flex align-items-center">
+                    <h5 className="mb-0">
+                      <i className="bi bi-display me-2"></i>
+                      All Displays ({filteredDisplays.length} of {displays.length})
+                    </h5>
+                    <LiveDataIndicator 
+                      dataType="display"
+                      className="ms-2"
+                    />
+                  </div>
                 </Col>
                 <Col xs="auto">
                   {selectedDisplayIds.size > 0 && (
@@ -364,10 +383,17 @@ const Displays: React.FC = () => {
                           />
                         </td>
                         <td>
-                          <strong>{display.name}</strong>
-                          {display.is_default && (
-                            <Badge bg="info" className="ms-2">Default</Badge>
-                          )}
+                          <div className="d-flex align-items-center">
+                            <strong>{display.name}</strong>
+                            {display.is_default && (
+                              <Badge bg="info" className="ms-2">Default</Badge>
+                            )}
+                            <LiveDataIndicator 
+                              dataType="display" 
+                              dataId={display.id} 
+                              className="ms-2"
+                            />
+                          </div>
                         </td>
                         <td>{getStatusBadge(display)}</td>
                         <td>
@@ -463,7 +489,7 @@ const Displays: React.FC = () => {
                 onChange={(e) => setAssigningSlideshowId(e.target.value ? parseInt(e.target.value) : null)}
               >
                 <option value="">No slideshow (unassign)</option>
-                {slideshows
+                {(slideshows || [])
                   .filter(s => s.is_active)
                   .map((slideshow) => (
                     <option key={slideshow.id} value={slideshow.id}>

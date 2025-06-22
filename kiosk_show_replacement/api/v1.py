@@ -17,6 +17,14 @@ from sqlalchemy.exc import IntegrityError
 from ..auth.decorators import get_current_user
 from ..models import Display, DisplayConfigurationTemplate, Slideshow, SlideshowItem, User, db
 from ..storage import get_storage_manager
+from ..sse import (
+    sse_manager, 
+    create_sse_response, 
+    require_sse_auth,
+    create_display_event,
+    create_slideshow_event,
+    create_system_event
+)
 
 # Create API v1 blueprint
 api_v1_bp = Blueprint("api_v1", __name__)
@@ -220,6 +228,16 @@ def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
 
         slideshow.updated_by_id = current_user.id
         db.session.commit()
+
+        # Broadcast SSE event for slideshow update
+        broadcast_slideshow_update(
+            slideshow, 
+            "updated",
+            {
+                "updated_by": current_user.username,
+                "updated_fields": list(data.keys())
+            }
+        )
 
         current_app.logger.info(
             f"User {current_user.username} updated slideshow: {slideshow.name}"
@@ -726,6 +744,18 @@ def assign_slideshow_to_display(display_name: str) -> Tuple[Response, int]:
             db.session.add(history_record)
 
         db.session.commit()
+
+        # Broadcast SSE event for display assignment change
+        broadcast_display_update(
+            display, 
+            "assignment_changed",
+            {
+                "previous_slideshow_id": previous_slideshow_id,
+                "new_slideshow_id": new_slideshow_id,
+                "assigned_by": current_user.username,
+                "reason": data.get("reason", "Direct slideshow assignment")
+            }
+        )
 
         action = (
             f"assigned slideshow {new_slideshow_id}"
@@ -1544,3 +1574,266 @@ def get_file_info(file_id: int) -> Tuple[Response, int]:
 def delete_file(file_id: int) -> Tuple[Response, int]:
     """Delete uploaded file (placeholder - not yet implemented)."""
     return api_error("File deletion endpoint not yet implemented", 501)
+
+
+# =============================================================================
+# Server-Sent Events (SSE) Endpoints
+# =============================================================================
+
+
+@api_v1_bp.route("/events/admin", methods=["GET"])
+def admin_events_stream():
+    """Server-Sent Events stream for admin interface."""
+    try:
+        # Require authentication for admin events
+        user_id = require_sse_auth()
+        
+        # Create SSE connection for admin
+        connection = sse_manager.create_connection(
+            user_id=user_id,
+            connection_type="admin"
+        )
+        
+        current_app.logger.info(f"Admin SSE connection established for user {user_id}")
+        
+        return create_sse_response(connection)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error creating admin SSE connection: {e}")
+        return api_error("Failed to establish SSE connection", 500)
+
+
+@api_v1_bp.route("/events/display/<display_name>", methods=["GET"])
+def display_events_stream(display_name: str):
+    """Server-Sent Events stream for specific display."""
+    try:
+        # Look up display by name
+        display = Display.query.filter_by(name=display_name).first()
+        if not display:
+            return api_error("Display not found", 404)
+        
+        # Create SSE connection for display
+        connection = sse_manager.create_connection(
+            user_id=None,  # Displays don't have user accounts
+            connection_type="display"
+        )
+        
+        # Store display info in connection for filtering
+        connection.display_name = display_name
+        connection.display_id = display.id
+        
+        current_app.logger.info(f"Display SSE connection established for {display_name}")
+        
+        return create_sse_response(connection)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error creating display SSE connection: {e}")
+        return api_error("Failed to establish SSE connection", 500)
+
+
+@api_v1_bp.route("/events/stats", methods=["GET"])
+@api_auth_required
+def sse_stats() -> Tuple[Response, int]:
+    """Get SSE connection statistics."""
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+        
+        stats = sse_manager.get_connection_stats()
+        return api_response(stats, "SSE statistics retrieved successfully")
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting SSE stats: {e}")
+        return api_error("Failed to get SSE statistics", 500)
+
+
+# =============================================================================
+# SSE Event Broadcasting Functions
+# =============================================================================
+
+def broadcast_display_update(display: Display, event_type: str, 
+                           additional_data: dict = None) -> int:
+    """Broadcast display update event to all admin connections.
+    
+    Args:
+        display: Updated display
+        event_type: Type of update (status_changed, assignment_changed, etc.)
+        additional_data: Additional event data
+        
+    Returns:
+        Number of connections that received the event
+    """
+    data = display.to_dict()
+    if additional_data:
+        data.update(additional_data)
+    
+    event = create_display_event(event_type, display.id, data)
+    return sse_manager.broadcast_event(event, connection_type="admin")
+
+
+def broadcast_slideshow_update(slideshow: Slideshow, event_type: str,
+                             additional_data: dict = None) -> int:
+    """Broadcast slideshow update event to admin and display connections.
+    
+    Args:
+        slideshow: Updated slideshow
+        event_type: Type of update (created, updated, deleted, etc.)
+        additional_data: Additional event data
+        
+    Returns:
+        Number of connections that received the event
+    """
+    data = slideshow.to_dict()
+    if additional_data:
+        data.update(additional_data)
+    
+    event = create_slideshow_event(event_type, slideshow.id, data)
+    
+    # Send to admin connections
+    admin_count = sse_manager.broadcast_event(event, connection_type="admin")
+    
+    # Send to display connections if slideshow affects them
+    display_count = 0
+    if event_type in ["updated", "deleted"]:
+        # Find displays using this slideshow
+        displays = Display.query.filter_by(current_slideshow_id=slideshow.id).all()
+        for display in displays:
+            # Send event to specific display
+            display_event = create_display_event(
+                "slideshow_changed", 
+                display.id, 
+                {
+                    "slideshow": data,
+                    "change_type": event_type
+                }
+            )
+            # Filter to specific display connection
+            for conn_id, conn in sse_manager.connections.items():
+                if (hasattr(conn, 'display_id') and 
+                    conn.display_id == display.id):
+                    conn.add_event(display_event)
+                    display_count += 1
+    
+    return admin_count + display_count
+
+
+def broadcast_system_event(event_type: str, data: dict) -> int:
+    """Broadcast system-wide event to all connections.
+    
+    Args:
+        event_type: Type of system event
+        data: Event data
+        
+    Returns:
+        Number of connections that received the event
+    """
+    event = create_system_event(event_type, data)
+    return sse_manager.broadcast_event(event)
+
+
+@api_v1_bp.route("/displays/<int:display_id>/heartbeat", methods=["POST"])
+@api_auth_required
+def update_display_heartbeat(display_id: int) -> Tuple[Response, int]:
+    """Update display heartbeat to mark it as online and broadcast SSE events."""
+    try:
+        from datetime import datetime, timezone
+
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        display = db.session.get(Display, display_id)
+        if not display:
+            return api_error("Display not found", 404)
+
+        data = request.get_json() or {}
+        
+        # Check if display was previously offline
+        was_online = display.is_online
+        
+        # Update heartbeat timestamp
+        display.last_seen_at = datetime.now(timezone.utc)
+
+        # Update resolution if provided
+        resolution_changed = False
+        resolution = data.get("resolution")
+        if resolution:
+            # Handle both string format "1920x1080" and dict format
+            if isinstance(resolution, str) and "x" in resolution:
+                width_str, height_str = resolution.split("x", 1)
+                width, height = int(width_str), int(height_str)
+            elif isinstance(resolution, dict):
+                width = resolution.get("width")
+                height = resolution.get("height")
+            else:
+                width = data.get("width")
+                height = data.get("height")
+            
+            if width and display.resolution_width != int(width):
+                display.resolution_width = int(width)
+                resolution_changed = True
+            if height and display.resolution_height != int(height):
+                display.resolution_height = int(height)
+                resolution_changed = True
+
+        db.session.commit()
+        
+        # Check if display came online and broadcast SSE event
+        is_now_online = display.is_online
+        if not was_online and is_now_online:
+            # Display came online - broadcast status change event
+            try:
+                broadcast_display_update(
+                    display, 
+                    "status_changed",
+                    {
+                        "display_id": display.id,
+                        "display_name": display.name,
+                        "is_online": True,
+                        "status": "online",
+                        "came_online_at": display.last_seen_at.isoformat(),
+                        "resolution_changed": resolution_changed,
+                        "display": display.to_dict()  # Include full display data for UI updates
+                    }
+                )
+                current_app.logger.info(
+                    f"Display {display.name} (ID: {display.id}) came online, SSE event broadcast"
+                )
+            except Exception as sse_error:
+                current_app.logger.error(f"Failed to broadcast SSE event for display {display.id}: {sse_error}")
+                
+        elif resolution_changed and is_now_online:
+            # Resolution changed while online
+            try:
+                broadcast_display_update(
+                    display,
+                    "configuration_changed", 
+                    {
+                        "display_id": display.id,
+                        "display_name": display.name,
+                        "resolution_width": display.resolution_width,
+                        "resolution_height": display.resolution_height,
+                        "change_type": "resolution",
+                        "display": display.to_dict()
+                    }
+                )
+            except Exception as sse_error:
+                current_app.logger.error(f"Failed to broadcast configuration SSE event for display {display.id}: {sse_error}")
+
+        current_app.logger.debug(
+            f"Display heartbeat updated for {display.name} (ID: {display.id}), online: {is_now_online}"
+        )
+
+        return api_response({
+            "display_id": display.id,
+            "timestamp": display.last_seen_at.isoformat(),
+            "is_online": is_now_online,
+            "was_online": was_online,
+            "status_changed": not was_online and is_now_online
+        }, "Heartbeat updated successfully")
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error updating heartbeat for display {display_id}: {e}")
+        return api_error("Failed to update heartbeat", 500)

@@ -119,6 +119,117 @@ sendHeartbeat();
 
 // Send heartbeat every 60 seconds
 setInterval(sendHeartbeat, 60000);
+
+// SSE Client for real-time updates
+class DisplayNoContentSSEClient {
+    constructor(displayName) {
+        this.displayName = displayName;
+        this.eventSource = null;
+        this.reconnectInterval = 5000;
+        this.maxReconnectAttempts = 10;
+        this.reconnectAttempts = 0;
+        this.reconnectTimeout = null;
+        
+        this.connect();
+    }
+    
+    connect() {
+        if (this.eventSource) {
+            return; // Already connected
+        }
+        
+        console.log('Connecting to SSE stream for display no-content:', this.displayName);
+        
+        try {
+            this.eventSource = new EventSource(`/api/v1/events/display/${encodeURIComponent(this.displayName)}`);
+            
+            this.eventSource.onopen = () => {
+                console.log('SSE connection established for display no-content');
+                this.reconnectAttempts = 0;
+            };
+            
+            this.eventSource.onerror = (event) => {
+                console.error('SSE connection error:', event);
+                this.eventSource.close();
+                this.eventSource = null;
+                
+                // Attempt reconnection
+                if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                    this.reconnectAttempts++;
+                    console.log(`SSE reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+                    
+                    this.reconnectTimeout = setTimeout(() => {
+                        this.connect();
+                    }, this.reconnectInterval);
+                } else {
+                    console.error('SSE max reconnection attempts exceeded');
+                }
+            };
+            
+            // Handle assignment changes - redirect when new slideshow assigned
+            this.eventSource.addEventListener('display.assignment_changed', (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Assignment changed:', data);
+                
+                // If this display's assignment changed, redirect to display page
+                if (data.name === this.displayName) {
+                    console.log('Display assignment changed, redirecting...');
+                    window.location.href = `{{ url_for('display.index', display_name=display.name) }}`;
+                }
+            });
+            
+            // Handle slideshow updates - reload if current slideshow gets content
+            this.eventSource.addEventListener('slideshow.updated', (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Slideshow updated:', data);
+                
+                // If our slideshow was updated, check if it now has content
+                {% if slideshow %}
+                if (data.slideshow_id === {{ slideshow.id }}) {
+                    console.log('Assigned slideshow updated, checking for content...');
+                    window.location.reload();
+                }
+                {% endif %}
+            });
+            
+            // Handle configuration changes
+            this.eventSource.addEventListener('display.configuration_changed', (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Configuration changed:', data);
+                
+                if (data.name === this.displayName) {
+                    console.log('Display configuration changed, reloading...');
+                    window.location.reload();
+                }
+            });
+            
+        } catch (error) {
+            console.error('Failed to create SSE connection:', error);
+        }
+    }
+    
+    disconnect() {
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+        
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        
+        console.log('SSE connection closed');
+    }
+}
+
+// Initialize SSE client
+const sseClient = new DisplayNoContentSSEClient('{{ display.name }}');
+
+// Clean up SSE connection on page unload
+window.addEventListener('beforeunload', () => {
+    if (sseClient) sseClient.disconnect();
+});
 </script>
 {% endblock %}
 

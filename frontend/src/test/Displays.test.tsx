@@ -1,8 +1,7 @@
-import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { BrowserRouter } from 'react-router-dom';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi } from 'vitest';
 import Displays from '../pages/Displays';
+import { renderWithProviders } from './test-utils';
 
 // Mock the useApi hook
 const mockApiCall = vi.fn();
@@ -65,14 +64,6 @@ const mockSlideshows = [
   }
 ];
 
-const renderWithRouter = (component: React.ReactElement) => {
-  return render(
-    <BrowserRouter>
-      {component}
-    </BrowserRouter>
-  );
-};
-
 describe('Displays', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -83,7 +74,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: mockDisplays })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     // Check loading state
     expect(screen.getByText('Loading displays...')).toBeInTheDocument();
@@ -116,7 +107,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: [] })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('No Displays Found')).toBeInTheDocument();
@@ -130,7 +121,7 @@ describe('Displays', () => {
       .mockRejectedValueOnce(new Error('Failed to load displays'))
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('Failed to load displays')).toBeInTheDocument();
@@ -142,7 +133,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: mockDisplays })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('lobby-display')).toBeInTheDocument();
@@ -170,7 +161,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: mockDisplays })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('conference-room-a')).toBeInTheDocument();
@@ -213,7 +204,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: [mockDisplays[0]] })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('lobby-display')).toBeInTheDocument();
@@ -248,7 +239,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: [recentDisplay, oldDisplay] })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('Just now')).toBeInTheDocument();
@@ -266,7 +257,7 @@ describe('Displays', () => {
       .mockResolvedValueOnce({ success: true, data: mockDisplays })
       .mockResolvedValueOnce({ success: true, data: mockSlideshows });
 
-    renderWithRouter(<Displays />);
+    renderWithProviders(<Displays />);
 
     await waitFor(() => {
       expect(screen.getByText('lobby-display')).toBeInTheDocument();

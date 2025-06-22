@@ -25,6 +25,14 @@ from flask import (
 
 from ..models import Display, Slideshow, SlideshowItem, db
 
+# Import SSE broadcasting functions
+try:
+    from ..api.v1 import broadcast_display_update
+except ImportError:
+    # SSE not available, define no-op function
+    def broadcast_display_update(display, event_type, data=None):
+        pass
+
 # Create the display blueprint
 display_bp = Blueprint(
     "display",
@@ -141,7 +149,10 @@ def update_heartbeat(display_name: str) -> Response:
 
         # Get or create display
         display = get_or_create_display(display_name)
-
+        
+        # Check if display was previously offline
+        was_online = display.is_online
+        
         # Update heartbeat timestamp
         display.last_seen_at = datetime.now(timezone.utc)
 
@@ -156,10 +167,13 @@ def update_heartbeat(display_name: str) -> Response:
             height = height or resolution.get("height")
 
         # Update resolution fields if provided
-        if width is not None:
+        resolution_changed = False
+        if width is not None and display.resolution_width != int(width):
             display.resolution_width = int(width)
-        if height is not None:
+            resolution_changed = True
+        if height is not None and display.resolution_height != int(height):
             display.resolution_height = int(height)
+            resolution_changed = True
 
         # Update user agent if provided
         user_agent = data.get("user_agent")
@@ -168,6 +182,31 @@ def update_heartbeat(display_name: str) -> Response:
             pass
 
         db.session.commit()
+        
+        # Check if display came online and broadcast SSE event
+        is_now_online = display.is_online
+        if not was_online and is_now_online:
+            # Display came online
+            broadcast_display_update(
+                display, 
+                "status_changed",
+                {
+                    "status": "online",
+                    "came_online_at": display.last_seen_at.isoformat(),
+                    "resolution_changed": resolution_changed
+                }
+            )
+        elif resolution_changed:
+            # Resolution changed while online
+            broadcast_display_update(
+                display,
+                "configuration_changed", 
+                {
+                    "resolution_width": display.resolution_width,
+                    "resolution_height": display.resolution_height,
+                    "change_type": "resolution"
+                }
+            )
 
         current_app.logger.debug(
             "Display heartbeat updated",

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Row, Col, Card, Alert, Spinner } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useDisplayEvents, useSlideshowEvents } from '../hooks/useSSE';
 import apiClient from '../utils/apiClient';
 import type { Slideshow, Display } from '../types';
 
@@ -15,6 +16,26 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     loadDashboardData();
   }, []);
+
+  // Real-time updates via SSE
+  const handleDisplayUpdate = (updatedDisplay: Display) => {
+    setDisplays(prevDisplays => 
+      prevDisplays.map(display => 
+        display.id === updatedDisplay.id ? updatedDisplay : display
+      )
+    );
+  };
+
+  const handleSlideshowUpdate = (updatedSlideshow: Slideshow) => {
+    setSlideshows(prevSlideshows => 
+      prevSlideshows.map(slideshow => 
+        slideshow.id === updatedSlideshow.id ? updatedSlideshow : slideshow
+      )
+    );
+  };
+
+  useDisplayEvents(handleDisplayUpdate);
+  useSlideshowEvents(handleSlideshowUpdate);
 
   const loadDashboardData = async () => {
     setLoading(true);

@@ -6,40 +6,83 @@ Playwright and a live Flask server.
 """
 
 import pytest
+import asyncio
+from playwright.async_api import BrowserContext, Page
 
 from kiosk_show_replacement.app import create_app, db
 from kiosk_show_replacement.models import Display, Slideshow, User
 
 
+# Configure Playwright timeouts for all E2E tests
 @pytest.fixture(scope="session")
-def e2e_app():
+def browser_context_args(browser_context_args):
+    """Configure browser context with proper timeouts."""
+    return {
+        **browser_context_args,
+        "viewport": {"width": 1280, "height": 720},
+    }
+
+
+@pytest.fixture(scope="session")
+def e2e_app(tmp_path_factory):
     """Create application instance for E2E testing."""
     app = create_app()
 
-    # Use a temporary database file that both test setup and live server can access
-    import os
-    import tempfile
-
-    # Create temporary database file
-    db_fd, db_path = tempfile.mkstemp(suffix=".db")
-    os.close(db_fd)  # Close the file descriptor, we just need the path
+    # Use pytest's session temporary directory for the database file
+    tmp_path = tmp_path_factory.mktemp("e2e_test")
+    db_file = tmp_path / "e2e_test.db"
 
     # Configure for E2E testing
     app.config.update(
         {
             "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
             "SECRET_KEY": "e2e-test-secret-key",
             "WTF_CSRF_ENABLED": False,
             "SQLALCHEMY_ENGINE_OPTIONS": {
                 "pool_recycle": -1,
                 "pool_pre_ping": True,
+                "connect_args": {
+                    "check_same_thread": False,
+                    "timeout": 20,
+                },
             },
         }
     )
 
     with app.app_context():
         db.create_all()
+
+        yield app
+
+        # Comprehensive cleanup to prevent ResourceWarnings
+        try:
+            # First, close any active transactions
+            db.session.rollback()
+
+            # Close all active sessions
+            db.session.close()
+            db.session.remove()
+
+            # Drop all tables
+            db.drop_all()
+
+            # Dispose of the engine to close all connections
+            db.engine.dispose()
+        except Exception:
+            # Ignore cleanup errors
+            pass
+
+
+@pytest.fixture(scope="function")
+def e2e_data(e2e_app):
+    """Create fresh test data for each E2E test."""
+    with e2e_app.app_context():
+        # Clear existing data
+        db.session.query(Display).delete()
+        db.session.query(Slideshow).delete()
+        db.session.query(User).delete()
+        db.session.commit()
 
         # Create test user for authentication using the app's own method
         test_user = User(username="testuser", email="test@example.com", is_active=True)
@@ -67,21 +110,11 @@ def e2e_app():
         db.session.add(test_display)
         db.session.commit()  # Commit all changes
 
-        yield app
+        yield {"user": test_user, "slideshow": test_slideshow, "display": test_display}
 
-        # Cleanup
+        # Clean up test data after each test
         try:
             db.session.rollback()
-            db.session.close()
-            db.session.remove()
-            db.drop_all()
-            db.engine.dispose()
-        except Exception:
-            pass
-
-        # Clean up the temporary database file
-        try:
-            os.unlink(db_path)
         except Exception:
             pass
 

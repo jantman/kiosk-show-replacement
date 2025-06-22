@@ -712,6 +712,187 @@
                 }
             }
         });
+
+        // SSE Client for real-time updates
+        class DisplaySSEClient {
+            constructor(displayName) {
+                this.displayName = displayName;
+                this.eventSource = null;
+                this.reconnectTimeout = null;
+                this.reconnectAttempts = 0;
+                this.maxReconnectAttempts = 5;
+                this.reconnectInterval = 5000; // 5 seconds
+                
+                // Polling fallback
+                this.pollingFallback = false;
+                this.pollingInterval = null;
+                this.pollingIntervalTime = 30000; // 30 seconds
+                this.lastAssignmentCheck = null;
+                this.lastConfigurationCheck = null;
+                
+                this.connect();
+            }
+            
+            connect() {
+                if (this.eventSource) {
+                    return; // Already connected
+                }
+                
+                console.log('Connecting to SSE stream for display:', this.displayName);
+                
+                try {
+                    this.eventSource = new EventSource(`/api/v1/events/display/${encodeURIComponent(this.displayName)}`);
+                    
+                    this.eventSource.onopen = () => {
+                        console.log('SSE connection established for display');
+                        this.reconnectAttempts = 0;
+                        this.stopPollingFallback();
+                    };
+                    
+                    this.eventSource.onerror = (event) => {
+                        console.error('SSE connection error:', event);
+                        this.eventSource.close();
+                        this.eventSource = null;
+                        
+                        // Attempt reconnection
+                        if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                            this.reconnectAttempts++;
+                            console.log(`SSE reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+                            
+                            this.reconnectTimeout = setTimeout(() => {
+                                this.connect();
+                            }, this.reconnectInterval);
+                        } else {
+                            console.error('SSE max reconnection attempts exceeded, falling back to polling');
+                            this.startPollingFallback();
+                        }
+                    };
+                    
+                    // Handle assignment changes
+                    this.eventSource.addEventListener('display.assignment_changed', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('Assignment changed:', data);
+                        
+                        // If this display's assignment changed, reload the page
+                        if (data.name === this.displayName) {
+                            console.log('This display assignment changed, reloading...');
+                            window.location.reload();
+                        }
+                    });
+                    
+                    // Handle slideshow updates
+                    this.eventSource.addEventListener('slideshow.updated', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('Slideshow updated:', data);
+                        
+                        // If the current slideshow was updated, reload
+                        if (data.slideshow_id === {{ slideshow.id }}) {
+                            console.log('Current slideshow updated, reloading...');
+                            window.location.reload();
+                        }
+                    });
+                    
+                    // Handle configuration changes
+                    this.eventSource.addEventListener('display.configuration_changed', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('Configuration changed:', data);
+                        
+                        if (data.name === this.displayName) {
+                            console.log('Display configuration changed, reloading...');
+                            window.location.reload();
+                        }
+                    });
+                    
+                } catch (error) {
+                    console.error('Failed to create SSE connection:', error);
+                    this.startPollingFallback();
+                }
+            }
+            
+            startPollingFallback() {
+                if (this.pollingFallback) {
+                    return; // Already polling
+                }
+                
+                console.log('Starting polling fallback for display updates');
+                this.pollingFallback = true;
+                
+                // Initial check
+                this.checkForUpdates();
+                
+                // Set up polling interval
+                this.pollingInterval = setInterval(() => {
+                    this.checkForUpdates();
+                }, this.pollingIntervalTime);
+            }
+            
+            stopPollingFallback() {
+                if (!this.pollingFallback) {
+                    return;
+                }
+                
+                console.log('Stopping polling fallback');
+                this.pollingFallback = false;
+                
+                if (this.pollingInterval) {
+                    clearInterval(this.pollingInterval);
+                    this.pollingInterval = null;
+                }
+            }
+            
+            async checkForUpdates() {
+                try {
+                    // Check for assignment changes by fetching display status
+                    const response = await fetch(`/api/v1/displays/{{ display.name }}`);
+                    if (response.ok) {
+                        const displayData = await response.json();
+                        const currentAssignment = displayData.data.current_slideshow_id;
+                        
+                        // Check if assignment changed
+                        if (this.lastAssignmentCheck !== null && this.lastAssignmentCheck !== currentAssignment) {
+                            console.log('Polling detected assignment change, reloading...');
+                            window.location.reload();
+                        }
+                        
+                        this.lastAssignmentCheck = currentAssignment;
+                        
+                        // Check if configuration changed (basic check via updated_at)
+                        const configurationHash = displayData.data.updated_at;
+                        if (this.lastConfigurationCheck !== null && this.lastConfigurationCheck !== configurationHash) {
+                            console.log('Polling detected configuration change, reloading...');
+                            window.location.reload();
+                        }
+                        
+                        this.lastConfigurationCheck = configurationHash;
+                    }
+                } catch (error) {
+                    console.error('Error checking for updates via polling:', error);
+                }
+            }
+            
+            disconnect() {
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                    this.reconnectTimeout = null;
+                }
+                
+                if (this.eventSource) {
+                    this.eventSource.close();
+                    this.eventSource = null;
+                }
+                
+                console.log('SSE connection closed');
+                this.stopPollingFallback();
+            }
+        }
+        
+        // Initialize SSE client
+        const sseClient = new DisplaySSEClient('{{ display.name }}');
+        
+        // Clean up SSE connection on page unload
+        window.addEventListener('beforeunload', () => {
+            if (sseClient) sseClient.disconnect();
+        });
     </script>
 </body>
 </html>
