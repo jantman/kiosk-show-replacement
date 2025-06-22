@@ -120,21 +120,6 @@ def test(session):
     )
 
 
-def _find_system_chrome() -> str | None:
-    """Find system Chrome/Chromium executable."""
-    chrome_paths = [
-        "/usr/bin/google-chrome-stable",  # Google Chrome on most Linux distros
-        "/usr/bin/chromium-browser",  # Chromium on Ubuntu/Debian
-        "/usr/bin/google-chrome",  # Alternative Chrome location
-        "/usr/bin/chromium",  # Chromium on Arch/Fedora
-    ]
-
-    for path in chrome_paths:
-        if os.path.exists(path):
-            return path
-    return None
-
-
 def _setup_playwright_browser_testing(session):
     """Set up Playwright dependencies and browser configuration for testing."""
     # Install Playwright dependencies
@@ -154,9 +139,38 @@ def _setup_playwright_browser_testing(session):
         session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
 
 
+def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: int = 60, extra_args: list[str] | None = None):
+    """Run Playwright tests with process-level timeout to prevent hanging."""
+    
+    # Base pytest arguments for all browser tests
+    base_args = [
+        "timeout", f"{timeout_seconds}s",  # Process-level timeout
+        "pytest",
+        test_dir,
+        "--video",
+        "retain-on-failure", 
+        "--screenshot",
+        "only-on-failure",
+        "-v",
+        "-x",  # Stop on first failure
+    ]
+    
+    # Add extra arguments if provided
+    if extra_args:
+        base_args.extend(extra_args)
+
+    session.log(f"Tests will timeout after {timeout_seconds} seconds")
+    session.log("Using system Chrome via --browser-channel chrome")
+    session.run(
+        *base_args,
+        "--browser-channel", "chrome",  # Use system Chrome via browser channel
+        *session.posargs,
+        external=True  # Use external=True for timeout command
+    )
+
+
 def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None = None):
     """Run Playwright tests with proper browser configuration."""
-    chrome_path = _find_system_chrome()
     
     # Base pytest arguments for all browser tests
     base_args = [
@@ -173,26 +187,13 @@ def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None =
     if extra_args:
         base_args.extend(extra_args)
 
-    if chrome_path:
-        session.log(f"Using system Chrome at: {chrome_path}")
-        session.run(
-            *base_args,
-            "--browser-channel",
-            "chrome",
-            *session.posargs,
-        )
-    else:
-        session.log("Warning: No system Chrome found. Tests may fail.")
-        session.log(
-            "Checked paths: /usr/bin/google-chrome-stable, /usr/bin/chromium-browser, /usr/bin/google-chrome, /usr/bin/chromium"
-        )
-        # Fallback to default Playwright behavior
-        session.run(
-            *base_args,
-            "--browser",
-            "chromium",
-            *session.posargs,
-        )
+    session.log("Using system Chrome via --browser-channel chrome")
+    session.run(
+        *base_args,
+        "--browser-channel",
+        "chrome",
+        *session.posargs,
+    )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-integration")
@@ -222,14 +223,12 @@ def test_e2e(session):
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
     
-    # Run E2E tests with specific configuration for async timeout handling
-    _run_playwright_tests(
+    # Run E2E tests with process-level timeout (60 seconds max)
+    _run_playwright_tests_with_timeout(
         session, 
         TEST_DIR + "/e2e",
-        extra_args=[
-            "--tb=short",  # Shorter traceback for better error visibility
-            "-x",  # Stop on first failure to prevent hanging
-        ]
+        timeout_seconds=60,
+        extra_args=["--tb=short"]  # Shorter traceback for better error visibility
     )
 
 
@@ -296,33 +295,18 @@ def test_comprehensive(session):
             os.makedirs(playwright_ffmpeg_dir, exist_ok=True)
             os.symlink(system_ffmpeg, playwright_ffmpeg_path)
 
-        chrome_path = _find_system_chrome()
-        if chrome_path:
-            session.run(
-                "pytest",
-                TEST_DIR + "/integration",
-                "--browser-channel",
-                "chrome",
-                "--video",
-                "retain-on-failure",
-                "--screenshot",
-                "only-on-failure",
-                "-v",
-                "-s",
-            )
-        else:
-            session.run(
-                "pytest",
-                TEST_DIR + "/integration",
-                "--browser",
-                "chromium",
-                "--video",
-                "retain-on-failure",
-                "--screenshot",
-                "only-on-failure",
-                "-v",
-                "-s",
-            )
+        session.run(
+            "pytest",
+            TEST_DIR + "/integration",
+            "--browser-channel",
+            "chrome",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
+            "-v",
+            "-s",
+        )
         results.append("✅ Integration tests: PASSED")
         
     except Exception as e:
@@ -362,31 +346,17 @@ def test_comprehensive(session):
         session.log("4. Running E2E tests...")
         session.install("pytest-asyncio")  # Required for async test functions
         session.install("pytest-timeout")  # Required for test timeouts
-        chrome_path = _find_system_chrome()
-        if chrome_path:
-            session.run(
-                "pytest",
-                TEST_DIR + "/e2e",
-                "--browser-channel",
-                "chrome",
-                "--video",
-                "retain-on-failure",
-                "--screenshot",
-                "only-on-failure",
-                "-v",
-            )
-        else:
-            session.run(
-                "pytest",
-                TEST_DIR + "/e2e",
-                "--browser",
-                "chromium",
-                "--video",
-                "retain-on-failure",
-                "--screenshot",
-                "only-on-failure",
-                "-v",
-            )
+        session.run(
+            "pytest",
+            TEST_DIR + "/e2e",
+            "--browser-channel",
+            "chrome",
+            "--video",
+            "retain-on-failure",
+            "--screenshot",
+            "only-on-failure",
+            "-v",
+        )
         results.append("✅ E2E tests: PASSED")
         
     except Exception as e:
