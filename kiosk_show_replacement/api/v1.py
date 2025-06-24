@@ -13,6 +13,7 @@ from typing import Any, List, Tuple
 
 from flask import Blueprint, Response, current_app, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
+from werkzeug.exceptions import Unauthorized
 
 from ..auth.decorators import get_current_user
 from ..models import Display, DisplayConfigurationTemplate, Slideshow, SlideshowItem, User, db
@@ -1596,6 +1597,9 @@ def admin_events_stream():
         
         return create_sse_response(connection)
         
+    except Unauthorized as e:
+        current_app.logger.warning(f"Unauthorized SSE connection attempt: {e}")
+        return api_error("Authentication required", 401)
     except Exception as e:
         current_app.logger.error(f"Error creating admin SSE connection: {e}")
         return api_error("Failed to establish SSE connection", 500)

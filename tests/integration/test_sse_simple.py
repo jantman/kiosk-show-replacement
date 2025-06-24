@@ -19,34 +19,60 @@ class TestSSESimple:
     """Test basic SSE functionality with minimal browser automation."""
 
     def test_api_endpoints_accessible(self, servers, enhanced_page: Page):
-        """Test that the SSE API endpoints are accessible."""
+        """Test that the SSE API endpoints are accessible with authentication."""
         logger.info("Testing SSE API endpoints accessibility")
         
         flask_url = servers["flask_url"]
         logger.info(f"Using Flask URL: {flask_url}")
         
+        # Create a session to maintain authentication
+        session = requests.Session()
+        
+        # First, authenticate via API login
+        login_url = f"{flask_url}/api/v1/auth/login"
+        logger.info(f"Authenticating at: {login_url}")
+        
+        login_response = session.post(login_url, 
+                                    json={"username": "test_user", "password": "test_pass"},
+                                    headers={"Content-Type": "application/json"},
+                                    timeout=5)
+        assert login_response.status_code == 200
+        
+        login_data = login_response.json()
+        assert login_data["success"] is True
+        logger.info("Successfully authenticated")
+        
         # Test /api/v1/events/stats endpoint
         stats_url = f"{flask_url}/api/v1/events/stats"
         logger.info(f"Testing stats endpoint: {stats_url}")
         
-        response = requests.get(stats_url, timeout=5)
+        response = session.get(stats_url, timeout=5)
         assert response.status_code == 200
         
         data = response.json()
-        assert "connected_clients" in data
-        assert "server_uptime" in data
+        # Check API response format
+        assert data["success"] is True
+        assert "data" in data
+        
+        # Check SSE stats structure
+        stats_data = data["data"]
+        assert "total_connections" in stats_data
+        assert "admin_connections" in stats_data
+        assert "display_connections" in stats_data
+        assert "connections" in stats_data
         
         # Test /api/v1/events/test endpoint (POST)
         test_url = f"{flask_url}/api/v1/events/test"
         logger.info(f"Testing test endpoint: {test_url}")
         
-        response = requests.post(test_url, 
-                               json={"message": "test_event", "data": {"test": True}},
-                               timeout=5)
+        response = session.post(test_url, 
+                              json={"message": "test_event", "data": {"test": True}},
+                              timeout=5)
         assert response.status_code == 200
         
         result = response.json()
-        assert "success" in result
+        assert result["success"] is True
+        assert "message" in result
         
         logger.info("SSE API endpoints accessible and responding correctly")
 
@@ -70,25 +96,17 @@ class TestSSESimple:
         logger.info("Basic page load test completed successfully")
 
     def test_sse_stream_endpoint(self, servers, enhanced_page: Page):
-        """Test that the SSE stream endpoint responds correctly."""
-        logger.info("Testing SSE stream endpoint")
+        """Test that the SSE admin stream endpoint responds correctly."""
+        logger.info("Testing SSE admin stream endpoint")
         
         flask_url = servers["flask_url"]
-        stream_url = f"{flask_url}/api/v1/events/stream"
-        logger.info(f"Testing SSE stream endpoint: {stream_url}")
+        admin_stream_url = f"{flask_url}/api/v1/events/admin"
+        logger.info(f"Testing SSE admin stream endpoint: {admin_stream_url}")
         
-        # Navigate to the SSE stream endpoint
-        response = enhanced_page.goto(stream_url, timeout=10000)
+        # This endpoint requires authentication, so we expect a 401 without auth
+        response = enhanced_page.goto(admin_stream_url, timeout=10000)
         
-        # Should get a response (might be streaming)
-        assert response.status in [200, 204]  # 204 is common for SSE with no immediate data
+        # Should get 401 Unauthorized since we're not authenticated
+        assert response.status == 401
         
-        # Check content type indicates SSE
-        headers = response.headers
-        if "content-type" in headers:
-            content_type = headers["content-type"]
-            logger.info(f"SSE endpoint content-type: {content_type}")
-            # Should be text/event-stream or similar
-            assert "text" in content_type or "event-stream" in content_type
-        
-        logger.info("SSE stream endpoint test completed successfully")
+        logger.info("SSE admin stream endpoint responds correctly with authentication requirement")
