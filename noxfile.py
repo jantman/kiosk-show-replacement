@@ -166,10 +166,9 @@ def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: 
         base_args.extend(extra_args)
 
     session.log(f"Tests will timeout after {timeout_seconds} seconds")
-    session.log("Using system Chrome via --browser-channel chrome")
+    session.log("Using system Chrome via executable_path configuration")
     session.run(
         *base_args,
-        "--browser-channel", "chrome",  # Use system Chrome via browser channel
         *session.posargs,
         external=True  # Use external=True for timeout command
     )
@@ -199,11 +198,9 @@ def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None =
     if extra_args:
         base_args.extend(extra_args)
 
-    session.log("Using system Chrome via --browser-channel chrome")
+    session.log("Using system Chrome via executable_path configuration")
     session.run(
         *base_args,
-        "--browser-channel",
-        "chrome",
         *session.posargs,
     )
 
@@ -217,11 +214,16 @@ def test_integration(session):
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
     
-    # Run integration tests with special output capturing for debugging
-    _run_playwright_tests(
+    # Create test-results directory for logs and screenshots
+    import os
+    os.makedirs("test-results", exist_ok=True)
+    
+    # Run integration tests with timeout to prevent hanging (60 seconds for faster feedback)
+    _run_playwright_tests_with_timeout(
         session, 
-        TEST_DIR + "/integration", 
-        extra_args=["-s"],  # Don't capture output so we can see print statements
+        TEST_DIR + "/integration",
+        timeout_seconds=60,  # Faster timeout for debugging
+        extra_args=["-s", "--tb=short"],  # Don't capture output, shorter traceback
         enable_asyncio=True  # Enable asyncio support for integration tests
     )
 

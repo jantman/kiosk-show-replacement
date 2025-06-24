@@ -289,6 +289,46 @@ Test Type Summary
 
 **Test execution speed:** Unit < E2E < Integration (Integration tests are slowest due to starting both servers)
 
+Testing Session Distinctions
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**test-integration Session**
+
+* **Purpose**: Full-stack React frontend + Flask backend integration testing
+* **Technology**: Playwright browser automation with dual server setup
+* **Test Location**: ``tests/integration/``
+* **What it tests**: Complete user workflows through React admin interface
+* **Server Setup**: Starts both Flask (backend) and Vite (frontend) servers
+* **Use Cases**:
+
+  - React component interaction with Flask APIs
+  - Authentication flows through React frontend
+  - Real-time features (SSE) in React admin interface
+  - Frontend-backend data synchronization
+  - Complete user journeys (login → dashboard → management)
+
+**test-e2e Session**
+
+* **Purpose**: Flask server-rendered pages testing (traditional web)
+* **Technology**: Playwright browser automation with Flask server only
+* **Test Location**: ``tests/e2e/``
+* **What it tests**: Traditional Flask Jinja2 templates and server-side functionality
+* **Server Setup**: Starts only Flask server with template rendering
+* **Use Cases**:
+
+  - Basic server access and template rendering
+  - Traditional Flask form submission
+  - Server-side authentication workflows
+  - Non-React page functionality
+  - Flask route navigation and error handling
+
+**Key Distinction Rules**
+
+* **Integration tests** = React frontend + Flask backend integration
+* **E2E tests** = Flask backend only (traditional web pages)
+* **SSE functionality** belongs in integration tests (React admin interface feature)
+* **Basic server access** belongs in E2E tests (fundamental Flask functionality)
+
 Project Structure
 -----------------
 
