@@ -172,20 +172,27 @@ def servers(project_root, test_database):
             server_manager._dump_server_logs()
             raise RuntimeError("Server startup failed")
         
+        # Save initial logs after successful startup
+        log_file = project_root / "test-results" / "integration-server-logs.txt"
+        log_file.parent.mkdir(exist_ok=True)
+        server_manager.save_logs_to_file(str(log_file), append=False)
+        logger.info("Initial server logs saved")
+        
         # Provide server URLs and manager for tests
         yield {
             **server_manager.get_server_urls(),
             "manager": server_manager,
-            "health_check": server_manager.health_check
+            "health_check": server_manager.health_check,
+            "_log_file": log_file  # Pass log file path to tests
         }
         
     finally:
         logger.info("Stopping servers after integration tests...")
         
-        # Save logs for debugging
+        # Save final logs for debugging
         log_file = project_root / "test-results" / "integration-server-logs.txt"
         log_file.parent.mkdir(exist_ok=True)
-        server_manager.save_logs_to_file(str(log_file))
+        server_manager.save_logs_to_file(str(log_file), append=True)
         
         server_manager.stop_servers()
         logger.info("✓ Integration test cleanup complete")
@@ -237,3 +244,61 @@ def enhanced_page(page: Page, servers):
     
     # Cleanup: reset to default timeout
     page.set_default_timeout(30000)  # Reset to reasonable default
+
+
+@pytest.fixture(autouse=True)
+def mark_test_start(servers, request):
+    """Mark the start of each test in the server logs."""
+    test_name = f"{request.module.__name__}::{request.function.__name__}"
+    
+    if "_log_file" in servers:
+        try:
+            manager = servers["manager"]
+            manager.mark_test_start(test_name)
+        except Exception as e:
+            logger.warning(f"Failed to mark test start for {test_name}: {e}")
+
+
+@pytest.fixture(autouse=True)
+def save_logs_after_test(servers, request):
+    """Automatically save server logs after each test for debugging."""
+    # This fixture only runs the cleanup part
+    yield
+    
+    # This runs after each test - mark test end and save logs
+    test_name = f"{request.module.__name__}::{request.function.__name__}"
+    
+    if "_log_file" in servers:
+        try:
+            manager = servers["manager"]
+            log_file = servers["_log_file"]
+            
+            # Mark test end
+            manager.mark_test_end(test_name)
+            
+            # Append current logs with test information
+            with open(str(log_file), 'a') as f:
+                f.write(f"\n=== AFTER TEST: {test_name} ===\n")
+                
+                # Add recent logs from both servers
+                flask_logs = manager.get_flask_logs()
+                vite_logs = manager.get_vite_logs()
+                
+                f.write(f"Flask logs count: {len(flask_logs)}\n")
+                f.write(f"Vite logs count: {len(vite_logs)}\n")
+                
+                # Add last few lines of each
+                if flask_logs:
+                    f.write("Recent Flask logs:\n")
+                    for log in flask_logs[-5:]:  # Last 5 lines
+                        f.write(f"  {log}\n")
+                
+                if vite_logs:
+                    f.write("Recent Vite logs:\n")
+                    for log in vite_logs[-5:]:  # Last 5 lines
+                        f.write(f"  {log}\n")
+                
+                f.write("=== END AFTER TEST ===\n\n")
+                
+        except Exception as e:
+            logger.warning(f"Failed to save logs after test {test_name}: {e}")

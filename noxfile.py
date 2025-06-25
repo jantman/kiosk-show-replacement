@@ -152,7 +152,7 @@ def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: 
         "--screenshot",
         "only-on-failure",
         "-v",
-        "-x",  # Stop on first failure
+        # REMOVED: "-x",  # Don't stop on first failure to allow proper cleanup
     ]
     
     # Add asyncio configuration if needed
@@ -167,6 +167,7 @@ def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: 
 
     session.log(f"Tests will timeout after {timeout_seconds} seconds")
     session.log("Using system Chrome via executable_path configuration")
+    session.log("Running tests without -x flag to ensure proper cleanup and log capture")
     session.run(
         *base_args,
         *session.posargs,
@@ -218,12 +219,15 @@ def test_integration(session):
     import os
     os.makedirs("test-results", exist_ok=True)
     
+    session.log("Running integration tests with proper cleanup enabled...")
+    session.log("Server logs will be saved to test-results/integration-server-logs.txt")
+    
     # Run integration tests with timeout to prevent hanging (60 seconds for faster feedback)
     _run_playwright_tests_with_timeout(
         session, 
         TEST_DIR + "/integration",
         timeout_seconds=60,  # Faster timeout for debugging
-        extra_args=["-s", "--tb=short"],  # Don't capture output, shorter traceback
+        extra_args=["--tb=short"],  # Shorter traceback for better error visibility, allow cleanup
         enable_asyncio=True  # Enable asyncio support for integration tests
     )
 

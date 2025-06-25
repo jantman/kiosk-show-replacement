@@ -91,9 +91,10 @@ class TestDisplayArchiveAPI:
 
     def test_restore_display_success(self, client, auth_headers, admin_user):
         """Test successful display restoration."""
-        # Create archived display
+        # Create archived display with unique name
+        unique_id = str(uuid.uuid4())[:8]
         display = Display(
-            name="Archived Display Restore Test",
+            name=f"Archived Display Restore Test {unique_id}",
             is_active=False,
             is_archived=True,
             owner_id=admin_user.id,
@@ -121,9 +122,10 @@ class TestDisplayArchiveAPI:
 
     def test_restore_non_archived_display(self, client, auth_headers, admin_user):
         """Test restoring non-archived display returns error."""
-        # Create active display
+        # Create active display with unique name
+        unique_id = str(uuid.uuid4())[:8]
         display = Display(
-            name="Active Display",
+            name=f"Active Display {unique_id}",
             is_active=True,
             is_archived=False,
             owner_id=admin_user.id,
@@ -145,23 +147,24 @@ class TestDisplayArchiveAPI:
 
     def test_list_archived_displays(self, client, auth_headers, admin_user):
         """Test listing archived displays."""
-        # Create mix of archived and active displays
+        # Create mix of archived and active displays with unique names
+        unique_id = str(uuid.uuid4())[:8]
         active_display = Display(
-            name="Active Display List Test",
+            name=f"Active Display List Test {unique_id}",
             is_active=True,
             is_archived=False,
             owner_id=admin_user.id,
             created_by_id=admin_user.id,
         )
         archived_display1 = Display(
-            name="Archived Display 1",
+            name=f"Archived Display 1 {unique_id}",
             is_active=False,
             is_archived=True,
             owner_id=admin_user.id,
             created_by_id=admin_user.id,
         )
         archived_display2 = Display(
-            name="Archived Display 2",
+            name=f"Archived Display 2 {unique_id}",
             is_active=False,
             is_archived=True,
             owner_id=admin_user.id,
@@ -219,9 +222,11 @@ class TestDisplayTemplateAPI:
 
     def test_create_template_duplicate_name(self, client, auth_headers, admin_user):
         """Test creating template with duplicate name fails."""
-        # Create first template
+        # Create first template with unique base name
+        unique_id = str(uuid.uuid4())[:8]
+        template_name = f"Duplicate Name {unique_id}"
         template1 = DisplayConfigurationTemplate(
-            name="Duplicate Name",
+            name=template_name,
             owner_id=admin_user.id,
             created_by_id=admin_user.id,
         )
@@ -230,7 +235,7 @@ class TestDisplayTemplateAPI:
 
         # Try to create second template with same name
         template_data = {
-            "name": "Duplicate Name",
+            "name": template_name,
             "description": "This should fail",
         }
 

@@ -333,22 +333,56 @@ class EnhancedServerManager:
         """Get Vite server logs."""
         return self.vite_logs.get_logs()
     
-    def save_logs_to_file(self, filepath: str):
+    def save_logs_to_file(self, filepath: str, append: bool = False):
         """Save all server logs to a file."""
         try:
-            with open(filepath, 'w') as f:
-                f.write("=== INTEGRATION TEST SERVER LOGS ===\n\n")
+            mode = 'a' if append else 'w'
+            with open(filepath, mode) as f:
+                if not append:
+                    f.write("=== INTEGRATION TEST SERVER LOGS ===\n\n")
+                else:
+                    f.write(f"\n=== LOGS UPDATE AT {time.strftime('%H:%M:%S')} ===\n")
                 
                 f.write("=== FLASK SERVER LOGS ===\n")
-                for log in self.flask_logs.get_logs():
-                    f.write(f"{log}\n")
+                flask_logs = self.flask_logs.get_logs()
+                if flask_logs:
+                    for log in flask_logs:
+                        f.write(f"{log}\n")
+                else:
+                    f.write("No Flask logs captured\n")
                 
                 f.write("\n=== VITE SERVER LOGS ===\n")
-                for log in self.vite_logs.get_logs():
-                    f.write(f"{log}\n")
+                vite_logs = self.vite_logs.get_logs()
+                if vite_logs:
+                    for log in vite_logs:
+                        f.write(f"{log}\n")
+                else:
+                    f.write("No Vite logs captured\n")
                 
                 f.write("\n=== END OF LOGS ===\n")
             
-            self.logger.info(f"Server logs saved to {filepath}")
+            self.logger.info(f"Server logs saved to {filepath} (append={append})")
         except Exception as e:
             self.logger.error(f"Failed to save logs to {filepath}: {e}")
+
+    def mark_test_start(self, test_name: str) -> None:
+        """Mark the start of a test in the logs."""
+        timestamp = time.strftime("%H:%M:%S")
+        marker = f"[{timestamp}] TEST_MARKER: Starting test {test_name}"
+        
+        # Add marker to both log streams
+        self.flask_logs.add_log(f"TEST_MARKER: Starting test {test_name}")
+        self.vite_logs.add_log(f"TEST_MARKER: Starting test {test_name}")
+        
+        self.logger.info(f"Test marker added: {test_name}")
+
+    def mark_test_end(self, test_name: str, status: str = "completed") -> None:
+        """Mark the end of a test in the logs."""
+        timestamp = time.strftime("%H:%M:%S")
+        marker = f"[{timestamp}] TEST_MARKER: Finished test {test_name} ({status})"
+        
+        # Add marker to both log streams
+        self.flask_logs.add_log(f"TEST_MARKER: Finished test {test_name} ({status})")
+        self.vite_logs.add_log(f"TEST_MARKER: Finished test {test_name} ({status})")
+        
+        self.logger.info(f"Test marker added: {test_name} finished ({status})")
