@@ -9,6 +9,7 @@ import pytest
 import logging
 import sys
 import os
+import requests
 from pathlib import Path
 from playwright.sync_api import Page
 
@@ -35,20 +36,27 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope="session")
-def app():
+def app(test_database):
     """Create Flask app for pytest-flask live_server fixture."""
     from kiosk_show_replacement.app import create_app, db
+    
+    # Use the same database as the running Flask server
+    db_path = test_database["db_path"]
     
     app = create_app()
     app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
         "SECRET_KEY": "integration-test-secret-key",
         "WTF_CSRF_ENABLED": False,
     })
     
+    # Database is already created by test_database fixture
+    # Just ensure we have the correct context
     with app.app_context():
-        db.create_all()
+        # Verify connection to the test database
+        with db.engine.connect() as conn:
+            conn.execute(db.text("SELECT 1")).fetchone()
         
     return app
 
@@ -302,3 +310,126 @@ def save_logs_after_test(servers, request):
                 
         except Exception as e:
             logger.warning(f"Failed to save logs after test {test_name}: {e}")
+
+
+@pytest.fixture(scope="session")
+def http_client(servers):
+    """Create HTTP client for making real requests to running Flask server."""
+    flask_url = servers["flask_url"]
+    
+    class HTTPClient:
+        def __init__(self, base_url):
+            self.base_url = base_url
+            self.session = requests.Session()
+            # Set timeouts for all requests
+            self.session.timeout = 30
+            
+        def get(self, path, headers=None, **kwargs):
+            return self.session.get(f"{self.base_url}{path}", headers=headers, **kwargs)
+            
+        def post(self, path, json=None, data=None, headers=None, **kwargs):
+            return self.session.post(f"{self.base_url}{path}", json=json, data=data, headers=headers, **kwargs)
+            
+        def put(self, path, json=None, data=None, headers=None, **kwargs):
+            return self.session.put(f"{self.base_url}{path}", json=json, data=data, headers=headers, **kwargs)
+            
+        def delete(self, path, headers=None, **kwargs):
+            return self.session.delete(f"{self.base_url}{path}", headers=headers, **kwargs)
+            
+        def close(self):
+            self.session.close()
+    
+    client = HTTPClient(flask_url)
+    yield client
+    client.close()
+
+
+@pytest.fixture
+def admin_user(http_client):
+    """Get admin user credentials and ensure user exists."""
+    # Use the test user created during database initialization
+    return {
+        "username": "integration_test_user",
+        "password": "test_password",
+        "id": 1  # Assuming first user created is admin
+    }
+
+
+@pytest.fixture  
+def regular_user(http_client):
+    """Get regular user credentials."""
+    return {
+        "username": "backend_test_user", 
+        "password": "test_password",
+        "id": 2  # Assuming second user created
+    }
+
+
+@pytest.fixture
+def auth_headers(http_client, admin_user):
+    """Get authentication headers for API requests."""
+    # Login to get session cookie
+    login_response = http_client.post("/api/v1/auth/login", json={
+        "username": admin_user["username"],
+        "password": admin_user["password"]
+    })
+    
+    if login_response.status_code != 200:
+        raise RuntimeError(f"Failed to authenticate: {login_response.text}")
+    
+    # Extract session cookie from response
+    session_cookie = None
+    for cookie in login_response.cookies:
+        if cookie.name == "session":
+            session_cookie = cookie.value
+            break
+    
+    if not session_cookie:
+        raise RuntimeError("No session cookie received from login")
+    
+    # Return headers with session cookie
+    return {
+        "Cookie": f"session={session_cookie}",
+        "Content-Type": "application/json"
+    }
+
+
+@pytest.fixture 
+def client(http_client):
+    """Alias for http_client to maintain compatibility with existing test code."""
+    return http_client
+
+
+@pytest.fixture
+def db_session(test_database):
+    """Provide a database session that connects to the same database as the Flask server."""
+    from kiosk_show_replacement.app import create_app, db
+    
+    # Create app with same database configuration as Flask server
+    db_path = test_database["db_path"]
+    app = create_app()
+    app.config.update({
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+        "SECRET_KEY": "integration-test-secret-key",
+        "WTF_CSRF_ENABLED": False,
+    })
+    
+    with app.app_context():
+        yield db.session
+        # Rollback any uncommitted changes
+        db.session.rollback()
+
+
+@pytest.fixture 
+def db_models():
+    """Provide access to database models for test setup."""
+    from kiosk_show_replacement.models import (
+        Display, DisplayConfigurationTemplate, User, db
+    )
+    return {
+        "Display": Display,
+        "DisplayConfigurationTemplate": DisplayConfigurationTemplate,
+        "User": User,
+        "db": db
+    }
