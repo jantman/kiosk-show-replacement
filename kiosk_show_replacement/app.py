@@ -6,6 +6,7 @@ the Flask app instance with all necessary blueprints, extensions, and configurat
 """
 
 import os
+import re
 from typing import Any, Optional
 
 from flask import Flask, abort, redirect, send_from_directory
@@ -16,6 +17,25 @@ from flask_sqlalchemy import SQLAlchemy
 # Initialize extensions
 db = SQLAlchemy()
 migrate = Migrate()
+
+
+def sanitize_database_uri(uri: str) -> str:
+    """
+    Sanitize database URI by removing password information for logging.
+    
+    Args:
+        uri: Database URI that may contain sensitive information
+        
+    Returns:
+        str: Sanitized URI safe for logging
+    """
+    if not uri:
+        return "None"
+    
+    # Pattern to match and replace password in various URI formats
+    # Handles: scheme://user:password@host/db -> scheme://user:***@host/db
+    sanitized = re.sub(r'://([^:]+):([^@]+)@', r'://\1:***@', uri)
+    return sanitized
 
 
 def create_app(config_name: Optional[str] = None) -> Flask:
@@ -55,6 +75,22 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     db.init_app(app)
     migrate.init_app(app, db)
     CORS(app)
+
+    # Log database configuration for debugging
+    db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "Not configured")
+    sanitized_uri = sanitize_database_uri(db_uri)
+    app.logger.info(f"Flask app initialized with database: {sanitized_uri}")
+    
+    # Also log the database file path if it's SQLite
+    if db_uri and db_uri.startswith("sqlite:///"):
+        db_path = db_uri.replace("sqlite:///", "")
+        app.logger.info(f"SQLite database file: {db_path}")
+        # Check if file exists and log its size
+        if os.path.exists(db_path):
+            file_size = os.path.getsize(db_path)
+            app.logger.info(f"Database file exists, size: {file_size} bytes")
+        else:
+            app.logger.warning(f"Database file does not exist: {db_path}")
 
     # Register blueprints
     from .auth import bp as auth_bp
