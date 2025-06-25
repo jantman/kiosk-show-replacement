@@ -9,6 +9,7 @@ Tests cover:
 """
 
 import json
+import uuid
 
 import pytest
 
@@ -20,9 +21,10 @@ class TestDisplayArchiveAPI:
 
     def test_archive_display_success(self, client, auth_headers, admin_user):
         """Test successful display archiving."""
-        # Create test display
+        # Create test display with unique name
+        unique_id = str(uuid.uuid4())[:8]
         display = Display(
-            name="Test Display",
+            name=f"Test Display Archive {unique_id}",
             description="Display to archive",
             is_active=True,
             is_archived=False,
@@ -64,9 +66,10 @@ class TestDisplayArchiveAPI:
 
     def test_archive_already_archived_display(self, client, auth_headers, admin_user):
         """Test archiving already archived display returns error."""
-        # Create already archived display
+        # Create already archived display with unique name
+        unique_id = str(uuid.uuid4())[:8]
         display = Display(
-            name="Already Archived",
+            name=f"Already Archived {unique_id}",
             is_active=False,
             is_archived=True,
             owner_id=admin_user.id,
@@ -90,7 +93,7 @@ class TestDisplayArchiveAPI:
         """Test successful display restoration."""
         # Create archived display
         display = Display(
-            name="Archived Display",
+            name="Archived Display Restore Test",
             is_active=False,
             is_archived=True,
             owner_id=admin_user.id,
@@ -144,7 +147,7 @@ class TestDisplayArchiveAPI:
         """Test listing archived displays."""
         # Create mix of archived and active displays
         active_display = Display(
-            name="Active Display",
+            name="Active Display List Test",
             is_active=True,
             is_archived=False,
             owner_id=admin_user.id,
@@ -178,7 +181,7 @@ class TestDisplayArchiveAPI:
         archived_names = [d["name"] for d in data["data"]]
         assert "Archived Display 1" in archived_names
         assert "Archived Display 2" in archived_names
-        assert "Active Display" not in archived_names
+        assert "Active Display List Test" not in archived_names
 
 
 class TestDisplayTemplateAPI:
@@ -300,7 +303,7 @@ class TestDisplayTemplateAPI:
     def test_get_template_success(self, client, auth_headers, admin_user):
         """Test getting a specific template."""
         template = DisplayConfigurationTemplate(
-            name="Test Template",
+            name="Test Template Get",
             description="Template for testing",
             template_resolution_width=1920,
             owner_id=admin_user.id,
@@ -415,7 +418,7 @@ class TestTemplateApplication:
         """Test applying a template to a display."""
         # Create template
         template = DisplayConfigurationTemplate(
-            name="Test Template",
+            name="Test Template Apply",
             template_resolution_width=1920,
             template_resolution_height=1080,
             template_rotation=90,
@@ -428,7 +431,7 @@ class TestTemplateApplication:
 
         # Create display
         display = Display(
-            name="Test Display",
+            name="Test Display Apply Template",
             resolution_width=800,
             resolution_height=600,
             rotation=0,
@@ -465,7 +468,7 @@ class TestTemplateApplication:
         """Test applying template to archived display fails."""
         # Create template
         template = DisplayConfigurationTemplate(
-            name="Test Template",
+            name="Test Template Archived",
             owner_id=admin_user.id,
             created_by_id=admin_user.id,
         )
@@ -473,7 +476,7 @@ class TestTemplateApplication:
 
         # Create archived display
         display = Display(
-            name="Archived Display",
+            name="Archived Display Template Test",
             is_active=False,
             is_archived=True,
             owner_id=admin_user.id,

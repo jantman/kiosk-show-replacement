@@ -164,6 +164,38 @@ Located in ``tests/integration/``, these test the complete React frontend + Flas
 
    nox -s test-integration
 
+**Integration Test Server Logs:**
+
+Integration tests automatically capture comprehensive logs from both Flask and Vite servers during test execution. These logs are saved for debugging purposes and can be found in:
+
+* **Log File Location**: ``test-results/integration-server-logs.txt`` (created in project root)
+* **Log Contents**: 
+  
+  - Flask server startup, requests, and error messages
+  - Vite development server output and build information
+  - Timestamped entries for easy debugging
+  - Complete server lifecycle from startup to shutdown
+
+* **Automatic Capture**: Logs are automatically saved after each integration test session
+* **Debug Access**: Server logs are also dumped to console when tests fail for immediate debugging
+
+**Example log file structure:**
+
+.. code-block:: text
+
+   === INTEGRATION TEST SERVER LOGS ===
+
+   === FLASK SERVER LOGS ===
+   [14:32:15.123] Flask: Starting development server...
+   [14:32:15.456] Flask: * Running on http://localhost:5000
+   [14:32:16.789] Flask: GET /api/v1/auth/login - 200
+
+   === VITE SERVER LOGS ===
+   [14:32:20.123] Vite: Local:   http://localhost:3001/
+   [14:32:20.456] Vite: ready in 1.2s
+
+   === END OF LOGS ===
+
 **System Requirements for Integration Tests:**
 
 Integration tests require a system-installed Chrome or Chromium browser and Node.js for the frontend development server. The test framework automatically detects and uses the first available browser from these common locations:
@@ -257,6 +289,35 @@ For development and debugging, you can run tests with a visible browser:
    
    # Or run specific tests
    nox -s test-e2e -- --headed -k "test_login"
+
+**Debugging Integration Test Failures:**
+
+When integration tests fail, several debugging resources are automatically generated:
+
+1. **Server Logs**: Check ``test-results/integration-server-logs.txt`` for detailed Flask and Vite server output
+2. **Screenshots**: Failed tests capture screenshots in ``test-results/`` directory
+3. **Console Output**: Server logs are also dumped to the terminal on test failures
+4. **Real-time Debugging**: Run tests with ``-s`` flag to see live server output
+
+**Common Integration Test Issues:**
+
+* **Server Startup Failures**: Check server logs for port conflicts or missing dependencies
+* **Authentication Issues**: Look for API authentication errors in Flask logs
+* **Frontend Build Issues**: Check Vite logs for compilation errors or missing assets
+* **Network Timeouts**: Increase timeouts or check server health in logs
+
+**Example debugging workflow:**
+
+.. code-block:: bash
+
+   # Run integration tests with verbose output
+   nox -s test-integration -- -s -v
+   
+   # If tests fail, check the server logs
+   cat test-results/integration-server-logs.txt
+   
+   # Run specific test for focused debugging
+   nox -s test-integration -- -k "test_user_login" -s
 
 Test Configuration
 ~~~~~~~~~~~~~~~~~~

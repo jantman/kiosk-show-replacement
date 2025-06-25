@@ -177,8 +177,8 @@ class EnhancedServerManager:
             env = os.environ.copy()
             env["NODE_ENV"] = "development"
             
-            # Start Vite process
-            cmd = f"cd {frontend_dir} && npm run dev -- --port {self.vite_port} --host 0.0.0.0 --logLevel info"
+            # Start Vite process with integration test config for enhanced logging
+            cmd = f"cd {frontend_dir} && npm run dev -- --config vite.config.integration.ts --port {self.vite_port} --host 0.0.0.0"
             self.vite_process = subprocess.Popen(
                 cmd,
                 shell=True,
