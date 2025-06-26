@@ -112,20 +112,18 @@ def project_root():
 
 
 @pytest.fixture(scope="session")
-def test_database(project_root):
-    """Set up a test database with known test users."""
+def test_database(project_root, tmp_path_factory):
+    """Set up a temporary test database with known test users."""
     import os
     import subprocess
     
     logger.info("Setting up integration test database...")
     
-    # Create test database path
-    test_db_path = project_root / "instance" / "test_integration.db"
-    test_db_path.parent.mkdir(exist_ok=True)
-
-    # Remove existing test database
-    if test_db_path.exists():
-        test_db_path.unlink()
+    # Create temporary database in pytest temp directory
+    temp_dir = tmp_path_factory.mktemp("integration_test_db")
+    test_db_path = temp_dir / "test_integration.db"
+    
+    logger.info(f"Creating temporary test database at: {test_db_path}")
 
     # Initialize database using the script
     env = os.environ.copy()
@@ -161,9 +159,7 @@ def test_database(project_root):
         ]
     }
 
-    # Cleanup
-    if test_db_path.exists():
-        test_db_path.unlink()
+    # Cleanup happens automatically when temp directory is removed by pytest
 
 
 @pytest.fixture(scope="session")
@@ -351,7 +347,7 @@ def admin_user(http_client):
     return {
         "username": "integration_test_user",
         "password": "test_password",
-        "id": 1  # Assuming first user created is admin
+        "id": 2  # This user gets created by the authentication system during login
     }
 
 
@@ -404,21 +400,21 @@ def client(http_client):
 def db_session(test_database):
     """Provide a database session that connects to the same database as the Flask server."""
     from kiosk_show_replacement.app import create_app, db
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
     
-    # Create app with same database configuration as Flask server
+    # Create direct connection to the same database file used by Flask server
     db_path = test_database["db_path"]
-    app = create_app()
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
-        "SECRET_KEY": "integration-test-secret-key",
-        "WTF_CSRF_ENABLED": False,
-    })
+    engine = create_engine(f"sqlite:///{db_path}")
+    Session = sessionmaker(bind=engine)
+    session = Session()
     
-    with app.app_context():
-        yield db.session
-        # Rollback any uncommitted changes
-        db.session.rollback()
+    try:
+        yield session
+    finally:
+        # Always commit any pending changes and close the session
+        session.commit()
+        session.close()
 
 
 @pytest.fixture 
