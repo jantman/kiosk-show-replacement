@@ -291,11 +291,11 @@ class TestFullUserExperience:
         # Note: We can't use networkidle because SSE connections keep network active
         # Instead, wait for specific dashboard elements to appear
         page.wait_for_load_state("domcontentloaded", timeout=10000)
-        
+
         # Wait for the login form to disappear (indicating successful redirect)
-        page.locator("input[name='username'], input[placeholder*='username' i]").wait_for(
-            state="hidden", timeout=10000
-        )
+        page.locator(
+            "input[name='username'], input[placeholder*='username' i]"
+        ).wait_for(state="hidden", timeout=10000)
 
         # Verify we're no longer on the login page
         login_form_present = page.locator("input[name='username']").is_visible()

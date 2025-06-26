@@ -33,6 +33,7 @@ except ImportError:
     def broadcast_display_update(display, event_type, data=None):
         pass
 
+
 # Create the display blueprint
 display_bp = Blueprint(
     "display",
@@ -149,10 +150,10 @@ def update_heartbeat(display_name: str) -> Response:
 
         # Get or create display
         display = get_or_create_display(display_name)
-        
+
         # Check if display was previously offline
         was_online = display.is_online
-        
+
         # Update heartbeat timestamp
         display.last_seen_at = datetime.now(timezone.utc)
 
@@ -182,30 +183,30 @@ def update_heartbeat(display_name: str) -> Response:
             pass
 
         db.session.commit()
-        
+
         # Check if display came online and broadcast SSE event
         is_now_online = display.is_online
         if not was_online and is_now_online:
             # Display came online
             broadcast_display_update(
-                display, 
+                display,
                 "status_changed",
                 {
                     "status": "online",
                     "came_online_at": display.last_seen_at.isoformat(),
-                    "resolution_changed": resolution_changed
-                }
+                    "resolution_changed": resolution_changed,
+                },
             )
         elif resolution_changed:
             # Resolution changed while online
             broadcast_display_update(
                 display,
-                "configuration_changed", 
+                "configuration_changed",
                 {
                     "resolution_width": display.resolution_width,
                     "resolution_height": display.resolution_height,
-                    "change_type": "resolution"
-                }
+                    "change_type": "resolution",
+                },
             )
 
         current_app.logger.debug(

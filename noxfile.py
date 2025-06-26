@@ -126,7 +126,7 @@ def _setup_playwright_browser_testing(session):
     session.install("playwright", "pytest-playwright")
     session.install("pytest-asyncio")  # Required for async test functions
     session.install("pytest-timeout")  # Required for test timeouts
-    
+
     # Create ffmpeg symlink for Playwright video recording
     playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
     playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
@@ -139,62 +139,72 @@ def _setup_playwright_browser_testing(session):
         session.log(f"Created symlink: {playwright_ffmpeg_path} -> {system_ffmpeg}")
 
 
-def _run_playwright_tests_with_timeout(session, test_dir: str, timeout_seconds: int = 60, extra_args: list[str] | None = None, enable_asyncio: bool = False):
+def _run_playwright_tests_with_timeout(
+    session,
+    test_dir: str,
+    timeout_seconds: int = 60,
+    extra_args: list[str] | None = None,
+    enable_asyncio: bool = False,
+):
     """Run Playwright tests with process-level timeout to prevent hanging."""
-    
+
     # Base pytest arguments for all browser tests
     base_args = [
-        "timeout", f"{timeout_seconds}s",  # Process-level timeout
+        "timeout",
+        f"{timeout_seconds}s",  # Process-level timeout
         "pytest",
         test_dir,
         "--video",
-        "retain-on-failure", 
+        "retain-on-failure",
         "--screenshot",
         "only-on-failure",
         "-v",
         # REMOVED: "-x",  # Don't stop on first failure to allow proper cleanup
     ]
-    
+
     # Add asyncio configuration if needed
     if enable_asyncio:
-        base_args.extend([
-            "--asyncio-mode=auto"
-        ])
-    
+        base_args.extend(["--asyncio-mode=auto"])
+
     # Add extra arguments if provided
     if extra_args:
         base_args.extend(extra_args)
 
     session.log(f"Tests will timeout after {timeout_seconds} seconds")
     session.log("Using system Chrome via executable_path configuration")
-    session.log("Running tests without -x flag to ensure proper cleanup and log capture")
+    session.log(
+        "Running tests without -x flag to ensure proper cleanup and log capture"
+    )
     session.run(
         *base_args,
         *session.posargs,
-        external=True  # Use external=True for timeout command
+        external=True,  # Use external=True for timeout command
     )
 
 
-def _run_playwright_tests(session, test_dir: str, extra_args: list[str] | None = None, enable_asyncio: bool = False):
+def _run_playwright_tests(
+    session,
+    test_dir: str,
+    extra_args: list[str] | None = None,
+    enable_asyncio: bool = False,
+):
     """Run Playwright tests with proper browser configuration."""
-    
+
     # Base pytest arguments for all browser tests
     base_args = [
         "pytest",
         test_dir,
         "--video",
-        "retain-on-failure", 
+        "retain-on-failure",
         "--screenshot",
         "only-on-failure",
         "-v",
     ]
-    
+
     # Add asyncio configuration if needed
     if enable_asyncio:
-        base_args.extend([
-            "--asyncio-mode=auto"
-        ])
-    
+        base_args.extend(["--asyncio-mode=auto"])
+
     # Add extra arguments if provided
     if extra_args:
         base_args.extend(extra_args)
@@ -211,24 +221,27 @@ def test_integration(session):
     """Run integration tests: React frontend + Flask backend through real browser."""
     session.install("-e", ".")
     session.install("pytest", "pytest-flask", "requests")
-    
+
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
-    
+
     # Create test-results directory for logs and screenshots
     import os
+
     os.makedirs("test-results", exist_ok=True)
-    
+
     session.log("Running integration tests with proper cleanup enabled...")
     session.log("Server logs will be saved to test-results/integration-server-logs.txt")
-    
+
     # Run integration tests with timeout to prevent hanging (60 seconds for faster feedback)
     _run_playwright_tests_with_timeout(
-        session, 
+        session,
         TEST_DIR + "/integration",
         timeout_seconds=60,  # Faster timeout for debugging
-        extra_args=["--tb=short"],  # Shorter traceback for better error visibility, allow cleanup
-        enable_asyncio=True  # Enable asyncio support for integration tests
+        extra_args=[
+            "--tb=short"
+        ],  # Shorter traceback for better error visibility, allow cleanup
+        enable_asyncio=True,  # Enable asyncio support for integration tests
     )
 
 
@@ -238,17 +251,17 @@ def test_e2e(session):
     session.install("-e", ".")
     session.install("pytest", "pytest-flask")
     session.install("pytest-asyncio")  # Required for async test functions
-    
+
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
-    
+
     # Run E2E tests with process-level timeout (60 seconds max)
     _run_playwright_tests_with_timeout(
-        session, 
+        session,
         TEST_DIR + "/e2e",
         timeout_seconds=60,
         extra_args=["--tb=short"],  # Shorter traceback for better error visibility
-        enable_asyncio=True  # Enable asyncio support for E2E tests
+        enable_asyncio=True,  # Enable asyncio support for E2E tests
     )
 
 
@@ -275,16 +288,16 @@ def test_all(session):
 def test_comprehensive(session):
     """Run all tests: backend unit tests, integration tests, frontend tests, and E2E tests."""
     session.log("=== Running Comprehensive Test Suite ===")
-    
+
     # Track results
     results = []
-    
+
     try:
         # 1. Run backend unit tests
         session.log("1. Running backend unit tests...")
         session.install("-e", ".")
         session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
-        
+
         session.run(
             "pytest",
             TEST_DIR + "/unit",
@@ -295,7 +308,7 @@ def test_comprehensive(session):
             "--cov-fail-under=30",
         )
         results.append("✅ Backend unit tests: PASSED")
-        
+
     except Exception as e:
         results.append("❌ Backend unit tests: FAILED")
         session.log(f"Backend unit tests failed: {e}")
@@ -305,7 +318,7 @@ def test_comprehensive(session):
         session.log("2. Running integration tests...")
         session.install("playwright", "pytest-playwright", "requests")
         session.install("pytest-asyncio")  # Required for asyncio arguments
-        
+
         # Create ffmpeg symlink for Playwright video recording
         playwright_ffmpeg_dir = os.path.expanduser("~/.cache/ms-playwright/ffmpeg-1011")
         playwright_ffmpeg_path = os.path.join(playwright_ffmpeg_dir, "ffmpeg-linux")
@@ -330,7 +343,7 @@ def test_comprehensive(session):
             "-s",
         )
         results.append("✅ Integration tests: PASSED")
-        
+
     except Exception as e:
         results.append("❌ Integration tests: FAILED")
         session.log(f"Integration tests failed: {e}")
@@ -342,18 +355,18 @@ def test_comprehensive(session):
             # Check if Node.js and npm are available
             session.run("node", "--version", external=True)
             session.run("npm", "--version", external=True)
-            
+
             # Change to frontend directory and run tests
             session.chdir("frontend")
-            
+
             # Install dependencies if needed
             if not os.path.exists("node_modules"):
                 session.run("npm", "install", external=True)
-            
+
             # Run comprehensive frontend CI tests
             session.run("npm", "run", "test:ci", external=True)
             results.append("✅ Frontend tests: PASSED")
-            
+
         except Exception as e:
             results.append("❌ Frontend tests: FAILED")
             session.log(f"Frontend tests failed: {e}")
@@ -381,7 +394,7 @@ def test_comprehensive(session):
             "-v",
         )
         results.append("✅ E2E tests: PASSED")
-        
+
     except Exception as e:
         results.append("❌ E2E tests: FAILED")
         session.log(f"E2E tests failed: {e}")
@@ -391,12 +404,14 @@ def test_comprehensive(session):
     session.log("Results:")
     for result in results:
         session.log(f"  {result}")
-    
+
     # Fail the session if any tests failed
     failed_tests = [r for r in results if "FAILED" in r]
     if failed_tests:
-        session.error(f"Some tests failed: {len(failed_tests)} out of {len(results)} test suites failed")
-    
+        session.error(
+            f"Some tests failed: {len(failed_tests)} out of {len(results)} test suites failed"
+        )
+
     session.log("🎉 All test suites completed successfully!")
 
 

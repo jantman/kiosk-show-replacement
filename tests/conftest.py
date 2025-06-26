@@ -102,8 +102,7 @@ def admin_user(app):
         # Use unique username to avoid conflicts in integration tests
         unique_id = str(uuid.uuid4())[:8]
         user = TestDataFactory.create_user(
-            username=f"admin_user_{unique_id}", 
-            email=f"admin_{unique_id}@example.com"
+            username=f"admin_user_{unique_id}", email=f"admin_{unique_id}@example.com"
         )
         user.is_admin = True
         db.session.add(user)
@@ -121,8 +120,8 @@ def regular_user(app):
         # Use unique username to avoid conflicts in integration tests
         unique_id = str(uuid.uuid4())[:8]
         user = TestDataFactory.create_user(
-            username=f"regular_user_{unique_id}", 
-            email=f"regular_{unique_id}@example.com"
+            username=f"regular_user_{unique_id}",
+            email=f"regular_{unique_id}@example.com",
         )
         user.is_admin = False
         db.session.add(user)

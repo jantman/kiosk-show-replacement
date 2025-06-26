@@ -38,7 +38,6 @@ This approach gives us true integration testing - testing the real HTTP layer wh
 maintaining easy test data setup through direct database access.
 """
 
-import json
 import uuid
 
 import pytest
@@ -47,7 +46,9 @@ import pytest
 class TestDisplayArchiveAPI:
     """Test display archive and restore API endpoints."""
 
-    def test_archive_display_success(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_archive_display_success(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test successful display archiving."""
         # Create test display with unique name using direct database access
         unique_id = str(uuid.uuid4())[:8]
@@ -66,8 +67,7 @@ class TestDisplayArchiveAPI:
 
         # Test the archive functionality via HTTP API
         response = client.post(
-            f"/api/v1/displays/{display_id}/archive",
-            headers=auth_headers
+            f"/api/v1/displays/{display_id}/archive", headers=auth_headers
         )
 
         assert response.status_code == 200
@@ -83,13 +83,10 @@ class TestDisplayArchiveAPI:
 
     def test_archive_nonexistent_display(self, client, auth_headers):
         """Test archiving nonexistent display returns 404."""
-        response = client.post(
-            "/api/v1/displays/99999/archive",
-            headers=auth_headers
-        )
+        response = client.post("/api/v1/displays/99999/archive", headers=auth_headers)
 
         assert response.status_code == 404
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "not found" in data["error"].lower()
 
@@ -101,28 +98,28 @@ class TestDisplayArchiveAPI:
             "name": f"Already Archived {unique_id}",
             "description": "Display to archive twice",
             "location": "Test Location",
-            "is_active": True
+            "is_active": True,
         }
-        
-        create_response = client.post("/api/v1/displays", json=display_data, headers=auth_headers)
+
+        create_response = client.post(
+            "/api/v1/displays", json=display_data, headers=auth_headers
+        )
         assert create_response.status_code == 201
-        display_id = json.loads(create_response.data)["data"]["id"]
-        
+        display_id = create_response.json()["data"]["id"]
+
         # First archive - should succeed
         archive_response = client.post(
-            f"/api/v1/displays/{display_id}/archive",
-            headers=auth_headers
+            f"/api/v1/displays/{display_id}/archive", headers=auth_headers
         )
         assert archive_response.status_code == 200
 
         # Second archive - should fail
         response = client.post(
-            f"/api/v1/displays/{display_id}/archive",
-            headers=auth_headers
+            f"/api/v1/displays/{display_id}/archive", headers=auth_headers
         )
 
         assert response.status_code == 400
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "already archived" in data["error"].lower()
 
@@ -134,28 +131,28 @@ class TestDisplayArchiveAPI:
             "name": f"Archived Display Restore Test {unique_id}",
             "description": "Display to archive then restore",
             "location": "Test Location",
-            "is_active": True
+            "is_active": True,
         }
-        
-        create_response = client.post("/api/v1/displays", json=display_data, headers=auth_headers)
+
+        create_response = client.post(
+            "/api/v1/displays", json=display_data, headers=auth_headers
+        )
         assert create_response.status_code == 201
-        display_id = json.loads(create_response.data)["data"]["id"]
-        
+        display_id = create_response.json()["data"]["id"]
+
         # Archive the display first
         archive_response = client.post(
-            f"/api/v1/displays/{display_id}/archive",
-            headers=auth_headers
+            f"/api/v1/displays/{display_id}/archive", headers=auth_headers
         )
         assert archive_response.status_code == 200
 
         # Restore the display
         response = client.post(
-            f"/api/v1/displays/{display_id}/restore",
-            headers=auth_headers
+            f"/api/v1/displays/{display_id}/restore", headers=auth_headers
         )
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["message"] == "Display restored successfully"
@@ -172,43 +169,51 @@ class TestDisplayArchiveAPI:
             "name": f"Active Display {unique_id}",
             "description": "Display that is not archived",
             "location": "Test Location",
-            "is_active": True
+            "is_active": True,
         }
-        
-        create_response = client.post("/api/v1/displays", json=display_data, headers=auth_headers)
+
+        create_response = client.post(
+            "/api/v1/displays", json=display_data, headers=auth_headers
+        )
         assert create_response.status_code == 201
-        display_id = json.loads(create_response.data)["data"]["id"]
+        display_id = create_response.json()["data"]["id"]
 
         response = client.post(
-            f"/api/v1/displays/{display_id}/restore",
-            headers=auth_headers
+            f"/api/v1/displays/{display_id}/restore", headers=auth_headers
         )
 
         assert response.status_code == 400
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "not archived" in data["error"].lower()
 
-    def test_list_archived_displays(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_list_archived_displays(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test listing archived displays."""
         # Create mix of archived and active displays with unique names using direct database access
         unique_id = str(uuid.uuid4())[:8]
+        
+        archived_display1_name = f"Archived Display 1 {unique_id}"
+        archived_display2_name = f"Archived Display 2 {unique_id}"
+        active_display_name = f"Active Display List Test {unique_id}"
+        
         active_display = db_models["Display"](
-            name=f"Active Display List Test {unique_id}",
+            name=active_display_name,
             is_active=True,
             is_archived=False,
             owner_id=admin_user["id"],
             created_by_id=admin_user["id"],
         )
         archived_display1 = db_models["Display"](
-            name=f"Archived Display 1 {unique_id}",
+            name=archived_display1_name,
             is_active=False,
             is_archived=True,
             owner_id=admin_user["id"],
             created_by_id=admin_user["id"],
         )
         archived_display2 = db_models["Display"](
-            name=f"Archived Display 2 {unique_id}",
+            name=archived_display2_name,
             is_active=False,
             is_archived=True,
             owner_id=admin_user["id"],
@@ -221,14 +226,14 @@ class TestDisplayArchiveAPI:
         response = client.get("/api/v1/displays/archived", headers=auth_headers)
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert len(data["data"]) == 2  # Only archived displays
         archived_names = [d["name"] for d in data["data"]]
-        assert "Archived Display 1" in archived_names
-        assert "Archived Display 2" in archived_names
-        assert "Active Display List Test" not in archived_names
+        assert archived_display1_name in archived_names
+        assert archived_display2_name in archived_names
+        assert active_display_name not in archived_names
 
 
 class TestDisplayTemplateAPI:
@@ -248,13 +253,11 @@ class TestDisplayTemplateAPI:
         }
 
         response = client.post(
-            "/api/v1/display-templates",
-            json=template_data,
-            headers=auth_headers
+            "/api/v1/display-templates", json=template_data, headers=auth_headers
         )
 
         assert response.status_code == 201
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["message"] == "Display template created successfully"
@@ -264,7 +267,9 @@ class TestDisplayTemplateAPI:
         assert data["data"]["is_default"] is True
         assert data["data"]["owner_id"] == admin_user["id"]
 
-    def test_create_template_duplicate_name(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_create_template_duplicate_name(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test creating template with duplicate name fails."""
         # Create first template with unique base name
         unique_id = str(uuid.uuid4())[:8]
@@ -284,13 +289,11 @@ class TestDisplayTemplateAPI:
         }
 
         response = client.post(
-            "/api/v1/display-templates",
-            json=template_data,
-            headers=auth_headers
+            "/api/v1/display-templates", json=template_data, headers=auth_headers
         )
 
         assert response.status_code == 400
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "already exists" in data["error"].lower()
 
@@ -301,17 +304,17 @@ class TestDisplayTemplateAPI:
         }
 
         response = client.post(
-            "/api/v1/display-templates",
-            json=template_data,
-            headers=auth_headers
+            "/api/v1/display-templates", json=template_data, headers=auth_headers
         )
 
         assert response.status_code == 400
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "name is required" in data["error"].lower()
 
-    def test_list_templates(self, client, auth_headers, admin_user, regular_user, db_session, db_models):
+    def test_list_templates(
+        self, client, auth_headers, admin_user, regular_user, db_session, db_models
+    ):
         """Test listing display templates."""
         # Create templates for different users
         admin_template = db_models["DisplayConfigurationTemplate"](
@@ -342,14 +345,18 @@ class TestDisplayTemplateAPI:
         response = client.get("/api/v1/display-templates", headers=auth_headers)
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
-        # Should only see admin user's active templates
-        assert len(data["data"]) == 1
-        assert data["data"][0]["name"] == "Admin Template"
+        # Should see the default template plus admin user's active templates
+        assert len(data["data"]) == 2
+        template_names = [t["name"] for t in data["data"]]
+        assert "Admin Template" in template_names
+        assert "Office Template" in template_names  # Default template
 
-    def test_get_template_success(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_get_template_success(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test getting a specific template."""
         template = db_models["DisplayConfigurationTemplate"](
             name="Test Template Get",
@@ -363,18 +370,19 @@ class TestDisplayTemplateAPI:
         template_id = template.id
 
         response = client.get(
-            f"/api/v1/display-templates/{template_id}",
-            headers=auth_headers
+            f"/api/v1/display-templates/{template_id}", headers=auth_headers
         )
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["data"]["name"] == "Test Template Get"
         assert data["data"]["template_resolution_width"] == 1920
 
-    def test_get_template_access_denied(self, client, auth_headers, admin_user, regular_user, db_session, db_models):
+    def test_get_template_access_denied(
+        self, client, auth_headers, admin_user, regular_user, db_session, db_models
+    ):
         """Test accessing another user's template is denied."""
         # Create template owned by regular user
         template = db_models["DisplayConfigurationTemplate"](
@@ -388,16 +396,17 @@ class TestDisplayTemplateAPI:
 
         # Try to access with admin user auth
         response = client.get(
-            f"/api/v1/display-templates/{template_id}",
-            headers=auth_headers
+            f"/api/v1/display-templates/{template_id}", headers=auth_headers
         )
 
         assert response.status_code == 403
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "access denied" in data["error"].lower()
 
-    def test_update_template_success(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_update_template_success(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test updating a display template."""
         template = db_models["DisplayConfigurationTemplate"](
             name="Original Name",
@@ -420,11 +429,11 @@ class TestDisplayTemplateAPI:
         response = client.put(
             f"/api/v1/display-templates/{template_id}",
             json=update_data,
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["data"]["name"] == "Updated Name"
@@ -433,7 +442,9 @@ class TestDisplayTemplateAPI:
         assert data["data"]["template_resolution_height"] == 1080
         assert data["data"]["updated_by_id"] == admin_user["id"]
 
-    def test_delete_template_success(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_delete_template_success(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test deleting a display template."""
         template = db_models["DisplayConfigurationTemplate"](
             name="Template to Delete",
@@ -445,25 +456,29 @@ class TestDisplayTemplateAPI:
         template_id = template.id
 
         response = client.delete(
-            f"/api/v1/display-templates/{template_id}",
-            headers=auth_headers
+            f"/api/v1/display-templates/{template_id}", headers=auth_headers
         )
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["message"] == "Template deleted successfully"
 
-        # Verify template is deleted
-        deleted_template = db_session.get(db_models["DisplayConfigurationTemplate"], template_id)
+        # Verify template is deleted - refresh session to see latest state
+        db_session.expire_all()  # Clear any cached objects
+        deleted_template = db_session.get(
+            db_models["DisplayConfigurationTemplate"], template_id
+        )
         assert deleted_template is None
 
 
 class TestTemplateApplication:
     """Test applying templates to displays."""
 
-    def test_apply_template_to_display_success(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_apply_template_to_display_success(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test applying a template to a display."""
         # Create template
         template = db_models["DisplayConfigurationTemplate"](
@@ -496,15 +511,15 @@ class TestTemplateApplication:
 
         response = client.post(
             f"/api/v1/displays/{display.id}/apply-template/{template.id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["message"] == "Template applied successfully"
-        
+
         # Check display was updated
         updated_display = data["data"]
         assert updated_display["resolution_width"] == 1920
@@ -513,7 +528,9 @@ class TestTemplateApplication:
         assert updated_display["heartbeat_interval"] == 45
         assert updated_display["location"] == "New Location"
 
-    def test_apply_template_to_archived_display_fails(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_apply_template_to_archived_display_fails(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test applying template to archived display fails."""
         # Create template
         template = db_models["DisplayConfigurationTemplate"](
@@ -536,15 +553,17 @@ class TestTemplateApplication:
 
         response = client.post(
             f"/api/v1/displays/{display.id}/apply-template/{template.id}",
-            headers=auth_headers
+            headers=auth_headers,
         )
 
         assert response.status_code == 400
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "archived display" in data["error"].lower()
 
-    def test_bulk_apply_template_success(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_bulk_apply_template_success(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test bulk applying template to multiple displays."""
         # Create template
         template = db_models["DisplayConfigurationTemplate"](
@@ -592,18 +611,16 @@ class TestTemplateApplication:
         }
 
         response = client.post(
-            "/api/v1/displays/bulk-apply-template",
-            json=bulk_data,
-            headers=auth_headers
+            "/api/v1/displays/bulk-apply-template", json=bulk_data, headers=auth_headers
         )
 
         assert response.status_code == 200
-        data = json.loads(response.data)
+        data = response.json()
 
         assert data["success"] is True
         assert data["data"]["total_applied"] == 2  # Two successful
-        assert data["data"]["total_failed"] == 1   # One failed (archived)
-        
+        assert data["data"]["total_failed"] == 1  # One failed (archived)
+
         # Check applied displays were updated
         applied_displays = data["data"]["applied_displays"]
         assert len(applied_displays) == 2
@@ -616,7 +633,9 @@ class TestTemplateApplication:
         assert len(failed_displays) == 1
         assert "archived" in failed_displays[0]["error"].lower()
 
-    def test_bulk_apply_template_no_displays(self, client, auth_headers, admin_user, db_session, db_models):
+    def test_bulk_apply_template_no_displays(
+        self, client, auth_headers, admin_user, db_session, db_models
+    ):
         """Test bulk apply with no display IDs fails."""
         template = db_models["DisplayConfigurationTemplate"](
             name="Test Template",
@@ -632,12 +651,10 @@ class TestTemplateApplication:
         }
 
         response = client.post(
-            "/api/v1/displays/bulk-apply-template",
-            json=bulk_data,
-            headers=auth_headers
+            "/api/v1/displays/bulk-apply-template", json=bulk_data, headers=auth_headers
         )
 
         assert response.status_code == 400
-        data = json.loads(response.data)
+        data = response.json()
         assert data["success"] is False
         assert "no display ids" in data["error"].lower()

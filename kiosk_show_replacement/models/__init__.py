@@ -12,7 +12,14 @@ for tracking creation and modification. Designed for easy migration
 between different database engines (SQLite, PostgreSQL, MariaDB).
 """
 
-__all__ = ["User", "Display", "Slideshow", "SlideshowItem", "AssignmentHistory", "DisplayConfigurationTemplate"]
+__all__ = [
+    "User",
+    "Display",
+    "Slideshow",
+    "SlideshowItem",
+    "AssignmentHistory",
+    "DisplayConfigurationTemplate",
+]
 
 from datetime import datetime, timezone
 from typing import Any, List, Optional
@@ -235,9 +242,7 @@ class Display(db.Model):
             "location": self.location,
             "is_active": self.is_active,
             "is_archived": self.is_archived,
-            "archived_at": (
-                self.archived_at.isoformat() if self.archived_at else None
-            ),
+            "archived_at": (self.archived_at.isoformat() if self.archived_at else None),
             "archived_by_id": self.archived_by_id,
             "is_online": self.is_online,
             "online": self.is_online,  # Alias for API consistency
@@ -318,7 +323,9 @@ class Display(db.Model):
         self.resolution_height = config.get("resolution_height", self.resolution_height)
         self.rotation = config.get("rotation", self.rotation)
         self.location = config.get("location", self.location)
-        self.heartbeat_interval = config.get("heartbeat_interval", self.heartbeat_interval)
+        self.heartbeat_interval = config.get(
+            "heartbeat_interval", self.heartbeat_interval
+        )
         self.updated_by_id = updated_by_user.id
         self.updated_at = datetime.now(timezone.utc)
 
@@ -701,14 +708,14 @@ class DisplayConfigurationTemplate(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(100), nullable=False, index=True)
     description = Column(Text, nullable=True)
-    
+
     # Configuration fields
     template_resolution_width = Column(Integer, nullable=True)
     template_resolution_height = Column(Integer, nullable=True)
     template_rotation = Column(Integer, default=0, nullable=False)
     template_heartbeat_interval = Column(Integer, default=60, nullable=False)
     template_location = Column(String(200), nullable=True)
-    
+
     # Template metadata
     is_default = Column(Boolean, default=False, nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -790,7 +797,9 @@ class DisplayConfigurationTemplate(db.Model):
         return rotation
 
     @validates("template_resolution_width", "template_resolution_height")
-    def validate_template_resolution(self, key: str, value: Optional[int]) -> Optional[int]:
+    def validate_template_resolution(
+        self, key: str, value: Optional[int]
+    ) -> Optional[int]:
         """Validate template resolution values."""
         if value is not None and (value < 1 or value > 10000):
             raise ValueError(f"{key} must be between 1 and 10000 pixels")

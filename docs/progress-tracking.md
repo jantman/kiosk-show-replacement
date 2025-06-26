@@ -393,6 +393,138 @@ All core display management functionality is now complete with comprehensive tes
 ### Next Priority
 **Begin Milestone 12**: Error Handling & Resilience - Now that all real-time SSE infrastructure is complete and tested, we can proceed to implementing comprehensive error handling and resilience features.
 
+---
+
+## Milestone 11b: Integration Test Troubleshooting and Fixes (Current Status)
+
+### Task Description
+We were working on fixing failing integration tests in the `test-integration` nox environment. The goal was to identify and resolve issues preventing integration tests from passing, specifically focusing on database isolation, API endpoint availability, and test infrastructure.
+
+### Completed ✅
+
+#### 1. **Integration Test Infrastructure Fixes**
+- ✅ **Fixed database isolation issues** - Updated test database to use temporary pytest directories instead of persistent files
+- ✅ **Implemented hybrid testing approach** - Direct database access for test setup + real HTTP requests for actual testing
+- ✅ **Added comprehensive logging** - Database URI logging, test markers, and server log capture
+- ✅ **Fixed response object issues** - Replaced `json.loads(response.data)` with `response.json()` throughout test files
+- ✅ **Added missing imports** - Removed unused `import json` statements
+
+#### 2. **Database Session Management**
+- ✅ **Created proper db_session fixture** - Direct SQLAlchemy connection to same database as Flask server
+- ✅ **Fixed user ID mappings** - Corrected admin_user fixture to use correct user ID (2 instead of 1)
+- ✅ **Added database cleanup fixture** - Implemented `clean_test_data` fixture to clean data between tests
+
+#### 3. **API Endpoint Implementation**
+- ✅ **Added missing POST /api/v1/displays endpoint** - Created display creation API that was missing
+- ✅ **Fixed authentication flow** - HTTP client authentication working with session cookies
+- ✅ **Verified existing endpoints** - Confirmed archive, restore, template endpoints exist
+
+#### 4. **Test Documentation**
+- ✅ **Added comprehensive docstring** - Documented hybrid testing approach for future developers
+- ✅ **Explained fixture usage** - Clear documentation of db_session, db_models, client fixtures
+
+### Pending ❌
+
+#### 1. **Remaining Test Issues**
+- ❌ **Database cleanup between tests** - Tests still seeing leftover data from previous tests
+- ❌ **Template deletion verification** - `test_delete_template_success` not properly verifying deletion
+- ❌ **Access control testing** - `test_get_template_access_denied` needs proper user separation
+- ❌ **Playwright browser configuration** - System browser setup appears to have regressed
+
+#### 2. **Test Environment Issues**
+- ❌ **Playwright dependencies** - Browser tests failing with missing executables
+- ❌ **Port configuration** - Some tests trying to connect to wrong ports (5001 vs 5000)
+- ❌ **Test isolation** - Need to verify each test class gets clean database state
+
+#### 3. **Outstanding Test Failures**
+- ❌ **test_list_archived_displays** - Expecting exact names but getting names with unique suffixes
+- ❌ **test_list_templates** - Expecting 1 template but getting 2 (seeing default + created)
+- ❌ **test_delete_template_success** - Template not being properly deleted from database
+
+### Code State
+
+#### Files Modified:
+- **`tests/integration/conftest.py`** - Database fixtures, cleanup, user fixtures
+- **`tests/integration/test_display_lifecycle_api.py`** - Response handling, test assertions
+- **`kiosk_show_replacement/api/v1.py`** - Added POST displays endpoint
+- **`kiosk_show_replacement/app.py`** - Added database URI logging
+- **`tests/integration/server_manager.py`** - Test markers and logging
+- **`tests/integration/test_standalone.py`** - Port configuration
+
+#### Key API Endpoints:
+- **`POST /api/v1/displays`** - Create new display (newly added)
+- **`POST /api/v1/displays/{id}/archive`** - Archive display (working)
+- **`POST /api/v1/displays/{id}/restore`** - Restore display (working)
+- **`GET /api/v1/displays/archived`** - List archived displays (working)
+- **Template CRUD endpoints** - Full template management (working)
+
+### Changes
+
+#### 1. **Database Configuration**
+```python
+# Old: Hardcoded database paths
+SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:"
+
+# New: Temporary pytest directories
+test_db_path = tmp_path_factory.mktemp("integration_test_db") / "test_integration.db"
+```
+
+#### 2. **Response Handling**
+```python
+# Old: Incorrect response object usage
+data = json.loads(response.data)
+
+# New: Proper requests library usage  
+data = response.json()
+```
+
+#### 3. **Database Session**
+```python
+# Old: Flask app context session
+with app.app_context():
+    yield db.session
+
+# New: Direct SQLAlchemy connection
+engine = create_engine(f"sqlite:///{db_path}")
+Session = sessionmaker(bind=engine)
+session = Session()
+```
+
+#### 4. **Missing API Endpoint**
+```python
+# Added to kiosk_show_replacement/api/v1.py
+@v1_bp.route("/displays", methods=["POST"])
+@login_required
+def create_display():
+    # Display creation logic
+```
+
+### Current Status
+
+#### Test Results Summary:
+- **23/32 API tests PASSING** (72% pass rate for non-browser tests)
+- **9 tests ERROR** (Playwright browser dependency issues)  
+- **Database isolation partially working** but needs refinement
+- **Core integration test infrastructure is functional**
+
+#### Next Priority Actions:
+1. **Fix database cleanup** - Ensure tests don't see each other's data
+2. **Resolve Playwright regression** - Check git history for system browser config
+3. **Fix remaining test assertions** - Address name matching and deletion verification
+4. **Complete test suite validation** - Get all 32 tests passing
+
+#### Git Status:
+- Multiple files have been modified during troubleshooting
+- Need to check git diff to see what changed from last working state
+- Playwright system browser configuration may have been accidentally modified
+
+The integration test infrastructure is now largely functional with real HTTP requests, proper database isolation foundations, and comprehensive logging. The remaining issues are primarily test-specific fixes and Playwright configuration restoration.
+
+### Summary
+We have made significant progress on the integration test infrastructure, fixing major issues with database isolation, response handling, and API endpoints. The core testing framework is now functional with 23/32 tests passing. The remaining work focuses on database cleanup between tests and resolving Playwright browser configuration issues to get all 32 integration tests passing consistently.
+
+---
+
 ### Milestone 9 Completed: Slideshow Management Interface (100% Complete)
 Successfully completed Milestone 9 with comprehensive slideshow management functionality including:
 - **Complete Component Testing**: All 55 frontend tests passing (100% success rate)

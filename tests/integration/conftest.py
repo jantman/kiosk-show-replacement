@@ -5,12 +5,13 @@ This configures Playwright to test our Flask application with browser automation
 and provides enhanced server management with comprehensive logging.
 """
 
-import pytest
 import logging
-import sys
 import os
-import requests
+import sys
 from pathlib import Path
+
+import pytest
+import requests
 from playwright.sync_api import Page
 
 # Add the tests directory to the Python path for imports
@@ -26,10 +27,8 @@ pytest_plugins = ["flask"]
 # Configure comprehensive logging for integration tests
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 logger = logging.getLogger(__name__)
@@ -39,25 +38,27 @@ logger = logging.getLogger(__name__)
 def app(test_database):
     """Create Flask app for pytest-flask live_server fixture."""
     from kiosk_show_replacement.app import create_app, db
-    
+
     # Use the same database as the running Flask server
     db_path = test_database["db_path"]
-    
+
     app = create_app()
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
-        "SECRET_KEY": "integration-test-secret-key",
-        "WTF_CSRF_ENABLED": False,
-    })
-    
+    app.config.update(
+        {
+            "TESTING": True,
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_path}",
+            "SECRET_KEY": "integration-test-secret-key",
+            "WTF_CSRF_ENABLED": False,
+        }
+    )
+
     # Database is already created by test_database fixture
     # Just ensure we have the correct context
     with app.app_context():
         # Verify connection to the test database
         with db.engine.connect() as conn:
             conn.execute(db.text("SELECT 1")).fetchone()
-        
+
     return app
 
 
@@ -116,13 +117,13 @@ def test_database(project_root, tmp_path_factory):
     """Set up a temporary test database with known test users."""
     import os
     import subprocess
-    
+
     logger.info("Setting up integration test database...")
-    
+
     # Create temporary database in pytest temp directory
     temp_dir = tmp_path_factory.mktemp("integration_test_db")
     test_db_path = temp_dir / "test_integration.db"
-    
+
     logger.info(f"Creating temporary test database at: {test_db_path}")
 
     # Initialize database using the script
@@ -150,13 +151,13 @@ def test_database(project_root, tmp_path_factory):
         raise RuntimeError(f"Failed to initialize test database: {init_result.stderr}")
 
     logger.info("✓ Test database initialized successfully")
-    
+
     yield {
         "db_path": str(test_db_path),
         "users": [
             {"username": "integration_test_user", "password": "test_password"},
             {"username": "backend_test_user", "password": "test_password"},
-        ]
+        ],
     }
 
     # Cleanup happens automatically when temp directory is removed by pytest
@@ -170,34 +171,34 @@ def servers(project_root, test_database):
     try:
         logger.info("Starting servers for integration tests...")
         success = server_manager.start_servers(db_path=test_database["db_path"])
-        
+
         if not success:
             logger.error("Failed to start servers")
             server_manager._dump_server_logs()
             raise RuntimeError("Server startup failed")
-        
+
         # Save initial logs after successful startup
         log_file = project_root / "test-results" / "integration-server-logs.txt"
         log_file.parent.mkdir(exist_ok=True)
         server_manager.save_logs_to_file(str(log_file), append=False)
         logger.info("Initial server logs saved")
-        
+
         # Provide server URLs and manager for tests
         yield {
             **server_manager.get_server_urls(),
             "manager": server_manager,
             "health_check": server_manager.health_check,
-            "_log_file": log_file  # Pass log file path to tests
+            "_log_file": log_file,  # Pass log file path to tests
         }
-        
+
     finally:
         logger.info("Stopping servers after integration tests...")
-        
+
         # Save final logs for debugging
         log_file = project_root / "test-results" / "integration-server-logs.txt"
         log_file.parent.mkdir(exist_ok=True)
         server_manager.save_logs_to_file(str(log_file), append=True)
-        
+
         server_manager.stop_servers()
         logger.info("✓ Integration test cleanup complete")
 
@@ -207,7 +208,7 @@ def enhanced_page(page: Page, servers):
     """Configure page with enhanced debugging and server health monitoring."""
     # Configure page timeouts (Playwright doesn't have default_timeout property)
     page.set_default_timeout(30000)  # 30 seconds
-    
+
     # Add enhanced console logging
     def handle_console(msg):
         level = msg.type
@@ -218,34 +219,34 @@ def enhanced_page(page: Page, servers):
             logger.warning(f"⚠️ Browser console warning: {text}")
         else:
             logger.info(f"🌐 Browser console {level}: {text}")
-    
+
     def handle_page_error(exc):
         logger.error(f"🚨 Browser page error: {exc}")
         # Dump server logs on page errors
         if "manager" in servers:
             servers["manager"]._dump_server_logs()
-    
+
     def handle_request_failed(request):
         logger.warning(f"🌐 Failed request: {request.method} {request.url}")
-    
+
     def handle_response(response):
         if response.status >= 400:
             # Response doesn't have method, need to get it from the request
             request = response.request
-            logger.warning(f"🌐 HTTP {response.status}: {request.method} {response.url}")
-    
+            logger.warning(f"🌐 HTTP {response.status}: {request.method} {request.url}")
+
     # Register event handlers
     page.on("console", handle_console)
     page.on("pageerror", handle_page_error)
     page.on("requestfailed", handle_request_failed)
     page.on("response", handle_response)
-    
+
     # Configure for debugging
     page.set_default_timeout(20000)  # Longer timeout for debugging
     page.set_default_navigation_timeout(20000)
-    
+
     yield page
-    
+
     # Cleanup: reset to default timeout
     page.set_default_timeout(30000)  # Reset to reasonable default
 
@@ -254,7 +255,7 @@ def enhanced_page(page: Page, servers):
 def mark_test_start(servers, request):
     """Mark the start of each test in the server logs."""
     test_name = f"{request.module.__name__}::{request.function.__name__}"
-    
+
     if "_log_file" in servers:
         try:
             manager = servers["manager"]
@@ -268,42 +269,42 @@ def save_logs_after_test(servers, request):
     """Automatically save server logs after each test for debugging."""
     # This fixture only runs the cleanup part
     yield
-    
+
     # This runs after each test - mark test end and save logs
     test_name = f"{request.module.__name__}::{request.function.__name__}"
-    
+
     if "_log_file" in servers:
         try:
             manager = servers["manager"]
             log_file = servers["_log_file"]
-            
+
             # Mark test end
             manager.mark_test_end(test_name)
-            
+
             # Append current logs with test information
-            with open(str(log_file), 'a') as f:
+            with open(str(log_file), "a") as f:
                 f.write(f"\n=== AFTER TEST: {test_name} ===\n")
-                
+
                 # Add recent logs from both servers
                 flask_logs = manager.get_flask_logs()
                 vite_logs = manager.get_vite_logs()
-                
+
                 f.write(f"Flask logs count: {len(flask_logs)}\n")
                 f.write(f"Vite logs count: {len(vite_logs)}\n")
-                
+
                 # Add last few lines of each
                 if flask_logs:
                     f.write("Recent Flask logs:\n")
                     for log in flask_logs[-5:]:  # Last 5 lines
                         f.write(f"  {log}\n")
-                
+
                 if vite_logs:
                     f.write("Recent Vite logs:\n")
                     for log in vite_logs[-5:]:  # Last 5 lines
                         f.write(f"  {log}\n")
-                
+
                 f.write("=== END AFTER TEST ===\n\n")
-                
+
         except Exception as e:
             logger.warning(f"Failed to save logs after test {test_name}: {e}")
 
@@ -312,29 +313,43 @@ def save_logs_after_test(servers, request):
 def http_client(servers):
     """Create HTTP client for making real requests to running Flask server."""
     flask_url = servers["flask_url"]
-    
+
     class HTTPClient:
         def __init__(self, base_url):
             self.base_url = base_url
             self.session = requests.Session()
             # Set timeouts for all requests
             self.session.timeout = 30
-            
+
         def get(self, path, headers=None, **kwargs):
             return self.session.get(f"{self.base_url}{path}", headers=headers, **kwargs)
-            
+
         def post(self, path, json=None, data=None, headers=None, **kwargs):
-            return self.session.post(f"{self.base_url}{path}", json=json, data=data, headers=headers, **kwargs)
-            
+            return self.session.post(
+                f"{self.base_url}{path}",
+                json=json,
+                data=data,
+                headers=headers,
+                **kwargs,
+            )
+
         def put(self, path, json=None, data=None, headers=None, **kwargs):
-            return self.session.put(f"{self.base_url}{path}", json=json, data=data, headers=headers, **kwargs)
-            
+            return self.session.put(
+                f"{self.base_url}{path}",
+                json=json,
+                data=data,
+                headers=headers,
+                **kwargs,
+            )
+
         def delete(self, path, headers=None, **kwargs):
-            return self.session.delete(f"{self.base_url}{path}", headers=headers, **kwargs)
-            
+            return self.session.delete(
+                f"{self.base_url}{path}", headers=headers, **kwargs
+            )
+
         def close(self):
             self.session.close()
-    
+
     client = HTTPClient(flask_url)
     yield client
     client.close()
@@ -347,17 +362,17 @@ def admin_user(http_client):
     return {
         "username": "integration_test_user",
         "password": "test_password",
-        "id": 2  # This user gets created by the authentication system during login
+        "id": 2,  # This user gets created by the authentication system during login
     }
 
 
-@pytest.fixture  
+@pytest.fixture
 def regular_user(http_client):
     """Get regular user credentials."""
     return {
-        "username": "backend_test_user", 
+        "username": "backend_test_user",
         "password": "test_password",
-        "id": 2  # Assuming second user created
+        "id": 3,  # Different user ID from admin_user
     }
 
 
@@ -365,32 +380,29 @@ def regular_user(http_client):
 def auth_headers(http_client, admin_user):
     """Get authentication headers for API requests."""
     # Login to get session cookie
-    login_response = http_client.post("/api/v1/auth/login", json={
-        "username": admin_user["username"],
-        "password": admin_user["password"]
-    })
-    
+    login_response = http_client.post(
+        "/api/v1/auth/login",
+        json={"username": admin_user["username"], "password": admin_user["password"]},
+    )
+
     if login_response.status_code != 200:
         raise RuntimeError(f"Failed to authenticate: {login_response.text}")
-    
+
     # Extract session cookie from response
     session_cookie = None
     for cookie in login_response.cookies:
         if cookie.name == "session":
             session_cookie = cookie.value
             break
-    
+
     if not session_cookie:
         raise RuntimeError("No session cookie received from login")
-    
+
     # Return headers with session cookie
-    return {
-        "Cookie": f"session={session_cookie}",
-        "Content-Type": "application/json"
-    }
+    return {"Cookie": f"session={session_cookie}", "Content-Type": "application/json"}
 
 
-@pytest.fixture 
+@pytest.fixture
 def client(http_client):
     """Alias for http_client to maintain compatibility with existing test code."""
     return http_client
@@ -399,16 +411,17 @@ def client(http_client):
 @pytest.fixture
 def db_session(test_database):
     """Provide a database session that connects to the same database as the Flask server."""
-    from kiosk_show_replacement.app import create_app, db
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-    
+
+    from kiosk_show_replacement.app import create_app, db
+
     # Create direct connection to the same database file used by Flask server
     db_path = test_database["db_path"]
     engine = create_engine(f"sqlite:///{db_path}")
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     try:
         yield session
     finally:
@@ -417,15 +430,58 @@ def db_session(test_database):
         session.close()
 
 
-@pytest.fixture 
+@pytest.fixture(autouse=True)
+def clean_test_data(db_session, db_models):
+    """Clean up test data between tests to ensure isolation.
+
+    This fixture runs automatically before each test to ensure clean state.
+    It removes all data except the essential admin user needed for authentication.
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    # Clean up before test - remove all test data except admin user
+    try:
+        # Note: We keep user ID 2 (integration_test_user) for authentication
+        db_session.query(db_models["Display"]).delete()
+        db_session.query(db_models["DisplayConfigurationTemplate"]).filter(
+            db_models["DisplayConfigurationTemplate"].id
+            != 1  # Keep the default template
+        ).delete()
+        db_session.commit()
+        logger.debug("✓ Test data cleaned up successfully")
+    except Exception as e:
+        logger.warning(f"Failed to clean test data: {e}")
+        db_session.rollback()
+    
+    yield  # Let the test run
+    
+    # Also clean up after test for good measure
+    try:
+        db_session.query(db_models["Display"]).delete()
+        db_session.query(db_models["DisplayConfigurationTemplate"]).filter(
+            db_models["DisplayConfigurationTemplate"].id
+            != 1  # Keep the default template
+        ).delete()
+        db_session.commit()
+    except Exception as e:
+        logger.warning(f"Failed to clean test data after test: {e}")
+        db_session.rollback()
+
+
+@pytest.fixture
 def db_models():
     """Provide access to database models for test setup."""
     from kiosk_show_replacement.models import (
-        Display, DisplayConfigurationTemplate, User, db
+        Display,
+        DisplayConfigurationTemplate,
+        User,
+        db,
     )
+
     return {
         "Display": Display,
         "DisplayConfigurationTemplate": DisplayConfigurationTemplate,
         "User": User,
-        "db": db
+        "db": db,
     }

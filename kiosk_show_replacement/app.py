@@ -22,19 +22,19 @@ migrate = Migrate()
 def sanitize_database_uri(uri: str) -> str:
     """
     Sanitize database URI by removing password information for logging.
-    
+
     Args:
         uri: Database URI that may contain sensitive information
-        
+
     Returns:
         str: Sanitized URI safe for logging
     """
     if not uri:
         return "None"
-    
+
     # Pattern to match and replace password in various URI formats
     # Handles: scheme://user:password@host/db -> scheme://user:***@host/db
-    sanitized = re.sub(r'://([^:]+):([^@]+)@', r'://\1:***@', uri)
+    sanitized = re.sub(r"://([^:]+):([^@]+)@", r"://\1:***@", uri)
     return sanitized
 
 
@@ -80,7 +80,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "Not configured")
     sanitized_uri = sanitize_database_uri(db_uri)
     app.logger.info(f"Flask app initialized with database: {sanitized_uri}")
-    
+
     # Also log the database file path if it's SQLite
     if db_uri and db_uri.startswith("sqlite:///"):
         db_path = db_uri.replace("sqlite:///", "")

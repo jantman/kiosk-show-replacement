@@ -3,15 +3,21 @@ Unit tests for display lifecycle management features (archive/restore).
 
 Tests cover:
 - Display archive functionality
-- Display restore functionality  
+- Display restore functionality
 - Display configuration templates
 - Display configuration migration tools
 """
 
-import pytest
 from datetime import datetime, timezone
 
-from kiosk_show_replacement.models import Display, DisplayConfigurationTemplate, User, db
+import pytest
+
+from kiosk_show_replacement.models import (
+    Display,
+    DisplayConfigurationTemplate,
+    User,
+    db,
+)
 
 
 class TestDisplayArchive:
@@ -184,11 +190,12 @@ class TestDisplayConfiguration:
             }
 
             original_updated_at = display.updated_at
-            
+
             # Add a small delay to ensure updated_at changes
             import time
+
             time.sleep(0.01)
-            
+
             display.apply_configuration(new_config, admin_user)
 
             # Check all fields were updated
@@ -200,9 +207,10 @@ class TestDisplayConfiguration:
             assert display.location == "New Location"
             assert display.heartbeat_interval == 30
             assert display.updated_by_id == admin_user.id
-            
+
             # Ensure both datetimes are timezone-aware for comparison
             from datetime import timezone
+
             if original_updated_at.tzinfo is None:
                 original_updated_at = original_updated_at.replace(tzinfo=timezone.utc)
             if display.updated_at.tzinfo is None:
@@ -382,7 +390,9 @@ class TestDisplayConfigurationTemplate:
             assert template.template_resolution_width == 1920
             assert template.template_resolution_height == 1080
 
-    def test_unique_template_name_per_owner_constraint(self, app, admin_user, regular_user):
+    def test_unique_template_name_per_owner_constraint(
+        self, app, admin_user, regular_user
+    ):
         """Test that template names must be unique per owner."""
         with app.app_context():
             # Create first template

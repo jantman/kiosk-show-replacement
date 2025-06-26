@@ -9,6 +9,7 @@
 - **Always** include the `-f` option when removing files, such as `rm -f file.txt`.
 - **Always** run the `format` nox session before running the `lint` session, such as `poetry run nox -s format; poetry run nox -s lint`.
 - **Always** run tests via `nox`, not directly with `pytest` or `python -m pytest`.
+- **Never** run the `lint` or `format` nox sessions with uncommitted git changes. Always commit changes before running these sessions.
 
 ## Resource Management
 ### Database/SQLAlchemy
