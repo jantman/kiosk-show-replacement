@@ -8,6 +8,7 @@ Run with: nox -s test-integration
 """
 
 import logging
+import os
 import time
 
 import pytest
@@ -19,6 +20,10 @@ logger = logging.getLogger(__name__)
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("SKIP_BROWSER_TESTS", "false").lower() == "true",
+    reason="Browser tests skipped due to Playwright browser dependency issues on Arch Linux"
+)
 class TestSSEIntegration:
     """Test SSE functionality in the complete React + Flask application stack."""
 

@@ -65,7 +65,8 @@ module.exports = {
       name: 'chromium',
       use: { 
         ...require('@playwright/test').devices['Desktop Chrome'],
-        channel: 'chrome'  // Use system Chrome if available
+        channel: 'chrome',  // Use system Chrome if available
+        executablePath: '/usr/bin/google-chrome-stable'
       },
     },
   ],

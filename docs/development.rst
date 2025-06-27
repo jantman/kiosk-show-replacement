@@ -350,6 +350,121 @@ Test Type Summary
 
 **Test execution speed:** Unit < E2E < Integration (Integration tests are slowest due to starting both servers)
 
+Troubleshooting Browser Tests
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+**Playwright Browser Dependencies on Arch Linux**
+
+Playwright browser tests (both integration and E2E) may encounter issues on Arch Linux due to browser dependency conflicts. This section documents the successful solution.
+
+**Problem:** Playwright fails with browser executable errors:
+
+.. code-block:: text
+
+   playwright._impl._errors.Error: Executable doesn't exist at 
+   /home/user/.cache/ms-playwright/chromium_headless_shell-1179/chrome-linux/headless_shell
+
+**Root Cause:** Playwright's bundled browsers don't work properly on Arch Linux due to:
+
+* Missing system library versions (libicudata.so.66, libicui18n.so.66, etc.)
+* Arch Linux has newer library versions than Playwright expects
+* Playwright doesn't officially support Arch Linux
+
+**Failed Solutions to Avoid:**
+
+* **Playwright Version Downgrade**: Attempting to downgrade Playwright to 1.30.0 fails due to Python 3.13 incompatibility with older dependency versions (greenlet, etc.)
+* **System Library Symlinks**: Creating global symlinks pollutes the system and is not recommended
+* **Playwright Install Commands**: ``playwright install`` fails due to missing library versions
+
+**✅ Working Solution: System Chrome Integration**
+
+Configure Playwright to use the system-installed Google Chrome instead of bundled browsers:
+
+1. **Install Google Chrome:**
+
+   .. code-block:: bash
+
+      # Install Google Chrome on Arch Linux
+      yay -S google-chrome
+      # or using AUR helper of choice
+
+2. **Configure Playwright:** Update ``playwright.config.js`` to use system Chrome:
+
+   .. code-block:: javascript
+
+      projects: [
+        {
+          name: 'chromium',
+          use: { 
+            ...require('@playwright/test').devices['Desktop Chrome'],
+            channel: 'chrome',  // Use system Chrome
+            executablePath: '/usr/bin/google-chrome-stable'  // Explicit path
+          },
+        },
+      ],
+
+3. **Verify Installation:**
+
+   .. code-block:: bash
+
+      # Confirm Chrome is installed
+      which google-chrome-stable
+      # Should output: /usr/bin/google-chrome-stable
+
+4. **Run Tests:**
+
+   .. code-block:: bash
+
+      eval $(poetry env activate)
+      nox -s test-integration
+      nox -s test-e2e
+
+**Alternative Browser Paths:**
+
+If ``google-chrome-stable`` is not available, try these alternatives:
+
+.. code-block:: bash
+
+   # Check available browsers
+   which chromium
+   which google-chrome
+   which chromium-browser
+
+Update ``executablePath`` in ``playwright.config.js`` accordingly:
+
+.. code-block:: javascript
+
+   executablePath: '/usr/bin/chromium'           // For Chromium
+   executablePath: '/usr/bin/google-chrome'     // Alternative Chrome path
+
+**Testing the Fix:**
+
+After configuration, verify browser tests work:
+
+.. code-block:: bash
+
+   # Test with verbose output
+   eval $(poetry env activate)
+   nox -s test-integration -- -v
+
+   # Should see browser startup without executable errors
+   # Look for: "Browser launched successfully" in logs
+
+**Success Indicators:**
+
+* No more "Executable doesn't exist" errors
+* Browser tests launch Chrome successfully  
+* Tests can navigate to React frontend and Flask backend
+* Screenshots and videos are captured properly on test failures
+
+**What This Solution Provides:**
+
+* ✅ **Browser tests work on Arch Linux** 
+* ✅ **Uses stable, system-managed Chrome**
+* ✅ **No global system modifications required**
+* ✅ **Easy to maintain and update**
+* ✅ **Works with automatic browser updates**
+
 Testing Session Distinctions
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -224,6 +224,10 @@ def servers(project_root, test_database):
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("SKIP_BROWSER_TESTS", "false").lower() == "true",
+    reason="Browser tests skipped due to Playwright browser dependency issues on Arch Linux"
+)
 class TestFullUserExperience:
     """Test the complete user experience through a real browser."""
 
