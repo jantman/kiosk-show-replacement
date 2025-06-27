@@ -90,6 +90,7 @@ class SSEConnection:
         self.connected_at = datetime.now(timezone.utc)
         self.last_ping = self.connected_at
         self.event_queue: Queue[SSEEvent] = Queue()
+        self.events_sent_count = 0  # Track events sent to this connection
         self.is_active = True
 
     def add_event(self, event: SSEEvent) -> None:
@@ -97,6 +98,7 @@ class SSEConnection:
         if self.is_active:
             try:
                 self.event_queue.put_nowait(event)
+                self.events_sent_count += 1  # Increment counter when event is queued
             except Exception as e:
                 logger.warning(
                     f"Failed to queue event for connection {self.connection_id}: {e}"

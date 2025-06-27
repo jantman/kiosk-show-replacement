@@ -1737,7 +1737,7 @@ def sse_stats() -> Tuple[Response, int]:
                     "connection_type": conn.connection_type,
                     "user_id": conn.user_id,
                     "connected_at": conn.connected_at.isoformat(),
-                    "events_sent": len(conn.event_queue),
+                    "events_sent": conn.events_sent_count,
                     "last_activity": conn.connected_at.isoformat(),  # Can be enhanced with actual last activity
                 }
 

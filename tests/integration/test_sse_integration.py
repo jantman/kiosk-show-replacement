@@ -145,10 +145,38 @@ class TestSSEIntegration:
             enhanced_page.goto(vite_url, timeout=15000)
             logger.info("Page loaded successfully")
 
-            # Wait for React app to load
+            # Wait for React app to load - look for login form or authenticated content
             logger.info("Waiting for React app to initialize...")
-            enhanced_page.wait_for_selector("h1", timeout=10000)
-            logger.info("React app loaded")
+            
+            # Wait for either login form or authenticated content to appear
+            login_form_visible = False
+            authenticated_content_visible = False
+            
+            try:
+                # First, try to find login form elements (unauthenticated state)
+                enhanced_page.wait_for_selector(
+                    "input[name='username'], input[placeholder*='username' i], h4",
+                    timeout=10000,
+                )
+                login_form_visible = True
+                logger.info("Login form found - user is unauthenticated")
+            except Exception as e:
+                logger.warning(f"Login form not found: {e}")
+                
+                # If no login form, try to find authenticated content (h1, dashboard, etc.)
+                try:
+                    enhanced_page.wait_for_selector("h1, [data-testid='dashboard'], .dashboard", timeout=5000)
+                    authenticated_content_visible = True
+                    logger.info("Authenticated content found - user is logged in")
+                except Exception as e2:
+                    logger.error(f"No authenticated content found either: {e2}")
+            
+            # At least one should be visible
+            assert (
+                login_form_visible or authenticated_content_visible
+            ), "React app should show either login form or authenticated content"
+            
+            logger.info("React app loaded successfully")
 
             # Check if we can navigate to admin section
             page_content = enhanced_page.content()
