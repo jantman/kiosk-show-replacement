@@ -8,15 +8,6 @@ This feature hardens the application for production deployment by addressing sec
 
 ## High-Level Deliverables
 
-### HTTP Security Headers
-
-- Content Security Policy (CSP) headers to prevent XSS attacks
-- X-Frame-Options to prevent clickjacking
-- X-Content-Type-Options to prevent MIME sniffing
-- Strict-Transport-Security (HSTS) header for HTTPS enforcement
-- Referrer-Policy for privacy protection
-- Permissions-Policy for feature restrictions
-
 ### Input Validation & Sanitization
 
 - Comprehensive input validation on all API endpoints

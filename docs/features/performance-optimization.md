@@ -30,7 +30,6 @@ This feature optimizes system performance across all components to ensure smooth
 - Image optimization on upload (resize, compress while maintaining quality)
 - Lazy loading support for media files in slideshows
 - Efficient file streaming for large video files
-- Hooks for CDN integration (optional future enhancement)
 
 ### Frontend Performance
 
@@ -47,17 +46,6 @@ This feature optimizes system performance across all components to ensure smooth
 - Optimized rendering for low-powered display devices
 - Bandwidth optimization for displays on limited connections
 - Memory management for long-running display sessions
-
-## Out of Scope
-
-- CDN deployment (hooks only, actual CDN setup is deployment concern)
-- Load balancing (deployment concern)
-- Database replication/sharding
-
-## Dependencies
-
-- Requires completed Milestone 12 (Error Handling) for proper error handling during optimization
-- No external dependencies
 
 ## Acceptance Criteria
 

@@ -22,7 +22,7 @@ This feature adds comprehensive error handling and system resilience throughout 
 - Global error handling for API requests with user-friendly error messages
 - Graceful degradation when backend services are unavailable
 - Retry mechanisms for transient failures
-- Offline detection and appropriate user feedback
+- For kiosk displays, automatic reload/refresh on connectivity loss or significant errors
 
 ### Display Resilience
 
@@ -43,19 +43,8 @@ This feature adds comprehensive error handling and system resilience throughout 
 
 - Health check endpoints for all critical services (`/health`, `/health/db`, `/health/storage`)
 - Structured logging suitable for log aggregation systems
-- Performance metrics collection hooks
-- Alerting integration points for critical failures
-
-## Out of Scope
-
-- External monitoring system integration (Prometheus, Grafana, etc.) - hooks only
-- Automated alerting configuration
-- Disaster recovery procedures (covered in deployment feature)
-
-## Dependencies
-
-- Requires completed Milestones 1-11
-- No external dependencies
+- Performance metrics collection hooks (Prometheus endpoint)
+- Prometheus metrics for critical failures
 
 ## Acceptance Criteria
 

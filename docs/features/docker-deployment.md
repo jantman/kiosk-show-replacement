@@ -22,47 +22,23 @@ This feature provides Docker containerization and deployment tooling for easy, r
 
 - Development compose file with hot-reload and debugging support
 - Production compose file with proper resource limits and restart policies
-- Optional PostgreSQL service for production deployments
-- Optional nginx reverse proxy service with SSL termination
+- Optional MariaDB service for production deployments
 - Volume definitions for data persistence
 - Network configuration for service isolation
-
-### Reverse Proxy Configuration
-
-- nginx configuration for production deployment
-- SSL/TLS termination with Let's Encrypt integration guidance
-- Static file serving optimization
-- WebSocket/SSE proxy configuration
-- Security headers at proxy level
-- Example configurations for common scenarios
 
 ### Database Management
 
 - Database initialization in containerized environment
 - Migration handling on container startup
-- Backup and restore procedures for containerized databases
-- SQLite to PostgreSQL migration guidance (optional)
+- SQLite to MariaDB migration guidance
 
 ### Deployment Documentation
 
 - Quick start guide for Docker deployment
 - Production deployment checklist
 - Environment variable reference
-- Backup and restore procedures
 - Upgrade procedures between versions
 - Troubleshooting guide for common deployment issues
-
-## Out of Scope
-
-- Kubernetes manifests (may be added in future)
-- Cloud-specific deployment (AWS, GCP, Azure)
-- Automated CI/CD pipeline configuration
-- High availability / clustering setup
-
-## Dependencies
-
-- Requires completed Milestones 12-14 (Error Handling, Performance, Security)
-- Docker and Docker Compose for testing
 
 ## Acceptance Criteria
 
