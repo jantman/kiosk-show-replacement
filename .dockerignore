@@ -1,0 +1,64 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+.mypy_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.nox/
+
+# Node.js (frontend node_modules - we rebuild in Docker)
+frontend/node_modules/
+
+# Environment files (secrets)
+.env
+.env.*
+!.env.example
+!.env.docker.example
+
+# Instance data (local database and uploads)
+instance/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Documentation source (not needed in container)
+docs/
+
+# Tests (not needed in production container)
+tests/
+noxfile.py
+pytest.ini
+.pre-commit-config.yaml
+
+# Development files
+*.md
+!README.md
+Makefile
+scripts/
+
+# Misc
+*.log
+*.bak
+.DS_Store
+Thumbs.db

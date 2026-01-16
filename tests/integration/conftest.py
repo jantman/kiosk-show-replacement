@@ -438,8 +438,9 @@ def clean_test_data(db_session, db_models):
     It removes all data except the essential admin user needed for authentication.
     """
     import logging
+
     logger = logging.getLogger(__name__)
-    
+
     # Clean up before test - remove all test data except admin user
     try:
         # Note: We keep user ID 2 (integration_test_user) for authentication
@@ -453,9 +454,9 @@ def clean_test_data(db_session, db_models):
     except Exception as e:
         logger.warning(f"Failed to clean test data: {e}")
         db_session.rollback()
-    
+
     yield  # Let the test run
-    
+
     # Also clean up after test for good measure
     try:
         db_session.query(db_models["Display"]).delete()

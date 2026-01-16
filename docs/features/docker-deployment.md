@@ -40,6 +40,61 @@ This feature provides Docker containerization and deployment tooling for easy, r
 - Upgrade procedures between versions
 - Troubleshooting guide for common deployment issues
 
+## Implementation Plan
+
+### Technology Decisions
+
+Based on planning discussions:
+- **Database**: MariaDB for production (SQLite for development/single-node)
+- **Architecture**: Multi-arch support (amd64 + arm64) for Raspberry Pi compatibility
+- **WSGI Server**: Gunicorn with eventlet worker (required for SSE support)
+
+### Milestone 1: Core Docker Infrastructure - COMPLETE
+
+**Prefix**: `Docker - 1`
+
+Tasks completed:
+- [x] Task 1.1: Create `.dockerignore` to exclude unnecessary files from Docker context
+- [x] Task 1.2: Create multi-stage `Dockerfile` with Node.js frontend build and Python runtime
+- [x] Task 1.3: Create `docker-entrypoint.sh` for database migrations and initialization
+- [x] Task 1.4: Add gunicorn and pymysql dependencies to `pyproject.toml`
+
+Files created/modified:
+- `.dockerignore` (new)
+- `Dockerfile` (new)
+- `docker-entrypoint.sh` (new)
+- `pyproject.toml` (modified - added gunicorn, pymysql)
+- `poetry.lock` (updated)
+
+### Milestone 2: Docker Compose Configuration
+
+**Prefix**: `Docker - 2`
+
+Tasks:
+- [ ] Task 2.1: Create `docker-compose.yml` for development
+- [ ] Task 2.2: Create `docker-compose.prod.yml` for production with MariaDB
+- [ ] Task 2.3: Create `.env.docker.example` with documented configuration options
+
+### Milestone 3: Database Migration Support
+
+**Prefix**: `Docker - 3`
+
+Tasks:
+- [ ] Task 3.1: Verify MariaDB configuration works with current config module
+- [ ] Task 3.2: Test database migrations in containerized environment
+
+### Milestone 4: Acceptance Criteria
+
+**Prefix**: `Docker - 4`
+
+Tasks:
+- [ ] Task 4.1: Create deployment documentation (`docs/deployment.rst`)
+- [ ] Task 4.2: Update README and CLAUDE.md
+- [ ] Task 4.3: Verify Docker build succeeds
+- [ ] Task 4.4: Verify Docker Compose works (dev and prod)
+- [ ] Task 4.5: Run all nox sessions
+- [ ] Task 4.6: Move feature file to `docs/features/completed/`
+
 ## Acceptance Criteria
 
 The final milestone must verify:

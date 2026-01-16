@@ -52,6 +52,10 @@ jsonschema = "^4.19.0"
 bcrypt = "^4.0.0"
 # Async support for SSE - using eventlet instead of gevent for better Python 3.13 compatibility
 eventlet = "^0.33.0"
+# Production WSGI server
+gunicorn = "^21.0.0"
+# MariaDB/MySQL support
+pymysql = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
 # Testing framework

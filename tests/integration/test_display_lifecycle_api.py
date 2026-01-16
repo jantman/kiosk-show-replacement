@@ -193,11 +193,11 @@ class TestDisplayArchiveAPI:
         """Test listing archived displays."""
         # Create mix of archived and active displays with unique names using direct database access
         unique_id = str(uuid.uuid4())[:8]
-        
+
         archived_display1_name = f"Archived Display 1 {unique_id}"
         archived_display2_name = f"Archived Display 2 {unique_id}"
         active_display_name = f"Active Display List Test {unique_id}"
-        
+
         active_display = db_models["Display"](
             name=active_display_name,
             is_active=True,

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 @pytest.mark.integration
 @pytest.mark.skipif(
     os.getenv("SKIP_BROWSER_TESTS", "false").lower() == "true",
-    reason="Browser tests skipped due to Playwright browser dependency issues on Arch Linux"
+    reason="Browser tests skipped due to Playwright browser dependency issues on Arch Linux",
 )
 class TestSSEIntegration:
     """Test SSE functionality in the complete React + Flask application stack."""
@@ -147,11 +147,11 @@ class TestSSEIntegration:
 
             # Wait for React app to load - look for login form or authenticated content
             logger.info("Waiting for React app to initialize...")
-            
+
             # Wait for either login form or authenticated content to appear
             login_form_visible = False
             authenticated_content_visible = False
-            
+
             try:
                 # First, try to find login form elements (unauthenticated state)
                 enhanced_page.wait_for_selector(
@@ -162,20 +162,22 @@ class TestSSEIntegration:
                 logger.info("Login form found - user is unauthenticated")
             except Exception as e:
                 logger.warning(f"Login form not found: {e}")
-                
+
                 # If no login form, try to find authenticated content (h1, dashboard, etc.)
                 try:
-                    enhanced_page.wait_for_selector("h1, [data-testid='dashboard'], .dashboard", timeout=5000)
+                    enhanced_page.wait_for_selector(
+                        "h1, [data-testid='dashboard'], .dashboard", timeout=5000
+                    )
                     authenticated_content_visible = True
                     logger.info("Authenticated content found - user is logged in")
                 except Exception as e2:
                     logger.error(f"No authenticated content found either: {e2}")
-            
+
             # At least one should be visible
             assert (
                 login_form_visible or authenticated_content_visible
             ), "React app should show either login form or authenticated content"
-            
+
             logger.info("React app loaded successfully")
 
             # Check if we can navigate to admin section
