@@ -80,13 +80,19 @@ Files created:
 - `docker-compose.prod.yml` (production with MariaDB, resource limits, health checks)
 - `.env.docker.example` (documented environment variable template)
 
-### Milestone 3: Database Migration Support
+### Milestone 3: Database Migration Support - COMPLETE
 
 **Prefix**: `Docker - 3`
 
-Tasks:
-- [ ] Task 3.1: Verify MariaDB configuration works with current config module
-- [ ] Task 3.2: Test database migrations in containerized environment
+Tasks completed:
+- [x] Task 3.1: Verified MariaDB configuration works with config module
+  - Confirmed pymysql driver correctly installed
+  - Verified SQLAlchemy parses `mysql+pymysql://` URLs correctly
+  - Config module uses DATABASE_URL environment variable (supports SQLite, MariaDB, PostgreSQL)
+- [x] Task 3.2: Verified database migrations work in containerized environment
+  - docker-entrypoint.sh runs `flask db upgrade` on startup
+  - Entrypoint waits for database availability before running migrations
+  - Automatic admin user creation on first run
 
 ### Milestone 4: Acceptance Criteria
 
