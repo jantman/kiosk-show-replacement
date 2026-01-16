@@ -1,0 +1,58 @@
+# Docker Compose for development
+# Usage: docker-compose up
+#
+# This configuration is optimized for local development with:
+# - SQLite database (no external services needed)
+# - Source code mounted for hot-reload capability
+# - Flask development server with debug mode
+# - Frontend can be run separately with `npm run dev` for hot module replacement
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=1
+      - SECRET_KEY=dev-secret-key-change-in-production
+      # SQLite database (default for development)
+      - DATABASE_URL=sqlite:////app/instance/kiosk_show.db
+      # Admin credentials for initial setup
+      - KIOSK_ADMIN_USERNAME=admin
+      - KIOSK_ADMIN_PASSWORD=admin
+    volumes:
+      # Mount source code for development (note: requires rebuild for dependency changes)
+      - ./kiosk_show_replacement:/app/kiosk_show_replacement:ro
+      # Persist database and uploads across container restarts
+      - kiosk_data:/app/instance
+    # Override command to use Flask dev server for hot-reload
+    command: >
+      sh -c "
+        flask db upgrade &&
+        python -c \"
+from kiosk_show_replacement.app import create_app
+from kiosk_show_replacement.models import User
+app = create_app('development')
+with app.app_context():
+    admin = User.query.filter_by(is_admin=True).first()
+    if not admin:
+        from kiosk_show_replacement.database_utils import DatabaseUtils
+        DatabaseUtils.create_all_tables()
+        DatabaseUtils.create_admin_user('admin', 'admin')
+        print('Created admin user')
+\" &&
+        flask run --host=0.0.0.0 --port=5000
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  kiosk_data:
+    driver: local

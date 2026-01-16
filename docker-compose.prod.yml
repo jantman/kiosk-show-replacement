@@ -1,0 +1,91 @@
+# Docker Compose for production deployment
+# Usage: docker-compose -f docker-compose.prod.yml up -d
+#
+# Before running:
+# 1. Copy .env.docker.example to .env and configure all required variables
+# 2. Generate a secure SECRET_KEY
+# 3. Set strong passwords for database and admin user
+#
+# This configuration includes:
+# - MariaDB database for production reliability
+# - Gunicorn with eventlet workers for SSE support
+# - Resource limits and restart policies
+# - Health checks with dependencies
+# - Persistent volumes for data
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT:-5000}:5000"
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - DATABASE_URL=mysql+pymysql://${MYSQL_USER:-kiosk}:${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}@db:3306/${MYSQL_DATABASE:-kiosk_show}
+      - KIOSK_ADMIN_USERNAME=${KIOSK_ADMIN_USERNAME:-admin}
+      - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD:?KIOSK_ADMIN_PASSWORD is required}
+      - KIOSK_ADMIN_EMAIL=${KIOSK_ADMIN_EMAIL:-}
+      # Gunicorn configuration
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
+    volumes:
+      # Persist uploads across container restarts
+      - uploads_data:/app/instance/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - kiosk_network
+
+  db:
+    image: mariadb:11
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-kiosk_show}
+      - MYSQL_USER=${MYSQL_USER:-kiosk}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    networks:
+      - kiosk_network
+
+volumes:
+  mariadb_data:
+    driver: local
+  uploads_data:
+    driver: local
+
+networks:
+  kiosk_network:
+    driver: bridge
