@@ -9,6 +9,7 @@ A self-hosted replacement for kiosk.show - a web application for managing and di
 
    getting-started
    installation
+   deployment
    usage
    api
    development

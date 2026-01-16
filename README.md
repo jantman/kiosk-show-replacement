@@ -356,13 +356,31 @@ Key configuration options:
 
 ### Using Docker (Recommended)
 
-```bash
-# Build image
-docker build -t kiosk-show-replacement .
+Docker provides the easiest deployment method with support for both x86_64 and ARM64 (Raspberry Pi).
 
-# Run container
-docker run -p 5000:5000 -v ./data:/app/data kiosk-show-replacement
+**Quick Start (Production with MariaDB):**
+
+```bash
+# Copy and configure environment
+cp .env.docker.example .env
+# Edit .env with your passwords and secret key
+
+# Start production stack
+docker-compose -f docker-compose.prod.yml up -d
+
+# Access at http://localhost:5000/admin
 ```
+
+**Development with Docker (SQLite):**
+
+```bash
+# Start development environment
+docker-compose up
+
+# Access at http://localhost:5000/admin (login: admin/admin)
+```
+
+For detailed deployment instructions, production checklist, and troubleshooting, see the [Deployment Guide](docs/deployment.rst).
 
 ### Manual Deployment
 

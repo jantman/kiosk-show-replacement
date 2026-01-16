@@ -15,8 +15,9 @@ COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
 # Copy frontend source and build
+# Override outDir since vite.config.ts uses a relative path outside the frontend dir
 COPY frontend/ ./
-RUN npm run build
+RUN npm run build -- --outDir ./dist
 
 # =============================================================================
 # Stage 2: Python runtime

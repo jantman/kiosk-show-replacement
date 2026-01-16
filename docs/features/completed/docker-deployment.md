@@ -94,17 +94,26 @@ Tasks completed:
   - Entrypoint waits for database availability before running migrations
   - Automatic admin user creation on first run
 
-### Milestone 4: Acceptance Criteria
+### Milestone 4: Acceptance Criteria - COMPLETE
 
 **Prefix**: `Docker - 4`
 
-Tasks:
-- [ ] Task 4.1: Create deployment documentation (`docs/deployment.rst`)
-- [ ] Task 4.2: Update README and CLAUDE.md
-- [ ] Task 4.3: Verify Docker build succeeds
-- [ ] Task 4.4: Verify Docker Compose works (dev and prod)
-- [ ] Task 4.5: Run all nox sessions
-- [ ] Task 4.6: Move feature file to `docs/features/completed/`
+Tasks completed:
+- [x] Task 4.1: Created deployment documentation (`docs/deployment.rst`)
+  - Quick start guide for Docker deployment
+  - Production deployment checklist
+  - Environment variable reference
+  - Upgrade procedures
+  - Troubleshooting guide
+  - SQLite to MariaDB migration guidance
+- [x] Task 4.2: Updated README.md with Docker deployment instructions
+  - CLAUDE.md does not exist in this project
+- [x] Task 4.3: Docker build verified successful (260MB image)
+- [x] Task 4.4: Docker Compose verified working
+  - Development: SQLite, Flask dev server, health check passing
+  - Production: MariaDB, Gunicorn with eventlet, resource limits
+- [x] Task 4.5: All nox sessions run (format: success, lint: pre-existing failures, test: 206 passed)
+- [x] Task 4.6: Feature file moved to `docs/features/completed/`
 
 ## Acceptance Criteria
 
