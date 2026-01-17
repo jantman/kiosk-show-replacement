@@ -64,14 +64,45 @@ npm run type-check
 npm run lint
 ```
 
-### Running the Application
+### Running the Application Locally (without Docker)
+
+#### First-time Setup
+```bash
+# Activate Poetry environment
+eval $(poetry env activate)
+
+# Initialize the database (creates SQLite DB and admin user)
+flask cli init-db
+# Default admin credentials: admin / admin (change in production!)
+```
+
+#### Starting the Application
 ```bash
 # Start Flask backend (serves at http://localhost:5000)
 python run.py
 
-# For frontend hot reload development, also start in separate terminal:
+# The React admin interface is available at http://localhost:5000/admin/
+# It uses the pre-built frontend from kiosk_show_replacement/static/dist/
+```
+
+#### Frontend Development with Hot Reload
+If you're actively developing the React frontend:
+```bash
+# Terminal 1: Start Flask backend
+python run.py
+
+# Terminal 2: Start Vite dev server with hot reload
 cd frontend && npm run dev
-# Then access React admin at http://localhost:3000
+# Access React admin at http://localhost:3000 (proxies API to Flask)
+```
+
+#### Rebuilding the Frontend
+After making changes to frontend code, rebuild for production:
+```bash
+cd frontend
+npm run build
+# This outputs to kiosk_show_replacement/static/dist/
+# Flask serves this automatically at /admin/
 ```
 
 ## Architecture
