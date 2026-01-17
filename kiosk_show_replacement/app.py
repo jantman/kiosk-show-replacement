@@ -112,6 +112,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     app.register_blueprint(health_bp)
 
+    # Register metrics blueprint and initialize metrics collection
+    from .metrics import init_metrics, metrics_bp
+
+    app.register_blueprint(metrics_bp)
+    init_metrics(app)
+
     from .dashboard import dashboard_bp
 
     app.register_blueprint(dashboard_bp)
