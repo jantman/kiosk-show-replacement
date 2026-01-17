@@ -217,7 +217,7 @@ The following are explicitly out of scope for this feature:
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | M1: Test Infrastructure | Complete | Fixtures, helpers, refactored existing test |
-| M2: Slideshow CRUD | Not Started | |
+| M2: Slideshow CRUD | Complete | 7 tests passing |
 | M3: Slideshow Items | Not Started | |
 | M4: Display Management | Not Started | |
 | M5: Display Detail | Not Started | |

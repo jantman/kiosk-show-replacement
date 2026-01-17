@@ -10,7 +10,7 @@
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | M1: Test Infrastructure | **COMPLETE** | Committed in 5d71c92 |
-| M2: Slideshow Management | **IN PROGRESS** | Tests written, need to run and verify |
+| M2: Slideshow Management | **COMPLETE** | Committed in f5dc675, 7 tests passing |
 | M3: Slideshow Items | Not started | |
 | M4: Display Management | Not started | |
 | M5: Display Detail | Not started | |
@@ -18,93 +18,52 @@
 | M7: System Monitoring | Not started | |
 | M8: Acceptance Criteria | Not started | |
 
-## M2: Slideshow Management - Current State
+## Next Steps
 
-### Files Created/Modified
+1. **Implement M3: Slideshow Items** - Test adding, editing, deleting, and reordering slideshow items
 
-1. **tests/integration/test_slideshow_management.py** (NEW - uncommitted)
-   - Contains 7 tests for slideshow CRUD operations
-   - All tests implemented but not yet verified passing
+## M3: Slideshow Items - Tasks
 
-2. **tests/integration/conftest.py** (MODIFIED - uncommitted)
-   - Fixed `test_slideshow` fixture to handle API response format
-   - Fixed `test_display` fixture to handle API response format
-   - API wraps responses in `{"success": true, "data": {...}}`
+From the implementation plan:
 
-### Tests Implemented in test_slideshow_management.py
+1. **AIT-3.1** Create `tests/integration/test_slideshow_items.py`
+2. **AIT-3.2** Implement test: add image item via file upload
+3. **AIT-3.3** Implement test: add image item via URL
+4. **AIT-3.4** Implement test: add video item via file upload
+5. **AIT-3.5** Implement test: add video item via URL
+6. **AIT-3.6** Implement test: add URL item
+7. **AIT-3.7** Implement test: add text item
+8. **AIT-3.8** Implement test: edit existing item
+9. **AIT-3.9** Implement test: delete item with confirmation
+10. **AIT-3.10** Implement test: reorder items (move up/down)
+11. **AIT-3.11** Run full test suite, ensure all tests pass
 
-1. `test_view_slideshow_list_empty` - View empty slideshow list
-2. `test_view_slideshow_list_with_data` - View list with existing slideshows
-3. `test_create_slideshow_success` - Create new slideshow via form
-4. `test_create_slideshow_validation_errors` - Form validation errors
-5. `test_edit_slideshow_success` - Edit existing slideshow
-6. `test_delete_slideshow_with_confirmation` - Delete with confirmation dialog
-7. `test_set_slideshow_as_default` - Set slideshow as default
+### Test Assets Available
 
-### Key Technical Fixes Applied
+Located in `tests/assets/`:
+- **Images:** `smallPhoto.jpg`, `bigPhoto.jpg`, `tallPhoto.jpg`, `widePhoto.jpg`
+- **Video:** `crash_into_pole.mpeg`
 
-1. **networkidle timeout issue**: SSE connections keep network active
-   - Changed `wait_for_load_state("networkidle")` to `wait_for_load_state("domcontentloaded")`
+For URL-type slideshow items, use `https://example.com` (IANA reserved domain).
 
-2. **API response format**: API wraps data in success envelope
+## Key Technical Patterns (from M2)
+
+1. **SSE timeout issue**: Use `wait_for_load_state("domcontentloaded")` instead of `"load"` or `"networkidle"` because SSE connections keep the network active indefinitely.
+
+2. **API response format**: API wraps responses in success envelope:
    ```python
-   response_json = response.json()
-   data = response_json.get("data", response_json)
+   response_data = response.json().get("data", response.json())
    ```
 
-3. **URL pattern matching**: Avoid matching /new or /edit pages
-   - Use `**/admin/slideshows/[0-9]*` instead of `**/admin/slideshows/*`
-
-4. **Strict mode violations**: Multiple element matches
-   - Use `page.locator("h1").first` instead of generic heading selector
-
-## Blocking Issue
-
-**Cannot run integration tests due to Claude Code permission issue**
-
-The command `poetry run nox -s test-integration` is blocked by Claude Code's sandbox with error:
-```
-The option "-s" does not exist
-```
-
-This is a Claude Code permission system issue, not a nox issue. The user confirmed `poetry run nox -s lint` works from their shell.
-
-### Attempted Fixes (none worked)
-- Added `Bash(poetry run nox -s:*)` to `.claude/settings.local.json`
-- Added `Bash(poetry run nox --sessions:*)` to `.claude/settings.local.json`
-- Tried `bash -c` subshell wrapper
-- Tried `poetry run python -m nox`
-
-## Next Steps (for new session)
-
-1. **Fix permission issue** - Resolve the Claude Code sandbox restriction on `-s` flag
-
-2. **Run slideshow tests** - Once permissions work:
-   ```bash
-   poetry run nox -s test-integration -- tests/integration/test_slideshow_management.py
+3. **URL pattern matching**: Use regex with `expect(page).to_have_url()` for more reliable matching:
+   ```python
+   expect(page).to_have_url(re.compile(r".*/admin/slideshows/\d+$"), timeout=10000)
    ```
 
-3. **If tests pass** - Commit M2 changes:
-   ```bash
-   git add tests/integration/test_slideshow_management.py tests/integration/conftest.py
-   git commit -m "AIT-2: Implement slideshow management integration tests"
+4. **Locator specificity**: Use specific selectors to avoid strict mode violations:
+   ```python
+   row.locator(".badge:has-text('Default')")  # Not just "text=Default"
    ```
-
-4. **Continue to M3** - Slideshow Items (slide management within slideshows)
-
-## Files to Review
-
-### Uncommitted Changes
-```
-M tests/integration/conftest.py
-?? tests/integration/test_slideshow_management.py
-```
-
-### Key Reference Files
-- `docs/features/admin-integration-tests.md` - Full implementation plan
-- `tests/integration/helpers.py` - Utility functions for tests
-- `tests/integration/conftest.py` - Shared fixtures
-- `docs/features/fix-protected-route-redirect.md` - Bug discovered during M1
 
 ## User Preferences (from conversation)
 
@@ -117,12 +76,26 @@ M tests/integration/conftest.py
 ## Commands Reference
 
 ```bash
-# Run integration tests (once permission issue is fixed)
-poetry run nox -s test-integration -- tests/integration/test_slideshow_management.py
-
-# Run all integration tests
+# Run integration tests
 poetry run nox -s test-integration
 
+# Run format before lint
+poetry run nox -s format
+
+# Run lint
+poetry run nox -s lint
+
 # Scratchpad directory for output
-/tmp/claude/-home-jantman-GIT-kiosk-show-replacement/b38cec0f-cc17-41a3-83bd-33149cea6676/scratchpad/
+/tmp/claude/-home-jantman-GIT-kiosk-show-replacement/<session-id>/scratchpad/
 ```
+
+## Files Reference
+
+### Key Test Files
+- `tests/integration/conftest.py` - Shared fixtures
+- `tests/integration/helpers.py` - Utility functions
+- `tests/integration/test_slideshow_management.py` - M2 slideshow CRUD tests
+
+### Documentation
+- `docs/features/admin-integration-tests.md` - Full implementation plan
+- `docs/features/fix-protected-route-redirect.md` - Bug discovered during M1
