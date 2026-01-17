@@ -76,6 +76,16 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     migrate.init_app(app, db)
     CORS(app)
 
+    # Initialize middleware (correlation IDs, request logging)
+    from .middleware import init_middleware
+
+    init_middleware(app)
+
+    # Register error handlers for custom exceptions
+    from .api.helpers import register_error_handlers
+
+    register_error_handlers(app)
+
     # Log database configuration for debugging
     db_uri = app.config.get("SQLALCHEMY_DATABASE_URI", "Not configured")
     sanitized_uri = sanitize_database_uri(db_uri)

@@ -378,9 +378,42 @@ Run and verify:
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| Milestone 1: Backend Error Handling Foundation | Not Started | |
+| Milestone 1: Backend Error Handling Foundation | **Complete** | Custom exceptions, correlation ID middleware, standardized responses |
 | Milestone 2: Health Checks & Monitoring | Not Started | |
 | Milestone 3: Database & Storage Resilience | Not Started | |
 | Milestone 4: Frontend Error Handling | Not Started | |
 | Milestone 5: SSE & Display Resilience | Not Started | |
 | Milestone 6: Acceptance Criteria | Not Started | |
+
+---
+
+## Milestone 1 Completion Notes
+
+**Completed Tasks:**
+
+1. **Task 1.1: Custom Exception Hierarchy** - Created `kiosk_show_replacement/exceptions.py` with:
+   - `AppException` base class with error code, message, status code, and details
+   - `ValidationError` (400), `NotFoundError` (404), `AuthenticationError` (401)
+   - `AuthorizationError` (403), `ConflictError` (409), `StorageError` (500)
+   - `DatabaseError` (500), `ExternalServiceError` (502), `RateLimitError` (429)
+   - `ServiceUnavailableError` (503)
+
+2. **Task 1.2: Standardized Error Response Format** - Created `kiosk_show_replacement/api/helpers.py` with:
+   - `api_response()` and `api_error()` functions with backward compatibility
+   - New `error_info` field with structured error data (code, message, correlation_id, details)
+   - Flask error handlers for all custom exception types
+
+3. **Task 1.3: Correlation ID Middleware** - Created `kiosk_show_replacement/middleware.py` with:
+   - `CorrelationIdMiddleware` class that generates/preserves X-Correlation-ID headers
+   - Correlation ID available via `g.correlation_id` throughout request lifecycle
+   - Included in all API responses (success and error)
+
+4. **Task 1.4: Updated API Endpoints** - Refactored slideshow endpoints to use new exceptions:
+   - `api_auth_required` decorator now raises `AuthenticationError`
+   - CRUD endpoints use `ValidationError` and `NotFoundError`
+   - Maintained backward compatibility for existing tests
+
+**Test Coverage:**
+- Added 34 new tests in `tests/unit/test_error_handling.py`
+- 100% coverage on `exceptions.py` and `middleware.py`
+- All 240 tests passing

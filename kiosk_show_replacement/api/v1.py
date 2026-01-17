@@ -9,13 +9,18 @@ This module contains all version 1 REST API endpoints:
 All endpoints require authentication and return consistent JSON responses.
 """
 
-from typing import Any, List, Tuple
+from typing import Tuple
 
-from flask import Blueprint, Response, current_app, jsonify, request, session
+from flask import Blueprint, Response, current_app, request, session
 from sqlalchemy.exc import IntegrityError
 from werkzeug.exceptions import Unauthorized
 
 from ..auth.decorators import get_current_user
+from ..exceptions import (
+    AuthenticationError,
+    NotFoundError,
+    ValidationError,
+)
 from ..models import (
     Display,
     DisplayConfigurationTemplate,
@@ -33,40 +38,10 @@ from ..sse import (
     sse_manager,
 )
 from ..storage import get_storage_manager
+from .helpers import api_error, api_response
 
 # Create API v1 blueprint
 api_v1_bp = Blueprint("api_v1", __name__)
-
-# =============================================================================
-# API Response Helpers
-# =============================================================================
-
-
-def api_response(
-    data: Any = None, message: str = None, status_code: int = 200
-) -> Tuple[Response, int]:
-    """Create a standardized API response."""
-    response = {
-        "success": True
-    }  # Always include success field for successful responses
-    if data is not None:
-        response["data"] = data
-    if message:
-        response["message"] = message
-    return jsonify(response), status_code
-
-
-def api_error(
-    message: str, status_code: int = 400, errors: List[str] = None
-) -> Tuple[Response, int]:
-    """Create a standardized API error response."""
-    response = {"success": False, "error": message}
-    if errors:
-        response["errors"] = errors
-    else:
-        response["errors"] = [message]  # Tests expect "errors" field
-    response["message"] = message  # Tests also expect "message" field
-    return jsonify(response), status_code
 
 
 # =============================================================================
@@ -75,13 +50,17 @@ def api_error(
 
 
 def api_auth_required(f):
-    """Decorator to require authentication for API endpoints."""
+    """Decorator to require authentication for API endpoints.
+
+    Raises AuthenticationError if the user is not authenticated,
+    which will be caught by the global error handler.
+    """
     from functools import wraps
 
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not get_current_user():
-            return api_error("Authentication required", 401)
+            raise AuthenticationError()
         return f(*args, **kwargs)
 
     return decorated_function
@@ -96,53 +75,40 @@ def api_auth_required(f):
 @api_auth_required
 def list_slideshows() -> Tuple[Response, int]:
     """List all slideshows - every user can see every slideshow."""
-    try:
-        current_user = get_current_user()
-        if not current_user:
-            return api_error("Authentication required", 401)
+    # Get all active slideshows - no ownership filtering
+    slideshows = Slideshow.query.filter_by(is_active=True).all()
 
-        # Get all active slideshows - no ownership filtering
-        slideshows = Slideshow.query.filter_by(is_active=True).all()
+    # Convert to dict with computed fields
+    slideshow_data = []
+    for slideshow in slideshows:
+        data = slideshow.to_dict()
+        # Add computed fields
+        data["item_count"] = len([item for item in slideshow.items if item.is_active])
+        slideshow_data.append(data)
 
-        # Convert to dict with computed fields
-        slideshow_data = []
-        for slideshow in slideshows:
-            data = slideshow.to_dict()
-            # Add computed fields
-            data["item_count"] = len(
-                [item for item in slideshow.items if item.is_active]
-            )
-            slideshow_data.append(data)
-
-        return api_response(slideshow_data, "Slideshows retrieved successfully")
-
-    except Exception as e:
-        current_app.logger.error(f"Error listing slideshows: {e}")
-        return api_error("Failed to retrieve slideshows", 500)
+    return api_response(slideshow_data, "Slideshows retrieved successfully")
 
 
 @api_v1_bp.route("/slideshows", methods=["POST"])
 @api_auth_required
 def create_slideshow() -> Tuple[Response, int]:
     """Create a new slideshow."""
+    current_user = get_current_user()
+
+    data = request.get_json()
+    if not data:
+        raise ValidationError("No data provided")
+
+    name = data.get("name", "").strip()
+    if not name:
+        raise ValidationError("Slideshow name is required", field="name")
+
+    # Check for global duplicate names (not per-user)
+    existing = Slideshow.query.filter_by(name=name, is_active=True).first()
+    if existing:
+        raise ValidationError("A slideshow with this name already exists", field="name")
+
     try:
-        current_user = get_current_user()
-        if not current_user:
-            return api_error("Authentication required", 401)
-
-        data = request.get_json()
-        if not data:
-            return api_error("No data provided", 400)
-
-        name = data.get("name", "").strip()
-        if not name:
-            return api_error("Slideshow name is required", 400)
-
-        # Check for global duplicate names (not per-user)
-        existing = Slideshow.query.filter_by(name=name, is_active=True).first()
-        if existing:
-            return api_error("A slideshow with this name already exists", 400)
-
         slideshow = Slideshow(
             name=name,
             description=data.get("description", ""),
@@ -166,74 +132,65 @@ def create_slideshow() -> Tuple[Response, int]:
 
     except IntegrityError:
         db.session.rollback()
-        return api_error("A slideshow with this name already exists", 400)
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error creating slideshow: {e}")
-        return api_error("Failed to create slideshow", 500)
+        raise ValidationError("A slideshow with this name already exists", field="name")
 
 
 @api_v1_bp.route("/slideshows/<int:slideshow_id>", methods=["GET"])
 @api_auth_required
 def get_slideshow_by_id(slideshow_id: int) -> Tuple[Response, int]:
     """Get a specific slideshow with its items - all users can view all slideshows."""
-    try:
-        current_user = get_current_user()
-        if not current_user:
-            return api_error("Authentication required", 401)
+    slideshow = db.session.get(Slideshow, slideshow_id)
+    if not slideshow or not slideshow.is_active:
+        raise NotFoundError(
+            "Slideshow not found", resource_type="slideshow", resource_id=slideshow_id
+        )
 
-        slideshow = db.session.get(Slideshow, slideshow_id)
-        if not slideshow or not slideshow.is_active:
-            return api_error("Slideshow not found", 404)
+    # Get slideshow data with items
+    result = slideshow.to_dict()
+    result["items"] = [item.to_dict() for item in slideshow.items if item.is_active]
 
-        # Get slideshow data with items
-        result = slideshow.to_dict()
-        result["items"] = [item.to_dict() for item in slideshow.items if item.is_active]
-
-        return api_response(result, "Slideshow retrieved successfully")
-
-    except Exception as e:
-        current_app.logger.error(f"Error retrieving slideshow {slideshow_id}: {e}")
-        return api_error("Failed to retrieve slideshow", 500)
+    return api_response(result, "Slideshow retrieved successfully")
 
 
 @api_v1_bp.route("/slideshows/<int:slideshow_id>", methods=["PUT"])
 @api_auth_required
 def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
     """Update a slideshow - all users can modify all slideshows."""
+    current_user = get_current_user()
+
+    slideshow = db.session.get(Slideshow, slideshow_id)
+    if not slideshow or not slideshow.is_active:
+        raise NotFoundError(
+            "Slideshow not found", resource_type="slideshow", resource_id=slideshow_id
+        )
+
+    data = request.get_json()
+    if not data:
+        raise ValidationError("No data provided")
+
+    # Update fields if provided
+    if "name" in data:
+        name = data["name"].strip()
+        if not name:
+            raise ValidationError("Slideshow name cannot be empty", field="name")
+
+        # Check for global duplicate names (exclude current slideshow)
+        existing = Slideshow.query.filter(
+            Slideshow.name == name,
+            Slideshow.is_active,
+            Slideshow.id != slideshow_id,
+        ).first()
+        if existing:
+            raise ValidationError(
+                "A slideshow with this name already exists", field="name"
+            )
+
+        slideshow.name = name
+
+    if "description" in data:
+        slideshow.description = data["description"]
+
     try:
-        current_user = get_current_user()
-        if not current_user:
-            return api_error("Authentication required", 401)
-
-        slideshow = db.session.get(Slideshow, slideshow_id)
-        if not slideshow or not slideshow.is_active:
-            return api_error("Slideshow not found", 404)
-
-        data = request.get_json()
-        if not data:
-            return api_error("No data provided", 400)
-
-        # Update fields if provided
-        if "name" in data:
-            name = data["name"].strip()
-            if not name:
-                return api_error("Slideshow name cannot be empty", 400)
-
-            # Check for global duplicate names (exclude current slideshow)
-            existing = Slideshow.query.filter(
-                Slideshow.name == name,
-                Slideshow.is_active,
-                Slideshow.id != slideshow_id,
-            ).first()
-            if existing:
-                return api_error("A slideshow with this name already exists", 400)
-
-            slideshow.name = name
-
-        if "description" in data:
-            slideshow.description = data["description"]
-
         slideshow.updated_by_id = current_user.id
         db.session.commit()
 
@@ -251,57 +208,45 @@ def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
 
     except IntegrityError:
         db.session.rollback()
-        return api_error("A slideshow with this name already exists", 400)
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error updating slideshow {slideshow_id}: {e}")
-        return api_error("Failed to update slideshow", 500)
+        raise ValidationError("A slideshow with this name already exists", field="name")
 
 
 @api_v1_bp.route("/slideshows/<int:slideshow_id>", methods=["DELETE"])
 @api_auth_required
 def delete_slideshow(slideshow_id: int) -> Tuple[Response, int]:
     """Delete a slideshow (soft delete) - all users can delete all slideshows."""
-    try:
-        current_user = get_current_user()
-        if not current_user:
-            return api_error("Authentication required", 401)
+    current_user = get_current_user()
 
-        slideshow = db.session.get(Slideshow, slideshow_id)
-        if not slideshow or not slideshow.is_active:
-            return api_error("Slideshow not found", 404)
-
-        # Check if slideshow is assigned to any displays
-        assigned_displays = Display.query.filter_by(
-            current_slideshow_id=slideshow_id
-        ).all()
-        if assigned_displays:
-            display_names = [d.name for d in assigned_displays]
-            return api_error(
-                f"Cannot delete slideshow: it is assigned to displays: "
-                f"{', '.join(display_names)}",
-                400,
-            )
-
-        # Soft delete the slideshow and its items
-        slideshow.is_active = False
-        slideshow.updated_by_id = current_user.id
-
-        for item in slideshow.items:
-            item.is_active = False
-            item.updated_by_id = current_user.id
-
-        db.session.commit()
-
-        current_app.logger.info(
-            f"User {current_user.username} deleted slideshow: {slideshow.name}"
+    slideshow = db.session.get(Slideshow, slideshow_id)
+    if not slideshow or not slideshow.is_active:
+        raise NotFoundError(
+            "Slideshow not found", resource_type="slideshow", resource_id=slideshow_id
         )
-        return api_response(None, "Slideshow deleted successfully")
 
-    except Exception as e:
-        db.session.rollback()
-        current_app.logger.error(f"Error deleting slideshow {slideshow_id}: {e}")
-        return api_error("Failed to delete slideshow", 500)
+    # Check if slideshow is assigned to any displays
+    assigned_displays = Display.query.filter_by(current_slideshow_id=slideshow_id).all()
+    if assigned_displays:
+        display_names = [d.name for d in assigned_displays]
+        raise ValidationError(
+            f"Cannot delete slideshow: it is assigned to displays: "
+            f"{', '.join(display_names)}",
+            details={"assigned_displays": display_names},
+        )
+
+    # Soft delete the slideshow and its items
+    slideshow.is_active = False
+    slideshow.updated_by_id = current_user.id
+
+    for item in slideshow.items:
+        item.is_active = False
+        item.updated_by_id = current_user.id
+
+    db.session.commit()
+
+    current_app.logger.info(
+        f"User {current_user.username} deleted slideshow: {slideshow.name}"
+    )
+    return api_response(None, "Slideshow deleted successfully")
 
 
 @api_v1_bp.route("/slideshows/<int:slideshow_id>/set-default", methods=["POST"])
