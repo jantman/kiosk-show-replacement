@@ -81,6 +81,11 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     init_middleware(app)
 
+    # Initialize structured logging
+    from .logging_config import init_logging
+
+    init_logging(app)
+
     # Register error handlers for custom exceptions
     from .api.helpers import register_error_handlers
 
