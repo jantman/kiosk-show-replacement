@@ -571,7 +571,9 @@ def test_slideshow(http_client, auth_headers):
     if response.status_code not in [200, 201]:
         raise RuntimeError(f"Failed to create test slideshow: {response.text}")
 
-    slideshow_data = response.json()
+    response_json = response.json()
+    # API wraps data in {"success": true, "data": {...}}
+    slideshow_data = response_json.get("data", response_json)
     logger.info(
         f"Created test slideshow: {slideshow_data.get('id')} - {slideshow_name}"
     )
@@ -624,7 +626,9 @@ def test_display(http_client, auth_headers):
     if response.status_code not in [200, 201]:
         raise RuntimeError(f"Failed to create test display: {response.text}")
 
-    display_data = response.json()
+    response_json = response.json()
+    # API wraps data in {"success": true, "data": {...}}
+    display_data = response_json.get("data", response_json)
     logger.info(f"Created test display: {display_data.get('id')} - {display_name}")
 
     yield display_data
