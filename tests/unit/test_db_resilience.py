@@ -8,7 +8,6 @@ This module tests:
 """
 
 import time
-from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy.exc import DisconnectionError, IntegrityError, OperationalError
@@ -216,8 +215,6 @@ class TestWithDbRetry:
 
     def test_respects_circuit_breaker(self):
         """Test decorator respects circuit breaker state."""
-        # Create a fresh circuit breaker for this test
-        test_cb = CircuitBreaker(failure_threshold=1, recovery_timeout=60)
 
         @with_db_retry(max_retries=1, use_circuit_breaker=True)
         def operation():

@@ -203,16 +203,26 @@ def health_ready() -> Tuple[Response, int]:
     db_check = _check_database()
 
     if db_check["status"] == "healthy":
-        return jsonify({
-            "status": "ready",
-            "timestamp": _get_timestamp(),
-        }), 200
+        return (
+            jsonify(
+                {
+                    "status": "ready",
+                    "timestamp": _get_timestamp(),
+                }
+            ),
+            200,
+        )
     else:
-        return jsonify({
-            "status": "not_ready",
-            "timestamp": _get_timestamp(),
-            "reason": "Database unavailable",
-        }), 503
+        return (
+            jsonify(
+                {
+                    "status": "not_ready",
+                    "timestamp": _get_timestamp(),
+                    "reason": "Database unavailable",
+                }
+            ),
+            503,
+        )
 
 
 @health_bp.route("/health/live")
@@ -224,7 +234,12 @@ def health_live() -> Tuple[Response, int]:
 
     Returns 200 if alive.
     """
-    return jsonify({
-        "status": "alive",
-        "timestamp": _get_timestamp(),
-    }), 200
+    return (
+        jsonify(
+            {
+                "status": "alive",
+                "timestamp": _get_timestamp(),
+            }
+        ),
+        200,
+    )

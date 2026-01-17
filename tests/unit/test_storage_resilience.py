@@ -8,11 +8,9 @@ This module tests:
 - Safe file operations
 """
 
-import os
 import tempfile
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 from werkzeug.datastructures import FileStorage
@@ -65,7 +63,9 @@ class TestCalculateChecksum:
             try:
                 checksum = calculate_checksum(temp_path, "sha256")
                 # Known SHA256 of "test content"
-                expected = "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+                expected = (
+                    "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+                )
                 assert checksum == expected
             finally:
                 temp_path.unlink()
@@ -138,7 +138,9 @@ class TestVerifyChecksum:
                 temp_path = Path(f.name)
 
             try:
-                expected = "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+                expected = (
+                    "6ae8a75555209fd6c44157c0aed8016e763ff435a19cf186f76863140143ff72"
+                )
                 result = verify_checksum(temp_path, expected)
                 assert result is True
             finally:

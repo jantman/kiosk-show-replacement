@@ -99,9 +99,7 @@ def calculate_checksum(file_path: Path, algorithm: str = "sha256") -> str:
         )
 
 
-def calculate_stream_checksum(
-    file: FileStorage, algorithm: str = "sha256"
-) -> str:
+def calculate_stream_checksum(file: FileStorage, algorithm: str = "sha256") -> str:
     """Calculate checksum for a file stream.
 
     Args:
@@ -336,9 +334,7 @@ def cleanup_directory(
                 item.unlink()
                 deleted_count += 1
             elif item.is_dir():
-                deleted_count += cleanup_directory(
-                    item, remove_empty_parents=False
-                )
+                deleted_count += cleanup_directory(item, remove_empty_parents=False)
 
         # Try to remove the directory itself if empty
         try:

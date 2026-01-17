@@ -17,7 +17,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from flask import Blueprint, Flask, Response, g, request
 
@@ -47,7 +47,19 @@ class MetricsCollector:
         )
 
         # Histogram bucket boundaries (in seconds)
-        self._duration_buckets = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+        self._duration_buckets = [
+            0.005,
+            0.01,
+            0.025,
+            0.05,
+            0.1,
+            0.25,
+            0.5,
+            1.0,
+            2.5,
+            5.0,
+            10.0,
+        ]
 
     def inc_http_requests(self, method: str, endpoint: str, status_code: int) -> None:
         """Increment HTTP request counter.
@@ -109,7 +121,9 @@ class MetricsCollector:
             # HTTP requests total
             lines.append("# HELP http_requests_total Total number of HTTP requests")
             lines.append("# TYPE http_requests_total counter")
-            for (method, endpoint, status), count in sorted(self._http_requests_total.items()):
+            for (method, endpoint, status), count in sorted(
+                self._http_requests_total.items()
+            ):
                 # Sanitize endpoint for label
                 safe_endpoint = endpoint.replace('"', '\\"')
                 lines.append(
@@ -118,14 +132,18 @@ class MetricsCollector:
 
             # HTTP request duration
             lines.append("")
-            lines.append("# HELP http_request_duration_seconds HTTP request duration in seconds")
+            lines.append(
+                "# HELP http_request_duration_seconds HTTP request duration in seconds"
+            )
             lines.append("# TYPE http_request_duration_seconds histogram")
             for endpoint in sorted(self._http_request_duration_sum.keys()):
                 safe_endpoint = endpoint.replace('"', '\\"')
                 # Bucket values
                 cumulative = 0
                 for bucket in self._duration_buckets:
-                    cumulative += self._http_request_duration_buckets[endpoint].get(bucket, 0)
+                    cumulative += self._http_request_duration_buckets[endpoint].get(
+                        bucket, 0
+                    )
                     lines.append(
                         f'http_request_duration_seconds_bucket{{endpoint="{safe_endpoint}",le="{bucket}"}} {cumulative}'
                     )
@@ -144,7 +162,9 @@ class MetricsCollector:
 
             # Active SSE connections
             lines.append("")
-            lines.append("# HELP active_sse_connections Number of active SSE connections")
+            lines.append(
+                "# HELP active_sse_connections Number of active SSE connections"
+            )
             lines.append("# TYPE active_sse_connections gauge")
             lines.append(f"active_sse_connections {self._active_sse_connections}")
 
@@ -208,11 +228,12 @@ def get_display_heartbeat_metrics() -> str:
         Prometheus-formatted metrics for display heartbeats
     """
     try:
-        from .app import db
         from .models import Display
 
         lines: List[str] = []
-        lines.append("# HELP display_heartbeat_age_seconds Seconds since last display heartbeat")
+        lines.append(
+            "# HELP display_heartbeat_age_seconds Seconds since last display heartbeat"
+        )
         lines.append("# TYPE display_heartbeat_age_seconds gauge")
 
         displays = Display.query.all()

@@ -8,8 +8,6 @@ This module tests:
 - Error handlers
 """
 
-import pytest
-
 from kiosk_show_replacement.exceptions import (
     AppException,
     AuthenticationError,

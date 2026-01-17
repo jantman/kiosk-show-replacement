@@ -9,10 +9,7 @@ This module tests:
 - /health/live - Liveness probe
 """
 
-import os
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 
 class TestHealthEndpoint:
@@ -70,7 +67,10 @@ class TestDatabaseHealthEndpoint:
     def test_db_health_returns_503_on_failure(self, app, client):
         """Test database health returns 503 when database fails."""
         with patch("kiosk_show_replacement.health._check_database") as mock_check:
-            mock_check.return_value = {"status": "unhealthy", "error": "Connection refused"}
+            mock_check.return_value = {
+                "status": "unhealthy",
+                "error": "Connection refused",
+            }
             response = client.get("/health/db")
             assert response.status_code == 503
             data = response.json
@@ -118,7 +118,10 @@ class TestReadinessProbe:
     def test_ready_returns_503_when_db_fails(self, app, client):
         """Test readiness probe returns 503 when database fails."""
         with patch("kiosk_show_replacement.health._check_database") as mock_check:
-            mock_check.return_value = {"status": "unhealthy", "error": "Connection failed"}
+            mock_check.return_value = {
+                "status": "unhealthy",
+                "error": "Connection failed",
+            }
             response = client.get("/health/ready")
             assert response.status_code == 503
             data = response.json

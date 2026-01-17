@@ -16,7 +16,6 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Callable, Optional, Set, Type, TypeVar
 
-from flask import current_app
 from sqlalchemy.exc import (
     DBAPIError,
     DisconnectionError,
@@ -160,7 +159,9 @@ class CircuitBreaker:
 
             if self._state == CircuitState.HALF_OPEN:
                 self._state = CircuitState.OPEN
-                logger.warning("Circuit breaker re-opened after failure in half-open state")
+                logger.warning(
+                    "Circuit breaker re-opened after failure in half-open state"
+                )
             elif (
                 self._state == CircuitState.CLOSED
                 and self._failure_count >= self._failure_threshold

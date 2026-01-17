@@ -10,10 +10,8 @@ This module tests:
 
 import json
 import logging
-from io import StringIO
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 from flask import g
 
 from kiosk_show_replacement.logging_config import (
@@ -266,7 +264,7 @@ class TestRequestLogging:
     def test_request_logging_includes_duration(self, app, client):
         """Test that request logging captures duration."""
         # Make a request that should be logged
-        with patch.object(app.logger, "info") as mock_log:
+        with patch.object(app.logger, "info"):
             response = client.get("/api/v1/status")
             assert response.status_code == 200
 

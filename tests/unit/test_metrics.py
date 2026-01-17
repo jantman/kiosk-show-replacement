@@ -7,8 +7,6 @@ This module tests:
 - Metric recording functions
 """
 
-import pytest
-
 from kiosk_show_replacement.metrics import (
     MetricsCollector,
     metrics_collector,
@@ -87,8 +85,14 @@ class TestMetricsCollector:
         collector.inc_http_requests("POST", "/test", 201)
 
         output = collector.get_metrics_text()
-        assert 'http_requests_total{method="GET",endpoint="/test",status="200"} 2' in output
-        assert 'http_requests_total{method="POST",endpoint="/test",status="201"} 1' in output
+        assert (
+            'http_requests_total{method="GET",endpoint="/test",status="200"} 2'
+            in output
+        )
+        assert (
+            'http_requests_total{method="POST",endpoint="/test",status="201"} 1'
+            in output
+        )
 
     def test_observe_http_duration(self):
         """Test recording HTTP request duration."""
@@ -103,12 +107,20 @@ class TestMetricsCollector:
     def test_observe_http_duration_buckets(self):
         """Test HTTP duration histogram buckets."""
         collector = MetricsCollector()
-        collector.observe_http_duration("/test", 0.05)  # Should be in 0.05 bucket and above
+        collector.observe_http_duration(
+            "/test", 0.05
+        )  # Should be in 0.05 bucket and above
 
         output = collector.get_metrics_text()
         # Should have incremented buckets >= 0.05
-        assert 'http_request_duration_seconds_bucket{endpoint="/test",le="0.05"} 1' in output
-        assert 'http_request_duration_seconds_bucket{endpoint="/test",le="0.1"} 1' in output
+        assert (
+            'http_request_duration_seconds_bucket{endpoint="/test",le="0.05"} 1'
+            in output
+        )
+        assert (
+            'http_request_duration_seconds_bucket{endpoint="/test",le="0.1"} 1'
+            in output
+        )
 
     def test_inc_database_errors(self):
         """Test incrementing database error counter."""
@@ -162,7 +174,10 @@ class TestMetricsCollector:
 
         assert len(errors) == 0
         output = collector.get_metrics_text()
-        assert 'http_requests_total{method="GET",endpoint="/test",status="200"} 1000' in output
+        assert (
+            'http_requests_total{method="GET",endpoint="/test",status="200"} 1000'
+            in output
+        )
 
 
 class TestMetricRecordingFunctions:

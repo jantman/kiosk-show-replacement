@@ -13,7 +13,7 @@ import logging
 import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from flask import Flask, Response, g, has_request_context, request
 
