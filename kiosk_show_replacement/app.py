@@ -107,6 +107,11 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
 
+    # Register health check blueprint (before other blueprints for priority)
+    from .health import health_bp
+
+    app.register_blueprint(health_bp)
+
     from .dashboard import dashboard_bp
 
     app.register_blueprint(dashboard_bp)
@@ -127,13 +132,6 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     from .cli.main import cli
 
     app.cli.add_command(cli)
-
-    # Health check endpoint
-    @app.route("/health")
-    def health_check() -> dict[str, str]:
-        from . import __version__
-
-        return {"status": "healthy", "version": __version__}
 
     # File serving endpoint
     @app.route("/uploads/<path:filename>")

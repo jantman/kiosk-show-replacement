@@ -76,7 +76,9 @@ class TestHealthEndpoint:
 
         data = response.get_json()
         assert "status" in data
-        assert "database" in data
+        assert "checks" in data
+        assert "database" in data["checks"]
+        assert "storage" in data["checks"]
         assert "version" in data
         assert "timestamp" in data
 
@@ -85,8 +87,8 @@ class TestHealthEndpoint:
         response = client.get("/health")
         data = response.get_json()
 
-        assert data["status"] in ["healthy", "unhealthy"]
-        assert data["database"] in ["healthy", "unhealthy"]
+        assert data["status"] in ["healthy", "degraded", "unhealthy"]
+        assert data["checks"]["database"]["status"] in ["healthy", "unhealthy"]
         assert data["version"] == "0.1.0"
 
     def test_health_endpoint_with_database_connection(self, app, client):
@@ -96,8 +98,8 @@ class TestHealthEndpoint:
             data = response.get_json()
 
             # With a working in-memory database, should be healthy
-            assert data["status"] == "healthy"
-            assert data["database"] == "healthy"
+            assert data["status"] in ["healthy", "degraded"]
+            assert data["checks"]["database"]["status"] == "healthy"
 
 
 class TestErrorHandling:
