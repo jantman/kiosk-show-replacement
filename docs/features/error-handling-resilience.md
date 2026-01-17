@@ -379,7 +379,7 @@ Run and verify:
 | Milestone | Status | Notes |
 |-----------|--------|-------|
 | Milestone 1: Backend Error Handling Foundation | **Complete** | Custom exceptions, correlation ID middleware, standardized responses |
-| Milestone 2: Health Checks & Monitoring | Not Started | |
+| Milestone 2: Health Checks & Monitoring | **Complete** | Health endpoints, Prometheus metrics, structured logging |
 | Milestone 3: Database & Storage Resilience | Not Started | |
 | Milestone 4: Frontend Error Handling | Not Started | |
 | Milestone 5: SSE & Display Resilience | Not Started | |
