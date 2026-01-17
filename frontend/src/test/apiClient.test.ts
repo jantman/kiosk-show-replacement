@@ -140,6 +140,7 @@ describe('API Client', () => {
 
   describe('Error Handling', () => {
     it('handles network errors', async () => {
+      // Non-retryable network error (doesn't match retry patterns)
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
       const result = await apiClient.getSlideshows();
@@ -148,21 +149,36 @@ describe('API Client', () => {
       expect(result.error).toBe('Network error');
     });
 
-    it('handles timeout errors', async () => {
-      // Simulate timeout by making fetch return a response that hangs
-      mockFetch.mockImplementationOnce(() => {
-        return Promise.resolve({
-          ok: false,
-          status: 408,
-          statusText: 'Request Timeout',
-          json: () => Promise.resolve({ error: 'Request timeout' })
-        } as Response);
-      });
+    it('handles non-retryable HTTP errors', async () => {
+      // 400 Bad Request is not retryable
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: () => Promise.resolve({ error: 'Invalid request data' })
+      } as Response);
+
+      const result = await apiClient.getSlideshows();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Invalid request data');
+      // Should only be called once (no retries for 400)
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('handles abort/timeout errors', async () => {
+      // Simulate AbortError (what happens when request times out)
+      // AbortError is retryable, so mock all retry attempts
+      const abortError = new Error('The operation was aborted');
+      abortError.name = 'AbortError';
+      mockFetch.mockRejectedValue(abortError);
 
       const result = await apiClient.getSlideshows();
 
       expect(result.success).toBe(false);
       expect(result.error).toBe('Request timeout');
-    });
+      // Should be called 4 times (initial + 3 retries)
+      expect(mockFetch).toHaveBeenCalledTimes(4);
+    }, 20000); // Increase timeout for retry delays
   });
 });
