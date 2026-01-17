@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import { ErrorProvider } from './contexts/ErrorContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ErrorToastContainer } from './components/ErrorToast';
+import { OfflineBanner } from './hooks/useSSE';
 import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
@@ -25,6 +26,7 @@ const App: React.FC = () => {
       <ErrorProvider>
         <AuthProvider>
           <Router>
+            <OfflineBanner />
             <ErrorToastContainer position="top-right" />
             <Routes>
               {/* Public routes */}
