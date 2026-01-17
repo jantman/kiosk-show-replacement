@@ -26,13 +26,13 @@ nox -s format
 nox -s lint
 
 # Run unit tests
-nox -s test
+nox -s test-3.13
 
 # Run a single test file
-nox -s test -- tests/unit/test_specific.py
+nox -s test-3.13 -- tests/unit/test_specific.py
 
 # Run a single test function
-nox -s test -- tests/unit/test_file.py::test_function_name
+nox -s test-3.13 -- tests/unit/test_file.py::test_function_name
 
 # Type checking
 nox -s type_check
@@ -144,7 +144,7 @@ npm run build
 
 | Session | Purpose | Location |
 |---------|---------|----------|
-| `test` | Backend unit tests | `tests/unit/` |
+| `test-3.13` | Backend unit tests | `tests/unit/` |
 | `test-integration` | React + Flask through browser | `tests/integration/` |
 | `test-e2e` | Flask templates through browser | `tests/e2e/` |
 

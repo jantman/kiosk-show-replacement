@@ -185,7 +185,7 @@ Final validation and documentation.
 **Tasks:**
 1. **AIT-8.1** Ensure all integration tests pass
 2. **AIT-8.2** Update `CLAUDE.md` with any new testing patterns or conventions
-3. **AIT-8.3** All nox sessions must pass (`nox -s test`, `nox -s test-integration`, `nox -s lint`, `nox -s type_check`)
+3. **AIT-8.3** All nox sessions must pass (`nox -s test-3.13`, `nox -s test-integration`, `nox -s lint`, `nox -s type_check`)
 4. **AIT-8.4** Move feature file to `docs/features/completed/`
 
 ### Bug Handling Strategy
@@ -227,4 +227,4 @@ The following are explicitly out of scope for this feature:
 
 ### Discovered Issues
 
-_This section will be updated as bugs are discovered during test implementation._
+1. **ProtectedRoute Login Redirect Bug** (AIT-1.4): The `ProtectedRoute` component redirects unauthenticated users to `/login` instead of `/admin/login`, causing a 404 error. See `docs/features/fix-protected-route-redirect.md` for details. Test `test_user_can_login_and_see_dashboard` is skipped until this is fixed.

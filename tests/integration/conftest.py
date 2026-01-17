@@ -474,15 +474,181 @@ def clean_test_data(db_session, db_models):
 def db_models():
     """Provide access to database models for test setup."""
     from kiosk_show_replacement.models import (
+        AssignmentHistory,
         Display,
         DisplayConfigurationTemplate,
+        Slideshow,
+        SlideshowItem,
         User,
         db,
     )
 
     return {
+        "AssignmentHistory": AssignmentHistory,
         "Display": Display,
         "DisplayConfigurationTemplate": DisplayConfigurationTemplate,
+        "Slideshow": Slideshow,
+        "SlideshowItem": SlideshowItem,
         "User": User,
         "db": db,
     }
+
+
+@pytest.fixture
+def authenticated_page(page: Page, servers: dict, test_database: dict):
+    """
+    Provide a Playwright page that is already logged in to the admin interface.
+
+    This fixture handles the login flow via the browser so tests can start
+    from an authenticated state.
+    """
+    from playwright.sync_api import expect
+
+    vite_url = servers["vite_url"]
+
+    # Use the first test user
+    user = test_database["users"][0]
+    username = user["username"]
+    password = user["password"]
+
+    logger.info(f"Authenticating page as user: {username}")
+
+    # Navigate to the login page
+    page.goto(vite_url)
+
+    # Wait for login form to appear
+    username_field = page.locator(
+        "input[name='username'], input[placeholder*='username' i]"
+    ).first
+    expect(username_field).to_be_visible(timeout=10000)
+
+    # Fill in credentials
+    password_field = page.locator(
+        "input[name='password'], input[type='password']"
+    ).first
+    submit_button = page.locator(
+        "button[type='submit'], button:has-text('Sign In')"
+    ).first
+
+    username_field.fill(username)
+    password_field.fill(password)
+    submit_button.click()
+
+    # Wait for dashboard to load (login complete)
+    page.locator("h1").filter(has_text="Dashboard").wait_for(
+        state="visible", timeout=10000
+    )
+
+    logger.info("Page authenticated successfully")
+
+    return page
+
+
+@pytest.fixture
+def test_slideshow(http_client, auth_headers):
+    """
+    Create a test slideshow via API and return its data.
+
+    The slideshow is cleaned up after the test.
+    """
+    import time
+
+    # Create a unique slideshow name
+    slideshow_name = f"Test Slideshow {int(time.time() * 1000)}"
+
+    response = http_client.post(
+        "/api/v1/slideshows",
+        json={
+            "name": slideshow_name,
+            "description": "Test slideshow for integration tests",
+            "default_item_duration": 10,
+            "transition_type": "fade",
+            "is_active": True,
+        },
+        headers=auth_headers,
+    )
+
+    if response.status_code not in [200, 201]:
+        raise RuntimeError(f"Failed to create test slideshow: {response.text}")
+
+    slideshow_data = response.json()
+    logger.info(
+        f"Created test slideshow: {slideshow_data.get('id')} - {slideshow_name}"
+    )
+
+    yield slideshow_data
+
+    # Cleanup: delete the slideshow
+    try:
+        slideshow_id = slideshow_data.get("id")
+        if slideshow_id:
+            delete_response = http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+            if delete_response.status_code in [200, 204, 404]:
+                logger.info(f"Cleaned up test slideshow: {slideshow_id}")
+            else:
+                logger.warning(
+                    f"Failed to delete test slideshow {slideshow_id}: "
+                    f"{delete_response.status_code}"
+                )
+    except Exception as e:
+        logger.warning(f"Error cleaning up test slideshow: {e}")
+
+
+@pytest.fixture
+def test_display(http_client, auth_headers):
+    """
+    Create a test display via API and return its data.
+
+    The display is cleaned up after the test.
+    """
+    import time
+
+    # Create a unique display name
+    display_name = f"test-display-{int(time.time() * 1000)}"
+
+    response = http_client.post(
+        "/api/v1/displays",
+        json={
+            "name": display_name,
+            "description": "Test display for integration tests",
+            "location": "Test Location",
+            "resolution_width": 1920,
+            "resolution_height": 1080,
+        },
+        headers=auth_headers,
+    )
+
+    if response.status_code not in [200, 201]:
+        raise RuntimeError(f"Failed to create test display: {response.text}")
+
+    display_data = response.json()
+    logger.info(f"Created test display: {display_data.get('id')} - {display_name}")
+
+    yield display_data
+
+    # Cleanup: delete the display
+    try:
+        display_id = display_data.get("id")
+        if display_id:
+            delete_response = http_client.delete(
+                f"/api/v1/displays/{display_id}",
+                headers=auth_headers,
+            )
+            if delete_response.status_code in [200, 204, 404]:
+                logger.info(f"Cleaned up test display: {display_id}")
+            else:
+                logger.warning(
+                    f"Failed to delete test display {display_id}: "
+                    f"{delete_response.status_code}"
+                )
+    except Exception as e:
+        logger.warning(f"Error cleaning up test display: {e}")
+
+
+@pytest.fixture
+def test_assets_path(project_root):
+    """Return the path to the test assets directory."""
+    return project_root / "tests" / "assets"
