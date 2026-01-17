@@ -7,9 +7,6 @@ ensuring SSE events are properly broadcast and received.
 NOTE: These tests are currently skipped due to timeout issues that need to be resolved.
 """
 
-import asyncio
-import time
-
 import pytest
 from playwright.async_api import BrowserContext, Page, expect
 
@@ -114,7 +111,7 @@ class TestSSEWorkflows:
                 await expect(self.page.locator("h1")).to_contain_text(
                     "Dashboard", timeout=1000
                 )
-            except:
+            except Exception:
                 raise AssertionError(f"Display status update test failed: {e}")
 
     async def test_real_time_slideshow_assignment_updates(self, live_server):
@@ -178,7 +175,7 @@ class TestSSEWorkflows:
                 await expect(self.page.locator("h1")).to_contain_text(
                     "Dashboard", timeout=1000
                 )
-            except:
+            except Exception:
                 raise AssertionError(f"Slideshow assignment test failed: {e}")
 
     async def test_real_time_notifications(self, live_server):

@@ -594,7 +594,7 @@ def create_display() -> Tuple[Response, int]:
         db.session.commit()
 
         current_app.logger.info(
-            f"Display created successfully",
+            "Display created successfully",
             extra={
                 "display_id": display.id,
                 "display_name": display.name,

@@ -6,7 +6,6 @@ and provides enhanced server management with comprehensive logging.
 """
 
 import logging
-import os
 import sys
 from pathlib import Path
 
@@ -19,7 +18,7 @@ current_dir = Path(__file__).parent
 tests_dir = current_dir.parent
 sys.path.insert(0, str(tests_dir))
 
-from integration.server_manager import EnhancedServerManager
+from integration.server_manager import EnhancedServerManager  # noqa: E402
 
 # Import live_server fixture from pytest-flask
 pytest_plugins = ["flask"]
@@ -413,8 +412,6 @@ def db_session(test_database):
     """Provide a database session that connects to the same database as the Flask server."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
-
-    from kiosk_show_replacement.app import create_app, db
 
     # Create direct connection to the same database file used by Flask server
     db_path = test_database["db_path"]

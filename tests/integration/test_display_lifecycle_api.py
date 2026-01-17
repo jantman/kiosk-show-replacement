@@ -40,8 +40,6 @@ maintaining easy test data setup through direct database access.
 
 import uuid
 
-import pytest
-
 
 class TestDisplayArchiveAPI:
     """Test display archive and restore API endpoints."""

@@ -5,10 +5,7 @@ This module provides fixtures specifically for end-to-end testing using
 Playwright and a live Flask server.
 """
 
-import asyncio
-
 import pytest
-from playwright.async_api import BrowserContext, Page
 
 from kiosk_show_replacement.app import create_app, db
 from kiosk_show_replacement.models import Display, Slideshow, User

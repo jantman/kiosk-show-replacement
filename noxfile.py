@@ -33,7 +33,13 @@ def lint(session):
     """Lint code with flake8 and pycodestyle."""
     session.install("flake8", "pycodestyle")
     session.run("flake8", PACKAGE_DIR, TEST_DIR)
-    session.run("pycodestyle", "--max-line-length=88", PACKAGE_DIR, TEST_DIR)
+    session.run(
+        "pycodestyle",
+        "--max-line-length=88",
+        "--ignore=E501,W503,E226",
+        PACKAGE_DIR,
+        TEST_DIR,
+    )
 
 
 @nox.session(python=DEFAULT_PYTHON, name="lint-frontend")

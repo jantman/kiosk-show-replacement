@@ -8,15 +8,14 @@ handling, and authentication integration.
 
 import json
 import logging
-import time
 import uuid
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from queue import Empty, Queue
 from threading import Lock
-from typing import Any, Dict, Generator, List, Optional, Set
+from typing import Any, Dict, Generator, Optional
 
-from flask import Response, current_app, request
+from flask import Response
 from werkzeug.exceptions import Unauthorized
 
 from kiosk_show_replacement.auth.decorators import get_current_user

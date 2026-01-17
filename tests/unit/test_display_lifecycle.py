@@ -15,7 +15,6 @@ import pytest
 from kiosk_show_replacement.models import (
     Display,
     DisplayConfigurationTemplate,
-    User,
     db,
 )
 

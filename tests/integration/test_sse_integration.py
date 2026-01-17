@@ -13,7 +13,7 @@ import time
 
 import pytest
 import requests
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page
 
 # Use the existing logger setup from conftest
 logger = logging.getLogger(__name__)

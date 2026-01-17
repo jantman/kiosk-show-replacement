@@ -6,8 +6,6 @@ Provides comprehensive logging and monitoring for Flask backend and Vite fronten
 
 import logging
 import os
-import queue
-import signal
 import subprocess
 import threading
 import time
@@ -371,9 +369,6 @@ class EnhancedServerManager:
 
     def mark_test_start(self, test_name: str) -> None:
         """Mark the start of a test in the logs."""
-        timestamp = time.strftime("%H:%M:%S")
-        marker = f"[{timestamp}] TEST_MARKER: Starting test {test_name}"
-
         # Add marker to both log streams
         self.flask_logs.add_log(f"TEST_MARKER: Starting test {test_name}")
         self.vite_logs.add_log(f"TEST_MARKER: Starting test {test_name}")
@@ -382,9 +377,6 @@ class EnhancedServerManager:
 
     def mark_test_end(self, test_name: str, status: str = "completed") -> None:
         """Mark the end of a test in the logs."""
-        timestamp = time.strftime("%H:%M:%S")
-        marker = f"[{timestamp}] TEST_MARKER: Finished test {test_name} ({status})"
-
         # Add marker to both log streams
         self.flask_logs.add_log(f"TEST_MARKER: Finished test {test_name} ({status})")
         self.vite_logs.add_log(f"TEST_MARKER: Finished test {test_name} ({status})")
