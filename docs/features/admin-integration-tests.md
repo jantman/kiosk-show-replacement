@@ -218,7 +218,7 @@ The following are explicitly out of scope for this feature:
 |-----------|--------|-------|
 | M1: Test Infrastructure | Complete | Fixtures, helpers, refactored existing test |
 | M2: Slideshow CRUD | Complete | 7 tests passing |
-| M3: Slideshow Items | Not Started | |
+| M3: Slideshow Items | In Progress | 8 passing, 2 xfail (file upload bug) |
 | M4: Display Management | Not Started | |
 | M5: Display Detail | Not Started | |
 | M6: Dashboard & Navigation | Not Started | |
@@ -228,3 +228,5 @@ The following are explicitly out of scope for this feature:
 ### Discovered Issues
 
 1. **ProtectedRoute Login Redirect Bug** (AIT-1.4): The `ProtectedRoute` component redirects unauthenticated users to `/login` instead of `/admin/login`, causing a 404 error. See `docs/features/fix-protected-route-redirect.md` for details. Test `test_user_can_login_and_see_dashboard` is skipped until this is fixed.
+
+2. **File Upload API 400 Error** (AIT-3.2, AIT-3.4): The file upload API endpoints (`/api/v1/uploads/image` and `/api/v1/uploads/video`) return 400 Bad Request when uploading files through the React admin interface. See `docs/features/fix-file-upload-api-400-error.md` for details. Tests `test_add_image_item_via_file_upload` and `test_add_video_item_via_file_upload` are marked xfail until this is fixed.
