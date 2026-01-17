@@ -139,6 +139,7 @@ npm run build
 5. **Use proper type annotations** on all new Python code
 6. **Close resources explicitly** - Use context managers or try/finally
 7. **Database sessions**: Close with `db.session.close()`, dispose engines with `db.engine.dispose()`
+8. **Git commits**: Use detailed commit messages beginning with a concise one-sentence summary, followed by a blank line and detailed explanation of changes
 
 ## Test Types
 
