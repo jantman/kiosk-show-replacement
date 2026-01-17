@@ -1,5 +1,7 @@
 # Docker Compose for development
-# Usage: docker-compose up
+# Usage:
+#   mkdir -p .docker-data/dev/instance/uploads && sudo chown -R 1000:1000 .docker-data/dev
+#   docker-compose up
 #
 # This configuration is optimized for local development with:
 # - SQLite database (no external services needed)
@@ -24,8 +26,8 @@ services:
     volumes:
       # Mount source code for development visibility
       - ./kiosk_show_replacement:/app/kiosk_show_replacement:ro
-      # Persist database and uploads across container restarts
-      - kiosk_data:/app/instance
+      # Persist database and uploads across container restarts (bind mount for easy inspection)
+      - ./.docker-data/dev/instance:/app/instance
     # Use Flask dev server instead of gunicorn for development
     command: ["flask", "run", "--host=0.0.0.0", "--port=5000"]
     healthcheck:
@@ -34,7 +36,3 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
-
-volumes:
-  kiosk_data:
-    driver: local

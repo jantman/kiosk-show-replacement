@@ -286,5 +286,8 @@ frontend/build/
 tmp/
 temp/
 
+# Docker data directories (bind mounts for local inspection)
+.docker-data/
+
 test-results/
 /test*.txt

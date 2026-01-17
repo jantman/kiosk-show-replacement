@@ -1,10 +1,16 @@
 # Docker Compose for production deployment
-# Usage: docker-compose -f docker-compose.prod.yml up -d
+# Usage:
+#   mkdir -p .docker-data/prod/uploads .docker-data/prod/mariadb
+#   sudo chown -R 1000:1000 .docker-data/prod/uploads
+#   docker-compose -f docker-compose.prod.yml up -d
 #
 # Before running:
-# 1. Copy .env.docker.example to .env and configure all required variables
-# 2. Generate a secure SECRET_KEY
-# 3. Set strong passwords for database and admin user
+# 1. Create data directories with correct ownership:
+#    mkdir -p .docker-data/prod/uploads .docker-data/prod/mariadb
+#    sudo chown -R 1000:1000 .docker-data/prod/uploads
+# 2. Copy .env.docker.example to .env and configure all required variables
+# 3. Generate a secure SECRET_KEY
+# 4. Set strong passwords for database and admin user
 #
 # This configuration includes:
 # - MariaDB database for production reliability
@@ -30,8 +36,8 @@ services:
       # Gunicorn configuration
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
     volumes:
-      # Persist uploads across container restarts
-      - uploads_data:/app/instance/uploads
+      # Persist uploads across container restarts (bind mount for easy inspection)
+      - ./.docker-data/prod/uploads:/app/instance/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -61,7 +67,8 @@ services:
       - MYSQL_USER=${MYSQL_USER:-kiosk}
       - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD is required}
     volumes:
-      - mariadb_data:/var/lib/mysql
+      # Persist database data (bind mount for easy inspection)
+      - ./.docker-data/prod/mariadb:/var/lib/mysql
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
@@ -79,12 +86,6 @@ services:
           memory: 128M
     networks:
       - kiosk_network
-
-volumes:
-  mariadb_data:
-    driver: local
-  uploads_data:
-    driver: local
 
 networks:
   kiosk_network:
