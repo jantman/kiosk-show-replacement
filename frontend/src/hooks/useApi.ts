@@ -22,12 +22,14 @@ export const useApi = (): UseApiResult => {
       }
       
       if (url.startsWith('/api/v1/slideshows/') && url.endsWith('/items') && method === 'GET') {
-        const slideshowId = parseInt(url.split('/')[3]);
+        const slideshowId = parseInt(url.split('/')[4]);
         return await apiClient.getSlideshowItems(slideshowId);
       }
-      
-      if (url.startsWith('/api/v1/slideshows/') && !url.includes('/') && method === 'GET') {
-        const slideshowId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshows/{id} (exactly 5 segments when split)
+      const slideshowGetMatch = url.match(/^\/api\/v1\/slideshows\/(\d+)$/);
+      if (slideshowGetMatch && method === 'GET') {
+        const slideshowId = parseInt(slideshowGetMatch[1]);
         return await apiClient.getSlideshow(slideshowId);
       }
       
@@ -36,41 +38,55 @@ export const useApi = (): UseApiResult => {
         return await apiClient.createSlideshow(data);
       }
       
-      if (url.startsWith('/api/v1/slideshows/') && method === 'PUT') {
-        const slideshowId = parseInt(url.split('/')[3]);
+      // Match /api/v1/slideshows/{id} for PUT
+      const slideshowPutMatch = url.match(/^\/api\/v1\/slideshows\/(\d+)$/);
+      if (slideshowPutMatch && method === 'PUT') {
+        const slideshowId = parseInt(slideshowPutMatch[1]);
         const data = JSON.parse(options?.body as string);
         return await apiClient.updateSlideshow(slideshowId, data);
       }
-      
-      if (url.startsWith('/api/v1/slideshows/') && method === 'DELETE') {
-        const slideshowId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshows/{id} for DELETE
+      const slideshowDeleteMatch = url.match(/^\/api\/v1\/slideshows\/(\d+)$/);
+      if (slideshowDeleteMatch && method === 'DELETE') {
+        const slideshowId = parseInt(slideshowDeleteMatch[1]);
         return await apiClient.deleteSlideshow(slideshowId);
       }
-      
-      if (url.endsWith('/set-default') && method === 'POST') {
-        const slideshowId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshows/{id}/set-default
+      const setDefaultMatch = url.match(/^\/api\/v1\/slideshows\/(\d+)\/set-default$/);
+      if (setDefaultMatch && method === 'POST') {
+        const slideshowId = parseInt(setDefaultMatch[1]);
         return await apiClient.setDefaultSlideshow(slideshowId);
       }
-      
-      if (url.startsWith('/api/v1/slideshows/') && url.includes('/items') && method === 'POST') {
-        const slideshowId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshows/{id}/items for POST (create item)
+      const createItemMatch = url.match(/^\/api\/v1\/slideshows\/(\d+)\/items$/);
+      if (createItemMatch && method === 'POST') {
+        const slideshowId = parseInt(createItemMatch[1]);
         const data = JSON.parse(options?.body as string);
         return await apiClient.createSlideshowItem(slideshowId, data);
       }
-      
-      if (url.startsWith('/api/v1/slideshow-items/') && method === 'PUT') {
-        const itemId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshow-items/{id} for PUT
+      const itemPutMatch = url.match(/^\/api\/v1\/slideshow-items\/(\d+)$/);
+      if (itemPutMatch && method === 'PUT') {
+        const itemId = parseInt(itemPutMatch[1]);
         const data = JSON.parse(options?.body as string);
         return await apiClient.updateSlideshowItem(itemId, data);
       }
-      
-      if (url.startsWith('/api/v1/slideshow-items/') && method === 'DELETE') {
-        const itemId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshow-items/{id} for DELETE
+      const itemDeleteMatch = url.match(/^\/api\/v1\/slideshow-items\/(\d+)$/);
+      if (itemDeleteMatch && method === 'DELETE') {
+        const itemId = parseInt(itemDeleteMatch[1]);
         return await apiClient.deleteSlideshowItem(itemId);
       }
-      
-      if (url.endsWith('/reorder') && method === 'POST') {
-        const itemId = parseInt(url.split('/')[3]);
+
+      // Match /api/v1/slideshow-items/{id}/reorder for POST
+      const reorderMatch = url.match(/^\/api\/v1\/slideshow-items\/(\d+)\/reorder$/);
+      if (reorderMatch && method === 'POST') {
+        const itemId = parseInt(reorderMatch[1]);
         const data = JSON.parse(options?.body as string);
         return await apiClient.reorderSlideshowItem(itemId, data.new_order);
       }

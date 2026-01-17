@@ -433,7 +433,7 @@ const SlideshowDetail: React.FC = () => {
         </Modal.Header>
         <Modal.Body>
           <SlideshowItemForm
-            slideshowId={parseInt(id!)}
+            slideshowId={slideshow.id}
             item={editingItem}
             onSave={handleItemSaved}
             onCancel={() => {

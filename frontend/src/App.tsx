@@ -30,7 +30,7 @@ const App: React.FC = () => {
             <ErrorToastContainer position="top-right" />
             <Routes>
               {/* Public routes */}
-              <Route path="/login" element={<Login />} />
+              <Route path="/admin/login" element={<Login />} />
 
               {/* Protected admin routes */}
               <Route
