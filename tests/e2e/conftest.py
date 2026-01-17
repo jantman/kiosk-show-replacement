@@ -86,7 +86,10 @@ def e2e_data(e2e_app):
         db.session.commit()
 
         # Create test user for authentication using the app's own method
-        test_user = User(username="testuser", email="test@example.com", is_active=True)
+        # Make user an admin so they can access Settings page
+        test_user = User(
+            username="testuser", email="test@example.com", is_active=True, is_admin=True
+        )
         # Use the app's set_password method which will generate the correct hash
         test_user.set_password("password")
         db.session.add(test_user)
