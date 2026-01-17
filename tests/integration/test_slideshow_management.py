@@ -12,6 +12,7 @@ Run with: nox -s test-integration
 """
 
 import os
+import re
 import time
 
 import pytest
@@ -134,7 +135,9 @@ class TestSlideshowManagement:
 
         # Wait for navigation to slideshow detail page (not /new or /edit)
         # The detail page URL is /admin/slideshows/{id} where id is a number
-        page.wait_for_url("**/admin/slideshows/[0-9]*", timeout=10000)
+        # Use expect().to_have_url() with regex for more reliable matching
+        expect(page).to_have_url(re.compile(r".*/admin/slideshows/\d+$"), timeout=10000)
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
 
         # Wait for the page to load and verify we're on the detail page
         # The detail page shows the slideshow name in an h1
@@ -301,7 +304,8 @@ class TestSlideshowManagement:
             headers=auth_headers,
         )
         assert response.status_code in [200, 201]
-        slideshow_id = response.json()["id"]
+        response_data = response.json().get("data", response.json())
+        slideshow_id = response_data["id"]
 
         try:
             # Login first
@@ -316,7 +320,8 @@ class TestSlideshowManagement:
             expect(row).to_be_visible(timeout=10000)
 
             # Verify it doesn't have the "Default" badge yet
-            default_badge = row.locator("text=Default")
+            # Use a specific selector for the badge to avoid matching text in the name
+            default_badge = row.locator(".badge:has-text('Default')")
             # It might not be visible if not default
             initial_has_default = default_badge.is_visible()
             assert not initial_has_default, "Slideshow should not be default initially"
@@ -336,7 +341,9 @@ class TestSlideshowManagement:
             # Find the row again and verify it has the Default badge
             row = page.locator(f"tr:has-text('{slideshow_name}')")
             expect(row).to_be_visible(timeout=10000)
-            expect(row.locator("text=Default")).to_be_visible(timeout=5000)
+            expect(row.locator(".badge:has-text('Default')")).to_be_visible(
+                timeout=5000
+            )
 
         finally:
             # Cleanup
