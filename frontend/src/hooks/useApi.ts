@@ -124,11 +124,25 @@ export const useApi = (): UseApiResult => {
       }
       
       // Fallback for unknown endpoints - make a direct request
+      // Warn in development when using fallback for endpoints that should have explicit handlers
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(
+          `[useApi] Unmatched endpoint falling back to generic handler: ${method} ${endpoint}. ` +
+          'Consider adding an explicit handler if this endpoint should be routed to apiClient.'
+        );
+      }
+
       const baseURL = '';
       const fullUrl = `${baseURL}${endpoint}`;
-      
+
+      // Check if body is FormData - if so, don't set Content-Type header
+      // (browser will set correct multipart boundary automatically)
+      const isFormData = options?.body instanceof FormData;
+
       const config: RequestInit = {
-        headers: {
+        headers: isFormData ? {
+          ...options?.headers,
+        } : {
           'Content-Type': 'application/json',
           ...options?.headers,
         },
