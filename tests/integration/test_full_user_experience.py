@@ -24,10 +24,6 @@ from playwright.sync_api import Page, expect
 class TestFullUserExperience:
     """Test the complete user experience through a real browser."""
 
-    @pytest.mark.skip(
-        reason="Bug: ProtectedRoute redirects to /login instead of /admin/login. "
-        "See docs/features/fix-protected-route-redirect.md"
-    )
     def test_user_can_login_and_see_dashboard(
         self, enhanced_page: Page, servers: dict, test_database: dict
     ):

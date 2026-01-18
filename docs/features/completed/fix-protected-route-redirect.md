@@ -57,3 +57,18 @@ This bug was discovered during implementation of the admin-integration-tests fea
 - **Severity**: High - Breaks normal user login flow
 - **User Impact**: Users navigating to the root URL cannot log in
 - **Workaround**: Users can directly navigate to `/admin/login`
+
+## Implementation Plan
+
+Given the simplicity of this fix (single line change + test enablement), this will be completed as a single milestone.
+
+### Milestone 1: Fix and Verify (PRR-1) - COMPLETED
+
+| Task | Description | Status |
+|------|-------------|--------|
+| PRR-1.1 | Fix redirect path in `frontend/src/components/ProtectedRoute.tsx` line 26 | Complete |
+| PRR-1.2 | Remove `pytest.skip` decorator from `test_user_can_login_and_see_dashboard` | Complete |
+| PRR-1.3 | Rebuild frontend with `npm run build` | Complete |
+| PRR-1.4 | Run integration tests to verify the fix works | Complete |
+| PRR-1.5 | Run all nox tests to ensure no regressions | Complete |
+| PRR-1.6 | Move feature document to `docs/features/completed/` | Complete |
