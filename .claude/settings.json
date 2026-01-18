@@ -25,7 +25,12 @@
       "Bash(rg:*)",
       "Bash(echo:*)",
       "Bash(find:*)",
-      "Bash(tee:*)"
+      "Bash(tee:*)",
+      "Bash(poetry lock:*)",
+      "Bash(npm run build:*)",
+      "Bash(npm run lint)",
+      "Bash(npx eslint:*)",
+      "Bash(poetry run:*)"
     ]
   }
 }
