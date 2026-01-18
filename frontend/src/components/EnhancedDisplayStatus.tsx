@@ -69,16 +69,17 @@ export const EnhancedDisplayStatus: React.FC<EnhancedDisplayStatusProps> = ({
       switch (lastEvent.event_type) {
         case 'display_status_update':
         case 'display_heartbeat':
-        case 'display_performance':
+        case 'display_performance': {
           const updatedDisplay = lastEvent.data as DisplayStatus;
-          setDisplays(prev => 
-            prev.map(display => 
-              display.id === updatedDisplay.id 
+          setDisplays(prev =>
+            prev.map(display =>
+              display.id === updatedDisplay.id
                 ? { ...display, ...updatedDisplay }
                 : display
             )
           );
           break;
+        }
       }
     }
   }, [lastEvent]);
