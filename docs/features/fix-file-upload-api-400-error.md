@@ -55,12 +55,56 @@ Or manually:
 6. Upload a file
 7. Check browser Network tab for 400 response and response body for error message
 
-## Proposed Solution
+## Root Cause Analysis
 
-Pending investigation results. Likely fixes:
-1. Ensure `slideshowId` prop is defined when form renders
-2. Add explicit `credentials: 'include'` to fetch options if not present
-3. Debug the actual error message from the 400 response
+**The bug is in `frontend/src/hooks/useApi.ts` at line 95.**
+
+The `useApi` hook routes upload requests to the `apiClient` based on the upload type (image/video). The code extracts the upload type using:
+
+```typescript
+const uploadType = url.split('/')[3];
+```
+
+For the URL `/api/v1/uploads/image`, splitting by `/` produces:
+- Index 0: `''` (empty string)
+- Index 1: `'api'`
+- Index 2: `'v1'`
+- Index 3: `'uploads'`  ← **BUG: code uses this index**
+- Index 4: `'image'`    ← **correct index**
+
+Because `uploadType` equals `'uploads'` instead of `'image'` or `'video'`, neither the `if (uploadType === 'image')` nor `else if (uploadType === 'video')` condition matches.
+
+The code then falls through to the fallback path (lines 127+), which:
+1. Sets `Content-Type: application/json` header (inappropriate for FormData)
+2. Attempts a generic fetch request
+
+When `Content-Type: application/json` is set for a FormData body, the browser doesn't serialize the multipart form data correctly, causing the server to not find the `file` or `slideshow_id` in the request, resulting in the 400 error.
+
+## Implementation Plan
+
+### Milestone 1: Fix the Bug
+
+**Task 1.1**: Fix array index in `useApi.ts`
+- Change line 95 from `url.split('/')[3]` to `url.split('/')[4]`
+- File: `frontend/src/hooks/useApi.ts`
+
+**Task 1.2**: Remove `@pytest.mark.xfail` markers from integration tests
+- Remove xfail from `test_add_image_item_via_file_upload` (lines 36-39)
+- Remove xfail from `test_add_video_item_via_file_upload` (lines 142-145)
+- File: `tests/integration/test_slideshow_items.py`
+
+### Milestone 2: Acceptance Criteria
+
+**Task 2.1**: Verify fix with integration tests
+- Run `poetry run -- nox -s test-integration`
+- Confirm `test_add_image_item_via_file_upload` passes
+- Confirm `test_add_video_item_via_file_upload` passes
+
+**Task 2.2**: Run all nox sessions
+- Ensure all tests pass: `poetry run -- nox`
+
+**Task 2.3**: Move feature document to completed folder
+- Move `docs/features/fix-file-upload-api-400-error.md` to `docs/features/completed/`
 
 ## Acceptance Criteria
 
@@ -69,3 +113,4 @@ Pending investigation results. Likely fixes:
    - `test_add_video_item_via_file_upload`
 2. Manual upload via admin UI works correctly
 3. Both image and video uploads function properly
+4. All nox sessions pass
