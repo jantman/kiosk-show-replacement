@@ -84,6 +84,37 @@ const getCurrentSlideshow = () => {
 
 The Quick Assignment section could use this pattern instead of `display.assigned_slideshow`.
 
+## Implementation Plan
+
+**Selected Approach**: Option 1 - Add `assigned_slideshow` to the Display API response
+
+This is the cleanest solution because:
+1. The frontend TypeScript type (`frontend/src/types/index.ts` line 29) already defines `assigned_slideshow?: Slideshow`
+2. It's a single change in one location (the `to_dict()` method)
+3. The Display model already has a relationship to Slideshow via `current_slideshow`
+
+### Milestone 1: Backend Fix (DASA-1)
+
+**Task 1.1**: Modify `Display.to_dict()` to include `assigned_slideshow`
+- File: `kiosk_show_replacement/models/__init__.py`
+- Add logic to include `assigned_slideshow` object when `current_slideshow_id` is set
+- Include `id`, `name`, and `description` fields from the related Slideshow
+
+**Task 1.2**: Add unit tests for the new `assigned_slideshow` field
+- File: `tests/unit/test_models.py` (or appropriate test file)
+- Test that `to_dict()` returns `assigned_slideshow: None` when no slideshow assigned
+- Test that `to_dict()` returns proper `assigned_slideshow` object when slideshow is assigned
+
+### Milestone 2: Acceptance Criteria (DASA-2)
+
+**Task 2.1**: Verify integration tests pass
+- Run `test_quick_assign_slideshow_via_click`
+- Run `test_unassign_slideshow`
+
+**Task 2.2**: Run all nox test sessions to ensure no regressions
+
+**Task 2.3**: Move feature file to completed directory
+
 ## Acceptance Criteria
 
 1. Quick Assignment section shows the currently assigned slideshow name when one is assigned
@@ -93,3 +124,13 @@ The Quick Assignment section could use this pattern instead of `display.assigned
 5. Integration tests pass:
    - `test_quick_assign_slideshow_via_click`
    - `test_unassign_slideshow`
+
+## Progress
+
+- [ ] Milestone 1: Backend Fix
+  - [ ] Task 1.1: Modify `Display.to_dict()`
+  - [ ] Task 1.2: Add unit tests
+- [ ] Milestone 2: Acceptance Criteria
+  - [ ] Task 2.1: Verify integration tests pass
+  - [ ] Task 2.2: Run all nox sessions
+  - [ ] Task 2.3: Move feature file to completed
