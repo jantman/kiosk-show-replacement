@@ -273,25 +273,6 @@ def test_e2e(session):
     )
 
 
-@nox.session(python=DEFAULT_PYTHON, name="test-all")
-def test_all(session):
-    """Run all backend tests (unit only) with coverage. Integration and E2E tests run separately."""
-    session.install("-e", ".")
-    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
-
-    # Run only unit tests with coverage
-    session.run(
-        "pytest",
-        TEST_DIR + "/unit",
-        "--cov=" + PACKAGE_DIR,
-        "--cov-report=term-missing",
-        "--cov-report=html:htmlcov",
-        "--cov-report=xml:coverage.xml",
-        "--cov-fail-under=30",
-        *session.posargs,
-    )
-
-
 @nox.session(python=DEFAULT_PYTHON, name="test-comprehensive")
 def test_comprehensive(session):
     """Run all tests: backend unit tests, integration tests, frontend tests, and E2E tests."""
