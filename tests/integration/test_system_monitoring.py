@@ -23,11 +23,6 @@ from playwright.sync_api import Page, expect
 class TestSystemMonitoring:
     """Test system monitoring page through the admin interface."""
 
-    @pytest.mark.xfail(
-        reason="Bug: SSEDebugger component has runtime error 'Cannot read properties of undefined (reading length)'. "
-        "The error causes ErrorBoundary to display error instead of the monitoring page. "
-        "See docs/features/fix-sse-debugger-component-error.md for details."
-    )
     def test_sse_debug_tools_tab_loads(
         self,
         enhanced_page: Page,
@@ -67,10 +62,6 @@ class TestSystemMonitoring:
             timeout=5000
         )
 
-    @pytest.mark.xfail(
-        reason="Bug: SSEDebugger component has runtime error that breaks the monitoring page. "
-        "See docs/features/fix-sse-debugger-component-error.md for details."
-    )
     def test_display_status_tab_loads(
         self,
         enhanced_page: Page,
@@ -107,10 +98,6 @@ class TestSystemMonitoring:
             timeout=5000
         )
 
-    @pytest.mark.xfail(
-        reason="Bug: SSEDebugger component has runtime error that breaks the monitoring page. "
-        "See docs/features/fix-sse-debugger-component-error.md for details."
-    )
     def test_system_health_tab_shows_status(
         self,
         enhanced_page: Page,
@@ -140,21 +127,27 @@ class TestSystemMonitoring:
         expect(health_tab).to_be_visible()
         health_tab.click()
 
+        # Wait for tab content to be visible and get the health tab panel
+        health_panel = page.get_by_role("tabpanel", name="System Health")
+        expect(health_panel).to_be_visible(timeout=5000)
+
         # Verify System Health tab content is visible
-        expect(page.locator("text=System Health Overview")).to_be_visible(timeout=5000)
+        expect(health_panel.locator("text=System Health Overview")).to_be_visible(
+            timeout=5000
+        )
 
         # Verify health status is shown ("System Healthy" message)
-        expect(page.locator("text=System Healthy")).to_be_visible(timeout=5000)
+        expect(health_panel.locator("text=System Healthy")).to_be_visible(timeout=5000)
 
         # Verify the status cards are shown
-        expect(page.locator("text=API Status")).to_be_visible()
-        expect(page.locator("text=Database")).to_be_visible()
-        expect(page.locator("text=SSE Service")).to_be_visible()
+        expect(health_panel.locator("text=API Status")).to_be_visible()
+        expect(health_panel.locator("text=Database")).to_be_visible()
+        expect(health_panel.locator("text=SSE Service")).to_be_visible()
 
-        # Verify all systems show operational status
-        expect(page.locator("text=Operational")).to_be_visible()
-        expect(page.locator("text=Connected")).to_be_visible()
-        expect(page.locator("text=Active")).to_be_visible()
+        # Verify all systems show operational status (scoped to health panel)
+        expect(health_panel.get_by_text("Operational", exact=True)).to_be_visible()
+        expect(health_panel.get_by_text("Connected", exact=True)).to_be_visible()
+        expect(health_panel.get_by_text("Active", exact=True)).to_be_visible()
 
     def _login(self, page: Page, vite_url: str, test_database: dict):
         """Helper method to log in to the admin interface."""
