@@ -12,7 +12,6 @@ from sqlalchemy.exc import IntegrityError
 from kiosk_show_replacement import db
 from kiosk_show_replacement.models import Display, Slideshow, SlideshowItem, User
 
-
 # Note: app and client fixtures are provided by tests/conftest.py
 # with proper database cleanup (db.engine.dispose(), db.session.remove())
 
@@ -311,6 +310,53 @@ class TestDisplayModel:
             assert display_dict["is_online"] is False  # No heartbeat yet
             assert "created_at" in display_dict
             assert "updated_at" in display_dict
+            # assigned_slideshow should be None when no slideshow is assigned
+            assert "assigned_slideshow" in display_dict
+            assert display_dict["assigned_slideshow"] is None
+
+    def test_display_to_dict_with_assigned_slideshow(self, app, sample_user):
+        """Test display serialization includes assigned_slideshow when set."""
+        with app.app_context():
+            user = sample_user()  # Get fresh user instance
+
+            # Create slideshow directly
+            slideshow = Slideshow(
+                name="Test Slideshow for Assignment",
+                description="A slideshow for testing assignment",
+                default_item_duration=30,
+                owner_id=user.id,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+
+            # Create display with slideshow already assigned
+            display = Display(
+                name="Test Display With Slideshow",
+                location="Test Location",
+                resolution_width=1920,
+                resolution_height=1080,
+                owner_id=user.id,
+                current_slideshow_id=slideshow.id,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            # Re-fetch to ensure relationship is loaded
+            display_id = display.id
+            display = db.session.get(Display, display_id)
+            display_dict = display.to_dict()
+
+            # Verify assigned_slideshow is populated
+            assert "assigned_slideshow" in display_dict
+            assert display_dict["assigned_slideshow"] is not None
+            assert display_dict["assigned_slideshow"]["id"] == slideshow.id
+            assert display_dict["assigned_slideshow"]["name"] == slideshow.name
+            assert (
+                display_dict["assigned_slideshow"]["description"]
+                == slideshow.description
+            )
+            # Also verify current_slideshow_id is still present
+            assert display_dict["current_slideshow_id"] == slideshow.id
 
     def test_display_online_status(self, app, sample_display):
         """Test display online status calculation."""

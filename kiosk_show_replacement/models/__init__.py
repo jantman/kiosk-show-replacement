@@ -258,6 +258,15 @@ class Display(db.Model):
 
     def to_dict(self) -> dict:
         """Convert display to dictionary for JSON serialization."""
+        # Build assigned_slideshow object if a slideshow is assigned
+        assigned_slideshow = None
+        if self.current_slideshow_id and self.current_slideshow:
+            assigned_slideshow = {
+                "id": self.current_slideshow.id,
+                "name": self.current_slideshow.name,
+                "description": self.current_slideshow.description,
+            }
+
         return {
             "id": self.id,
             "name": self.name,
@@ -280,6 +289,7 @@ class Display(db.Model):
             "heartbeat_interval": self.heartbeat_interval,
             "owner_id": self.owner_id,
             "current_slideshow_id": self.current_slideshow_id,
+            "assigned_slideshow": assigned_slideshow,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
