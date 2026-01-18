@@ -125,7 +125,7 @@ export const useApi = (): UseApiResult => {
       
       // Fallback for unknown endpoints - make a direct request
       // Warn in development when using fallback for endpoints that should have explicit handlers
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.DEV) {
         console.warn(
           `[useApi] Unmatched endpoint falling back to generic handler: ${method} ${endpoint}. ` +
           'Consider adding an explicit handler if this endpoint should be routed to apiClient.'
