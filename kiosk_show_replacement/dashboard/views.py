@@ -16,9 +16,9 @@ from flask import (
     render_template,
     url_for,
 )
-from werkzeug.wrappers import Response
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
+from werkzeug.wrappers import Response
 
 from ..auth import admin_required, get_current_user, login_required
 from ..models import Display, Slideshow, db

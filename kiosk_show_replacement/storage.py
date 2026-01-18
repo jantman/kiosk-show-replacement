@@ -208,9 +208,7 @@ class StorageManager:
 
             # Generate secure filename
             filename = file.filename or "unnamed"
-            secure_name = self.generate_secure_filename(
-                filename, user_id, slideshow_id
-            )
+            secure_name = self.generate_secure_filename(filename, user_id, slideshow_id)
             file_path = upload_path / secure_name
 
             # Get file size

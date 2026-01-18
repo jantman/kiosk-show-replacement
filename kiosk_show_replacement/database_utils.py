@@ -115,7 +115,9 @@ class DatabaseUtils:
         """
         try:
             # Check if user already exists
-            existing_user = cast(Optional[User], User.query.filter_by(username=username).first())
+            existing_user = cast(
+                Optional[User], User.query.filter_by(username=username).first()
+            )
             if existing_user:
                 current_app.logger.warning(f"Admin user '{username}' already exists")
                 return existing_user

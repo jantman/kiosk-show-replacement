@@ -169,9 +169,7 @@ class Display(db.Model):
 
     # Connection tracking
     last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
-    heartbeat_interval: Mapped[int] = mapped_column(
-        Integer, default=60
-    )  # seconds
+    heartbeat_interval: Mapped[int] = mapped_column(Integer, default=60)  # seconds
 
     # Ownership and audit fields (nullable for auto-registered displays)
     owner_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"))
@@ -372,9 +370,7 @@ class Slideshow(db.Model):
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Display settings
-    default_item_duration: Mapped[int] = mapped_column(
-        Integer, default=30
-    )  # seconds
+    default_item_duration: Mapped[int] = mapped_column(Integer, default=30)  # seconds
     transition_type: Mapped[str] = mapped_column(String(50), default="fade")
 
     # Ownership and audit fields
@@ -666,9 +662,7 @@ class AssignmentHistory(db.Model):
     new_slideshow_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("slideshows.id")
     )
-    action: Mapped[str] = mapped_column(
-        String(50)
-    )  # 'assign', 'unassign', 'change'
+    action: Mapped[str] = mapped_column(String(50))  # 'assign', 'unassign', 'change'
     reason: Mapped[Optional[str]] = mapped_column(
         Text
     )  # Optional reason for the change

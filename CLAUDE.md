@@ -145,6 +145,6 @@ Integration tests require the React admin interface; E2E tests are for tradition
 
 ## Acceptable Baselines
 
-- **mypy**: 11 type errors acceptable (SQLAlchemy/Flask-Migrate missing stubs)
+- **mypy**: Zero type errors (using SQLAlchemy mypy plugin and proper Mapped types)
 - **ResourceWarnings in tests**: ~28 expected from Flask-SQLAlchemy, pytest fixtures, Werkzeug
 - **Zero tolerance** for application code ResourceWarnings

@@ -6,7 +6,7 @@ including migration creation, application, and rollback operations.
 """
 
 import os
-from typing import List, Optional
+from typing import Optional
 
 from flask import current_app
 from flask_migrate import current, downgrade, init, migrate, show, stamp, upgrade
