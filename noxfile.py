@@ -239,11 +239,11 @@ def test_integration(session):
     session.log("Running integration tests with proper cleanup enabled...")
     session.log("Server logs will be saved to test-results/integration-server-logs.txt")
 
-    # Run integration tests with timeout to prevent hanging (60 seconds for faster feedback)
+    # Run integration tests with timeout to prevent hanging
     _run_playwright_tests_with_timeout(
         session,
         TEST_DIR + "/integration",
-        timeout_seconds=60,  # Faster timeout for debugging
+        timeout_seconds=300,  # 5 minutes for full test suite
         extra_args=[
             "--tb=short"
         ],  # Shorter traceback for better error visibility, allow cleanup

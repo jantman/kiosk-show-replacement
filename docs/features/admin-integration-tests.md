@@ -218,15 +218,21 @@ The following are explicitly out of scope for this feature:
 |-----------|--------|-------|
 | M1: Test Infrastructure | Complete | Fixtures, helpers, refactored existing test |
 | M2: Slideshow CRUD | Complete | 7 tests passing |
-| M3: Slideshow Items | In Progress | 8 passing, 2 xfail (file upload bug) |
-| M4: Display Management | Not Started | |
-| M5: Display Detail | Not Started | |
-| M6: Dashboard & Navigation | Not Started | |
-| M7: System Monitoring | Not Started | |
-| M8: Acceptance Criteria | Not Started | |
+| M3: Slideshow Items | Complete | 8 passing, 2 xfail (file upload bug) |
+| M4: Display Management | Complete | 7 passing, 1 xfail (delete bug) |
+| M5: Display Detail | Complete | 3 passing, 2 xfail (assigned_slideshow bug) |
+| M6: Dashboard & Navigation | Complete | 5 tests passing |
+| M7: System Monitoring | Complete | 3 xfail (SSEDebugger bug) |
+| M8: Acceptance Criteria | Complete | 55 passed, 1 skipped, 8 xfail (179s) |
 
 ### Discovered Issues
 
 1. **ProtectedRoute Login Redirect Bug** (AIT-1.4): The `ProtectedRoute` component redirects unauthenticated users to `/login` instead of `/admin/login`, causing a 404 error. See `docs/features/fix-protected-route-redirect.md` for details. Test `test_user_can_login_and_see_dashboard` is skipped until this is fixed.
 
 2. **File Upload API 400 Error** (AIT-3.2, AIT-3.4): The file upload API endpoints (`/api/v1/uploads/image` and `/api/v1/uploads/video`) return 400 Bad Request when uploading files through the React admin interface. See `docs/features/fix-file-upload-api-400-error.md` for details. Tests `test_add_image_item_via_file_upload` and `test_add_video_item_via_file_upload` are marked xfail until this is fixed.
+
+3. **Display Delete with Assignment History Bug** (AIT-4.8): Deleting a display fails with HTTP 500 (SQLAlchemy ProgrammingError) when the display has associated assignment history records. The `AssignmentHistory` table has a foreign key to displays without CASCADE DELETE. See `docs/features/fix-display-delete-assignment-history-bug.md` for details. Test `test_delete_display_with_confirmation` is marked xfail until this is fixed.
+
+4. **Display assigned_slideshow API Bug** (AIT-5.4, AIT-5.5): The Display API doesn't return `assigned_slideshow` as a joined object, but the frontend DisplayDetail component expects it. The Quick Assignment section uses `display.assigned_slideshow` for conditional rendering, which is always undefined. See `docs/features/fix-display-assigned-slideshow-api-bug.md` for details. Tests `test_quick_assign_slideshow_via_click` and `test_unassign_slideshow` are marked xfail until this is fixed.
+
+5. **SSEDebugger Component Runtime Error** (AIT-7.2, AIT-7.3, AIT-7.4): The SSEDebugger component throws `TypeError: Cannot read properties of undefined (reading 'length')`, which is caught by ErrorBoundary and prevents the System Monitoring page from rendering. See `docs/features/fix-sse-debugger-component-error.md` for details. All System Monitoring tests are marked xfail until this is fixed.
