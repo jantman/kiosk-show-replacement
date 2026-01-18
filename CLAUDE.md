@@ -8,35 +8,35 @@ Kiosk Show Replacement is a self-hosted digital signage solution with a Flask ba
 
 ## Development Environment
 
-Use `poetry run` prefix to run commands in the Poetry environment. Do not use `eval $(poetry env activate)`.
+Use `poetry run --` prefix to run commands in the Poetry environment. The `--` after `run` prevents poetry from interpreting nox arguments (like `-s`) as its own. Do not use `eval $(poetry env activate)`.
 
 ## Common Commands
 
 ### Backend (Python)
 ```bash
 # Format code (always run before lint)
-poetry run nox -s format
+poetry run -- nox -s format
 
 # Lint code
-poetry run nox -s lint
+poetry run -- nox -s lint
 
 # Run unit tests
-poetry run nox -s test-3.14
+poetry run -- nox -s test-3.14
 
-# Run a single test file
-poetry run nox -s test-3.14 -- tests/unit/test_specific.py
+# Run a single test file (note the second -- before the file path)
+poetry run -- nox -s test-3.14 -- tests/unit/test_specific.py
 
 # Run a single test function
-poetry run nox -s test-3.14 -- tests/unit/test_file.py::test_function_name
+poetry run -- nox -s test-3.14 -- tests/unit/test_file.py::test_function_name
 
 # Type checking
-poetry run nox -s type_check
+poetry run -- nox -s type_check
 
 # Integration tests (React + Flask with Playwright)
-poetry run nox -s test-integration
+poetry run -- nox -s test-integration
 
 # E2E tests (Flask-rendered pages with Playwright)
-poetry run nox -s test-e2e
+poetry run -- nox -s test-e2e
 ```
 
 ### Frontend (React/TypeScript)
