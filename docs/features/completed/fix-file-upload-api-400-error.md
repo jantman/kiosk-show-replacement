@@ -129,3 +129,34 @@ When `Content-Type: application/json` is set for a FormData body, the browser do
 4. Fallback path correctly handles FormData without setting incorrect Content-Type
 5. Console warning is logged when fallback is used for unmatched endpoints
 6. All nox sessions pass
+
+## Completion Status
+
+**COMPLETED** - 2026-01-18
+
+### Summary of Changes
+
+1. **Fixed array index bug** in `frontend/src/hooks/useApi.ts` - Changed `url.split('/')[3]` to `url.split('/')[4]` to correctly extract upload type from URL
+
+2. **Hardened fallback handler** in `frontend/src/hooks/useApi.ts`:
+   - Added FormData detection to avoid setting `Content-Type: application/json` for multipart requests
+   - Added `console.warn` in development mode when fallback is used for unmatched endpoints
+
+3. **Removed xfail markers** from integration tests in `tests/integration/test_slideshow_items.py`
+
+4. **Added mpeg/mpg support** to `ALLOWED_VIDEO_EXTENSIONS` in `kiosk_show_replacement/config/__init__.py` to support the test video asset
+
+### Commits
+
+- `FUAE-1.1`: Fix array index bug in useApi.ts upload routing
+- `FUAE-1.2/1.3`: Harden fallback handler with FormData support and warnings
+- `FUAE-1.4`: Remove xfail markers from file upload integration tests
+- `FUAE-2.1`: Fix Vite environment check in useApi.ts
+- `FUAE-2.2`: Add mpeg/mpg to allowed video extensions
+- `FUAE-2.3`: Apply code formatting from nox format session
+
+### Test Results
+
+- All 366 unit tests pass
+- All 64 integration tests pass (including both file upload tests)
+- All nox sessions (format, lint, test-3.14) pass
