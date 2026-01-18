@@ -31,7 +31,9 @@ try:
 except ImportError:
     # SSE not available, define no-op function
     def broadcast_display_update(
-        display: Display, event_type: str, data: Optional[Dict[str, Any]] = None
+        display: Display,
+        event_type: str,
+        additional_data: Optional[Dict[Any, Any]] = None,
     ) -> int:
         return 0
 

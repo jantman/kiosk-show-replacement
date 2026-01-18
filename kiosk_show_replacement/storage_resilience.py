@@ -167,7 +167,7 @@ class AtomicFileWriter:
         self.target_path = target_path
         self.mode = mode
         self.temp_path: Optional[Path] = None
-        self.file = None
+        self.file: Optional[IO[Any]] = None
 
     def __enter__(self) -> IO[Any]:
         """Create temporary file and return file handle."""
@@ -190,7 +190,7 @@ class AtomicFileWriter:
         exc_type: Optional[type[BaseException]],
         exc_val: Optional[BaseException],
         exc_tb: Optional[TracebackType],
-    ) -> bool:
+    ) -> None:
         """Finalize write or cleanup on error."""
         if self.file:
             self.file.close()
@@ -202,11 +202,12 @@ class AtomicFileWriter:
                     self.temp_path.unlink()
                 except Exception as e:
                     logger.warning(f"Failed to cleanup temp file {self.temp_path}: {e}")
-            return False  # Re-raise the exception
+            return  # Re-raise the exception
 
         # Success - atomically rename temp to target
         try:
-            self.temp_path.rename(self.target_path)
+            if self.temp_path:
+                self.temp_path.rename(self.target_path)
         except Exception as e:
             # Cleanup temp file on rename failure
             if self.temp_path and self.temp_path.exists():
@@ -220,8 +221,6 @@ class AtomicFileWriter:
                 operation="atomic_write",
                 file_path=str(self.target_path),
             )
-
-        return False
 
 
 def save_file_atomic(

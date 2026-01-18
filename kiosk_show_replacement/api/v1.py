@@ -1766,7 +1766,7 @@ def broadcast_test_event() -> Tuple[Response, int]:
 
 
 def broadcast_display_update(
-    display: Display, event_type: str, additional_data: dict = None
+    display: Display, event_type: str, additional_data: Optional[Dict[Any, Any]] = None
 ) -> int:
     """Broadcast display update event to all admin connections.
 
@@ -1787,7 +1787,9 @@ def broadcast_display_update(
 
 
 def broadcast_slideshow_update(
-    slideshow: Slideshow, event_type: str, additional_data: dict = None
+    slideshow: Slideshow,
+    event_type: str,
+    additional_data: Optional[Dict[Any, Any]] = None,
 ) -> int:
     """Broadcast slideshow update event to admin and display connections.
 

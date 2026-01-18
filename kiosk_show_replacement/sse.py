@@ -55,7 +55,8 @@ class SSEEvent:
 
         # Add timestamp to data
         event_data = dict(self.data)
-        event_data["timestamp"] = self.timestamp.isoformat()
+        if self.timestamp:
+            event_data["timestamp"] = self.timestamp.isoformat()
 
         data_json = json.dumps(event_data)
         lines.append(f"data: {data_json}")
@@ -91,6 +92,9 @@ class SSEConnection:
         self.event_queue: Queue[SSEEvent] = Queue()
         self.events_sent_count = 0  # Track events sent to this connection
         self.is_active = True
+        # Optional display info for display connections
+        self.display_name: Optional[str] = None
+        self.display_id: Optional[int] = None
 
     def add_event(self, event: SSEEvent) -> None:
         """Add event to connection queue."""
