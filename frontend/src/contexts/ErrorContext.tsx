@@ -55,6 +55,10 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({
 }) => {
   const [errors, setErrors] = useState<AppError[]>([]);
 
+  const removeError = useCallback((id: string): void => {
+    setErrors((prev) => prev.filter((error) => error.id !== id));
+  }, []);
+
   const addError = useCallback(
     (error: Omit<AppError, 'id' | 'timestamp'>): string => {
       const id = generateErrorId();
@@ -82,12 +86,8 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({
 
       return id;
     },
-    [maxErrors]
+    [maxErrors, removeError]
   );
-
-  const removeError = useCallback((id: string): void => {
-    setErrors((prev) => prev.filter((error) => error.id !== id));
-  }, []);
 
   const clearErrors = useCallback((): void => {
     setErrors([]);
