@@ -110,7 +110,14 @@ def type_check(session):
 def test(session):
     """Run unit tests with pytest."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock", "pytest-html")
+    session.install(
+        "pytest",
+        "pytest-blockage",
+        "pytest-cov",
+        "pytest-flask",
+        "pytest-html",
+        "pytest-mock",
+    )
 
     # Run tests with coverage
     session.run(
@@ -123,6 +130,7 @@ def test(session):
         "--durations=25",  # Show slowest 25 tests
         "--junitxml=reports/test_results.xml",  # JUnit XML report for CI
         "--html=reports/test.html",  # Generate HTML report
+        "--blockage",
         "-v",
         *session.posargs,
     )
