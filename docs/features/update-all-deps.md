@@ -79,7 +79,10 @@ Update all npm dependencies in the frontend directory.
 
 ## Progress
 
-- [ ] Milestone 1: Update Runtime Versions (Python 3.14, Node 25)
+- [x] Milestone 1: Update Runtime Versions (Python 3.14, Node 25) - COMPLETE
+  - Updated pyproject.toml, noxfile.py, Dockerfile, .python-version, frontend/package.json
+  - Updated Pillow from ^10.0.0 to ^12.0.0 for Python 3.14 compatibility
+  - All 364 unit tests passing
 - [ ] Milestone 2: Update Python Dependencies
 - [ ] Milestone 3: Update Frontend Dependencies
 - [ ] Milestone 4: GitHub Actions (N/A)
