@@ -15,6 +15,7 @@ import pytest
 from kiosk_show_replacement.models import (
     Display,
     DisplayConfigurationTemplate,
+    Slideshow,
     db,
 )
 
@@ -25,13 +26,22 @@ class TestDisplayArchive:
     def test_archive_display_sets_correct_fields(self, app, admin_user):
         """Test that archiving a display sets all correct fields."""
         with app.app_context():
-            # Create test display
+            # Create a slideshow to assign to the display
+            slideshow = Slideshow(
+                name="Test Slideshow",
+                owner_id=admin_user.id,
+                created_by_id=admin_user.id,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+
+            # Create test display with slideshow assigned
             display = Display(
                 name="Test Display",
                 description="Test display for archiving",
                 is_active=True,
                 is_archived=False,
-                current_slideshow_id=1,  # Has slideshow assigned
+                current_slideshow_id=slideshow.id,
                 owner_id=admin_user.id,
                 created_by_id=admin_user.id,
             )

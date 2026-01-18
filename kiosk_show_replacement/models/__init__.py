@@ -33,7 +33,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Mapped, backref, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..app import db
@@ -655,7 +655,9 @@ class AssignmentHistory(db.Model):
     __tablename__ = "assignment_history"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    display_id: Mapped[int] = mapped_column(Integer, ForeignKey("displays.id"))
+    display_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("displays.id", ondelete="CASCADE")
+    )
     previous_slideshow_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("slideshows.id")
     )
@@ -676,7 +678,11 @@ class AssignmentHistory(db.Model):
     )
 
     # Relationships
-    display: Mapped["Display"] = relationship("Display", backref="assignment_history")
+    # passive_deletes=True tells SQLAlchemy to let the database handle the CASCADE DELETE
+    # instead of trying to set display_id to NULL (which would fail the NOT NULL constraint)
+    display: Mapped["Display"] = relationship(
+        "Display", backref=backref("assignment_history", passive_deletes=True)
+    )
     previous_slideshow: Mapped[Optional["Slideshow"]] = relationship(
         "Slideshow",
         foreign_keys=[previous_slideshow_id],

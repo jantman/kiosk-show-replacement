@@ -12,7 +12,14 @@ Tests all REST API functionality including:
 import json
 from datetime import datetime, timezone
 
-from kiosk_show_replacement.models import Display, Slideshow, SlideshowItem, User, db
+from kiosk_show_replacement.models import (
+    AssignmentHistory,
+    Display,
+    Slideshow,
+    SlideshowItem,
+    User,
+    db,
+)
 
 
 class TestSlideshowAPI:
@@ -391,6 +398,60 @@ class TestDisplayAPI:
         # Verify display is deleted
         deleted_display = db.session.get(Display, display_id)
         assert deleted_display is None
+
+    def test_delete_display_with_assignment_history(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test that deleting a display cascades to delete assignment history.
+
+        This test verifies the fix for the bug where deleting a display with
+        assignment history records would fail with a foreign key constraint
+        violation (HTTP 500 error).
+        """
+        # Create a display
+        display = Display(name="test-display-history", owner_id=authenticated_user.id)
+        db.session.add(display)
+        db.session.commit()
+        display_id = display.id
+
+        # Create assignment history records for this display
+        history1 = AssignmentHistory(
+            display_id=display_id,
+            new_slideshow_id=sample_slideshow.id,
+            action="assign",
+            created_by_id=authenticated_user.id,
+        )
+        history2 = AssignmentHistory(
+            display_id=display_id,
+            previous_slideshow_id=sample_slideshow.id,
+            action="unassign",
+            created_by_id=authenticated_user.id,
+        )
+        db.session.add(history1)
+        db.session.add(history2)
+        db.session.commit()
+
+        history1_id = history1.id
+        history2_id = history2.id
+
+        # Verify assignment history exists
+        assert db.session.get(AssignmentHistory, history1_id) is not None
+        assert db.session.get(AssignmentHistory, history2_id) is not None
+
+        # Delete the display - this should succeed with CASCADE DELETE
+        response = client.delete(f"/api/v1/displays/{display_id}")
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+
+        # Verify display is deleted
+        deleted_display = db.session.get(Display, display_id)
+        assert deleted_display is None
+
+        # Verify assignment history is also deleted (CASCADE DELETE)
+        assert db.session.get(AssignmentHistory, history1_id) is None
+        assert db.session.get(AssignmentHistory, history2_id) is None
 
 
 class TestAPIAuthentication:

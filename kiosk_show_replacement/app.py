@@ -76,6 +76,20 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     migrate.init_app(app, db)
     CORS(app)
 
+    # Enable SQLite foreign key constraint enforcement
+    # SQLite requires this pragma to be set for each connection
+    # Without this, ON DELETE CASCADE and other FK constraints are ignored
+    if "sqlite" in app.config.get("SQLALCHEMY_DATABASE_URI", ""):
+        from sqlalchemy import event
+
+        def _set_sqlite_pragma(dbapi_conn: Any, connection_record: Any) -> None:
+            cursor = dbapi_conn.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+        with app.app_context():
+            event.listen(db.engine, "connect", _set_sqlite_pragma)
+
     # Initialize middleware (correlation IDs, request logging)
     from .middleware import init_middleware
 
