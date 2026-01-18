@@ -207,8 +207,9 @@ class StorageManager:
             upload_path = self.get_upload_path(content_dir, user_id, slideshow_id)
 
             # Generate secure filename
+            filename = file.filename or "unnamed"
             secure_name = self.generate_secure_filename(
-                file.filename, user_id, slideshow_id
+                filename, user_id, slideshow_id
             )
             file_path = upload_path / secure_name
 
@@ -359,16 +360,14 @@ class StorageManager:
         Returns:
             Dictionary with storage statistics
         """
-        stats = {
-            "total_size": 0,
-            "image_size": 0,
-            "video_size": 0,
-            "total_files": 0,
-            "image_files": 0,
-            "video_files": 0,
-            "users_with_files": set(),
-            "slideshows_with_files": set(),
-        }
+        total_size = 0
+        image_size = 0
+        video_size = 0
+        total_files = 0
+        image_files = 0
+        video_files = 0
+        users_with_files: set[str] = set()
+        slideshows_with_files: set[str] = set()
 
         try:
             for content_type in ["images", "videos"]:
@@ -379,34 +378,39 @@ class StorageManager:
                 for user_dir in content_path.iterdir():
                     if user_dir.is_dir():
                         user_id = user_dir.name
-                        stats["users_with_files"].add(user_id)
+                        users_with_files.add(user_id)
 
                         for slideshow_dir in user_dir.iterdir():
                             if slideshow_dir.is_dir():
                                 slideshow_id = slideshow_dir.name
-                                stats["slideshows_with_files"].add(slideshow_id)
+                                slideshows_with_files.add(slideshow_id)
 
                                 for file_path in slideshow_dir.iterdir():
                                     if file_path.is_file():
                                         file_size = file_path.stat().st_size
-                                        stats["total_size"] += file_size
-                                        stats["total_files"] += 1
+                                        total_size += file_size
+                                        total_files += 1
 
                                         if content_type == "images":
-                                            stats["image_size"] += file_size
-                                            stats["image_files"] += 1
+                                            image_size += file_size
+                                            image_files += 1
                                         else:
-                                            stats["video_size"] += file_size
-                                            stats["video_files"] += 1
-
-            # Convert sets to counts
-            stats["users_with_files"] = len(stats["users_with_files"])
-            stats["slideshows_with_files"] = len(stats["slideshows_with_files"])
+                                            video_size += file_size
+                                            video_files += 1
 
         except Exception as e:
             logger.error(f"Failed to calculate storage stats: {e}")
 
-        return stats
+        return {
+            "total_size": total_size,
+            "image_size": image_size,
+            "video_size": video_size,
+            "total_files": total_files,
+            "image_files": image_files,
+            "video_files": video_files,
+            "users_with_files": len(users_with_files),
+            "slideshows_with_files": len(slideshows_with_files),
+        }
 
 
 # Global storage manager instance
