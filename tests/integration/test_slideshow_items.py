@@ -33,10 +33,6 @@ ASSETS_DIR = Path(__file__).parent.parent / "assets"
 class TestSlideshowItems:
     """Test slideshow item management through the admin interface."""
 
-    @pytest.mark.xfail(
-        reason="Bug: Upload API returns 400 - needs investigation. "
-        "See tests/integration/test_slideshow_items.py for details."
-    )
     def test_add_image_item_via_file_upload(
         self,
         enhanced_page: Page,
@@ -46,13 +42,7 @@ class TestSlideshowItems:
     ):
         """Test adding an image item by uploading a file.
 
-        NOTE: This test currently fails because the file upload API returns 400.
-        Investigation needed to determine if this is:
-        1. A test issue with how Playwright handles file uploads
-        2. An application bug with how the form sends multipart data
-        3. A CORS or authentication issue with file uploads
-
-        The upload request is made (POST /api/v1/uploads/image) but returns 400.
+        Tests the image file upload flow through the admin interface.
         """
         page = enhanced_page
         vite_url = servers["vite_url"]
@@ -139,10 +129,6 @@ class TestSlideshowItems:
             page.locator("tr:has-text('Test Image URL') .badge:has-text('image')")
         ).to_be_visible()
 
-    @pytest.mark.xfail(
-        reason="Bug: Upload API returns 400 - needs investigation. "
-        "See test_add_image_item_via_file_upload for details."
-    )
     def test_add_video_item_via_file_upload(
         self,
         enhanced_page: Page,
@@ -152,7 +138,7 @@ class TestSlideshowItems:
     ):
         """Test adding a video item by uploading a file.
 
-        Same issue as test_add_image_item_via_file_upload.
+        Tests the video file upload flow through the admin interface.
         """
         page = enhanced_page
         vite_url = servers["vite_url"]
