@@ -96,13 +96,20 @@ Since SQLite doesn't support `ALTER TABLE` for foreign key constraints, we'll us
 - Added SQLite foreign key enforcement via `PRAGMA foreign_keys=ON` event listener in `app.py`
 - Fixed `test_display_lifecycle.py::test_archive_display_sets_correct_fields` to create a real slideshow (now required with foreign key enforcement)
 
-### Milestone 2: Acceptance Criteria (FDD-2)
+### Milestone 2: Acceptance Criteria (FDD-2) ✅ COMPLETE
 
-| Task | Description | Prefix |
-|------|-------------|--------|
-| 2.1  | Remove `@pytest.mark.xfail` from `test_delete_display_with_confirmation` | FDD-2.1 |
-| 2.2  | Run all nox sessions and verify all tests pass | FDD-2.2 |
-| 2.3  | Move feature document to `docs/features/completed/` | FDD-2.3 |
+| Task | Description | Prefix | Status |
+|------|-------------|--------|--------|
+| 2.1  | Remove `@pytest.mark.xfail` from `test_delete_display_with_confirmation` | FDD-2.1 | ✅ |
+| 2.2  | Run all nox sessions and verify all tests pass | FDD-2.2 | ✅ |
+| 2.3  | Move feature document to `docs/features/completed/` | FDD-2.3 | ✅ |
+
+**Test Results:**
+- Unit tests: 365 passed
+- Integration tests: 60 passed (4 xfailed for other issues)
+- E2E tests: 15 passed, 6 skipped
+- Type check: Success, no issues
+- Format/Lint: Passed
 
 ## Acceptance Criteria
 

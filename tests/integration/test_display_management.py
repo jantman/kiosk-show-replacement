@@ -481,11 +481,6 @@ class TestDisplayManagement:
                 f"/api/v1/displays/{display2_data['id']}", headers=auth_headers
             )
 
-    @pytest.mark.xfail(
-        reason="Bug: Delete display fails with 500 when display has assignment history. "
-        "The AssignmentHistory table has a foreign key to displays without CASCADE DELETE. "
-        "See docs/features/fix-display-delete-assignment-history-bug.md for details."
-    )
     def test_delete_display_with_confirmation(
         self,
         enhanced_page: Page,
