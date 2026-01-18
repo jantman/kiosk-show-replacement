@@ -83,7 +83,9 @@ Update all npm dependencies in the frontend directory.
   - Updated pyproject.toml, noxfile.py, Dockerfile, .python-version, frontend/package.json
   - Updated Pillow from ^10.0.0 to ^12.0.0 for Python 3.14 compatibility
   - All 364 unit tests passing
-- [ ] Milestone 2: Update Python Dependencies
+- [x] Milestone 2: Update Python Dependencies - COMPLETE
+  - Updated 46 packages via poetry update
+  - All 364 unit tests passing
 - [ ] Milestone 3: Update Frontend Dependencies
 - [ ] Milestone 4: GitHub Actions (N/A)
 - [ ] Milestone 5: Acceptance Criteria
