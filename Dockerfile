@@ -4,7 +4,7 @@
 # =============================================================================
 # Stage 1: Build frontend assets
 # =============================================================================
-FROM node:22-alpine AS frontend-build
+FROM node:25.3.0-alpine3.23 AS frontend-build
 
 WORKDIR /app/frontend
 
@@ -22,7 +22,7 @@ RUN npm run build -- --outDir ./dist
 # =============================================================================
 # Stage 2: Python runtime
 # =============================================================================
-FROM python:3.13-slim AS runtime
+FROM python:3.14.2-slim-trixie AS runtime
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -49,7 +49,7 @@ RUN groupadd --gid 1000 appgroup \
 WORKDIR /app
 
 # Install Poetry for dependency management
-RUN pip install poetry==1.8.4
+RUN pip install poetry==2.2.1
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock* ./
