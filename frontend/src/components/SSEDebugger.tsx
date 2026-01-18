@@ -72,7 +72,7 @@ export const SSEDebugger: React.FC = () => {
 
   // Auto-refresh functionality
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (autoRefresh) {
       interval = setInterval(fetchStats, 5000); // Refresh every 5 seconds
     }
