@@ -10,9 +10,9 @@ import os
 import nox
 
 # Python versions to test against
-PYTHON_VERSIONS = ["3.13"]
+PYTHON_VERSIONS = ["3.14"]
 # Default Python version for development tasks
-DEFAULT_PYTHON = "3.13"
+DEFAULT_PYTHON = "3.14"
 
 # Locations of source code
 PACKAGE_DIR = "kiosk_show_replacement"
