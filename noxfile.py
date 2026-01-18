@@ -121,7 +121,7 @@ def test(session):
         "--cov-report=html:htmlcov",
         "--cov-fail-under=30",
         "--durations=25",  # Show slowest 25 tests
-        "--durations-file=reports/durations_test.json",  # Save durations to file
+        "--junitxml=reports/test_results.xml",  # JUnit XML report for CI
         "--html=reports/test.html",  # Generate HTML report
         "-v",
         *session.posargs,
@@ -249,7 +249,7 @@ def test_integration(session):
         extra_args=[
             "--tb=short",
             "--durations=25",  # Show slowest 25 tests
-            "--durations-file=reports/durations_integration.json",  # Save durations to file
+            "--junitxml=reports/integration_results.xml",  # JUnit XML report for CI
             "--html=reports/integration.html"  # Generate HTML report
         ],  # Shorter traceback for better error visibility, allow cleanup
         enable_asyncio=True,  # Enable asyncio support for integration tests
@@ -274,7 +274,7 @@ def test_e2e(session):
         extra_args=[
             "--tb=short",  # Shorter traceback for better error visibility
             "--durations=25",  # Show slowest 25 tests
-            "--durations-file=reports/durations_e2e.json",  # Save durations to file
+            "--junitxml=reports/e2e_results.xml",  # JUnit XML report for CI
             "--html=reports/e2e.html"  # Generate HTML report
         ],
         enable_asyncio=True,  # Enable asyncio support for E2E tests
