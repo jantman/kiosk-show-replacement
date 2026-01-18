@@ -477,18 +477,20 @@ export function useNetworkStatus() {
 // Offline Banner Component - displays when network is unavailable
 export function OfflineBanner() {
   const { isOnline, wasOffline, clearWasOffline } = useNetworkStatus();
-  const [showReconnected, setShowReconnected] = useState(false);
+
+  // Derive showReconnected from network status instead of separate state
+  // This avoids synchronous setState in the effect
+  const showReconnected = isOnline && wasOffline;
 
   useEffect(() => {
-    if (isOnline && wasOffline) {
-      setShowReconnected(true);
+    if (showReconnected) {
+      // Start timer to hide the reconnected banner after 3 seconds
       const timer = setTimeout(() => {
-        setShowReconnected(false);
         clearWasOffline();
       }, 3000);
       return () => clearTimeout(timer);
     }
-  }, [isOnline, wasOffline, clearWasOffline]);
+  }, [showReconnected, clearWasOffline]);
 
   if (!isOnline) {
     return (
