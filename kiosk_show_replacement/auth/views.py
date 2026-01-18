@@ -12,7 +12,7 @@ is accepted, creating users dynamically as needed.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from flask import (
     Blueprint,
@@ -167,7 +167,7 @@ def _get_or_create_user(username: str, password: str) -> Optional[User]:
     """
     try:
         # Check if user already exists
-        user = User.query.filter_by(username=username).first()
+        user = cast(Optional[User], User.query.filter_by(username=username).first())
 
         if user:
             # For existing users, just update their password hash if needed
@@ -226,7 +226,7 @@ def _get_or_create_user(username: str, password: str) -> Optional[User]:
         )
 
         # Try to get the user that was created by another request
-        user = User.query.filter_by(username=username).first()
+        user = cast(Optional[User], User.query.filter_by(username=username).first())
         if user and user.check_password(password):
             return user
 

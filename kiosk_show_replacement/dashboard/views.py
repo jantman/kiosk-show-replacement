@@ -16,7 +16,7 @@ from flask import (
     render_template,
     url_for,
 )
-from flask.wrappers import Response
+from werkzeug.wrappers import Response
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
 

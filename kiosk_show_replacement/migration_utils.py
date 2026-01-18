@@ -96,33 +96,28 @@ class MigrationUtils:
             return False
 
     @staticmethod
-    def get_current_revision() -> Optional[str]:
+    def get_current_revision() -> None:
         """
-        Get the current migration revision.
+        Display the current migration revision to stdout.
 
-        Returns:
-            Current revision string or None if not available
+        Note: Flask-Migrate's current() prints to stdout and returns None.
         """
         try:
-            return current()
+            current()
         except Exception as e:
             current_app.logger.error(f"Error getting current revision: {e}")
-            return None
 
     @staticmethod
-    def show_migration_history() -> List[str]:
+    def show_migration_history() -> None:
         """
-        Show migration history.
+        Display migration history to stdout.
 
-        Returns:
-            List of migration history lines
+        Note: Flask-Migrate's show() prints to stdout and returns None.
         """
         try:
-            history = show()
-            return history.split("\n") if history else []
+            show()
         except Exception as e:
             current_app.logger.error(f"Error showing migration history: {e}")
-            return []
 
     @staticmethod
     def stamp_database(revision: str) -> bool:
@@ -154,19 +149,13 @@ def check_migration_status() -> dict:
         Dictionary containing migration status information
     """
     try:
-        current_rev = MigrationUtils.get_current_revision()
-        history = MigrationUtils.show_migration_history()
-
         # Check if migrations directory exists
         migrations_dir = os.path.join(current_app.root_path, "..", "migrations")
         migrations_exist = os.path.exists(migrations_dir)
 
         return {
-            "status": "healthy" if current_rev else "uninitialized",
-            "current_revision": current_rev,
+            "status": "initialized" if migrations_exist else "uninitialized",
             "migrations_directory_exists": migrations_exist,
-            "migration_history_count": len(history),
-            "migration_history": history[:10],  # Last 10 entries
         }
 
     except Exception as e:

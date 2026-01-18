@@ -94,6 +94,7 @@ def list_slideshows() -> Tuple[Response, int]:
 def create_slideshow() -> Tuple[Response, int]:
     """Create a new slideshow."""
     current_user = get_current_user()
+    assert current_user is not None  # Guaranteed by @api_auth_required
 
     data = request.get_json()
     if not data:
@@ -157,6 +158,7 @@ def get_slideshow_by_id(slideshow_id: int) -> Tuple[Response, int]:
 def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
     """Update a slideshow - all users can modify all slideshows."""
     current_user = get_current_user()
+    assert current_user is not None  # Guaranteed by @api_auth_required
 
     slideshow = db.session.get(Slideshow, slideshow_id)
     if not slideshow or not slideshow.is_active:
@@ -216,6 +218,7 @@ def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
 def delete_slideshow(slideshow_id: int) -> Tuple[Response, int]:
     """Delete a slideshow (soft delete) - all users can delete all slideshows."""
     current_user = get_current_user()
+    assert current_user is not None  # Guaranteed by @api_auth_required
 
     slideshow = db.session.get(Slideshow, slideshow_id)
     if not slideshow or not slideshow.is_active:
@@ -1447,18 +1450,18 @@ def upload_image() -> Tuple[Response, int]:
             return api_error("No file provided", 400)
 
         # Get slideshow_id
-        slideshow_id = request.form.get("slideshow_id")
-        if not slideshow_id:
+        slideshow_id_str = request.form.get("slideshow_id")
+        if not slideshow_id_str:
             return api_error("slideshow_id is required", 400)
 
         # Validate slideshow_id
         try:
-            slideshow_id = int(slideshow_id)
+            slideshow_id_int = int(slideshow_id_str)
         except ValueError:
             return api_error("Invalid slideshow_id", 400)
 
         # Check if slideshow exists
-        slideshow = db.session.get(Slideshow, slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id_int)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -1472,10 +1475,10 @@ def upload_image() -> Tuple[Response, int]:
 
         # Save file
         success, message, file_info = storage.save_file(
-            file, "image", current_user.id, slideshow_id
+            file, "image", current_user.id, slideshow_id_int
         )
 
-        if not success:
+        if not success or file_info is None:
             return api_error(message, 400)
 
         # Add URL to response
@@ -1511,18 +1514,18 @@ def upload_video() -> Tuple[Response, int]:
             return api_error("No file provided", 400)
 
         # Get slideshow_id
-        slideshow_id = request.form.get("slideshow_id")
-        if not slideshow_id:
+        slideshow_id_str = request.form.get("slideshow_id")
+        if not slideshow_id_str:
             return api_error("slideshow_id is required", 400)
 
         # Validate slideshow_id
         try:
-            slideshow_id = int(slideshow_id)
+            slideshow_id_int = int(slideshow_id_str)
         except ValueError:
             return api_error("Invalid slideshow_id", 400)
 
         # Check if slideshow exists
-        slideshow = db.session.get(Slideshow, slideshow_id)
+        slideshow = db.session.get(Slideshow, slideshow_id_int)
         if not slideshow or not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
@@ -1536,10 +1539,10 @@ def upload_video() -> Tuple[Response, int]:
 
         # Save file
         success, message, file_info = storage.save_file(
-            file, "video", current_user.id, slideshow_id
+            file, "video", current_user.id, slideshow_id_int
         )
 
-        if not success:
+        if not success or file_info is None:
             return api_error(message, 400)
 
         # Add URL to response
@@ -1873,6 +1876,8 @@ def update_display_heartbeat(display_id: int) -> Tuple[Response, int]:
         resolution = data.get("resolution")
         if resolution:
             # Handle both string format "1920x1080" and dict format
+            width: Optional[Any] = None
+            height: Optional[Any] = None
             if isinstance(resolution, str) and "x" in resolution:
                 width_str, height_str = resolution.split("x", 1)
                 width, height = int(width_str), int(height_str)

@@ -12,16 +12,16 @@ Designed for reliability on kiosk hardware with minimal JavaScript dependencies.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from flask import (
     Blueprint,
-    Response,
     current_app,
     jsonify,
     render_template,
     request,
 )
+from werkzeug.wrappers import Response
 
 from ..models import Display, Slideshow, SlideshowItem, db
 
@@ -133,7 +133,7 @@ def display_interface(display_name: str) -> Union[str, Response]:
 
 
 @display_bp.route("/<string:display_name>/heartbeat", methods=["POST"])
-def update_heartbeat(display_name: str) -> Response:
+def update_heartbeat(display_name: str) -> Union[Response, Tuple[Response, int]]:
     """
     Update display heartbeat and resolution information.
 
@@ -240,7 +240,7 @@ def update_heartbeat(display_name: str) -> Response:
 
 
 @display_bp.route("/<string:display_name>/status")
-def display_status(display_name: str) -> Response:
+def display_status(display_name: str) -> Union[Response, Tuple[Response, int]]:
     """Get current display status and configuration."""
     display = Display.query.filter_by(name=display_name).first()
 
@@ -268,7 +268,7 @@ def display_status(display_name: str) -> Response:
 
 
 @display_bp.route("/<string:display_name>/slideshow/current")
-def current_slideshow(display_name: str) -> Response:
+def current_slideshow(display_name: str) -> Union[Response, Tuple[Response, int]]:
     """Get current slideshow data for a display (for AJAX updates)."""
     display = Display.query.filter_by(name=display_name).first()
 
@@ -299,7 +299,7 @@ def current_slideshow(display_name: str) -> Response:
 
 
 @display_bp.route("/<string:display_name>/assign/<int:slideshow_id>", methods=["POST"])
-def assign_slideshow(display_name: str, slideshow_id: int) -> Response:
+def assign_slideshow(display_name: str, slideshow_id: int) -> Union[Response, Tuple[Response, int]]:
     """Assign a slideshow to a display."""
     try:
         display = get_or_create_display(display_name)
@@ -456,7 +456,7 @@ def get_or_create_display(display_name: str) -> Display:
 
     Implements display auto-registration on first connection as per Milestone 4.
     """
-    display = Display.query.filter_by(name=display_name).first()
+    display = cast(Optional[Display], Display.query.filter_by(name=display_name).first())
 
     if not display:
         # Auto-register new display
@@ -502,14 +502,14 @@ def get_display_slideshow(display: Display) -> Optional[Slideshow]:
     """
     # Check for specific assignment
     if display.current_slideshow_id:
-        slideshow = db.session.get(Slideshow, display.current_slideshow_id)
+        slideshow = cast(Optional[Slideshow], db.session.get(Slideshow, display.current_slideshow_id))
         if slideshow and slideshow.is_active:
             return slideshow
 
     # Fall back to default slideshow
-    default_slideshow = Slideshow.query.filter_by(
+    default_slideshow = cast(Optional[Slideshow], Slideshow.query.filter_by(
         is_default=True, is_active=True
-    ).first()
+    ).first())
     if default_slideshow:
         # Auto-assign default slideshow to display
         display.current_slideshow_id = default_slideshow.id
@@ -533,13 +533,13 @@ def get_display_slideshow(display: Display) -> Optional[Slideshow]:
 
 def get_slideshow_items(slideshow_id: int) -> list[SlideshowItem]:
     """Get active slideshow items in order."""
-    return (
+    return cast(list[SlideshowItem], (
         SlideshowItem.query.filter_by(slideshow_id=slideshow_id, is_active=True)
         .order_by(SlideshowItem.order_index)
         .all()
-    )
+    ))
 
 
 def get_available_slideshows() -> list[Slideshow]:
     """Get all available active slideshows for display assignment."""
-    return Slideshow.query.filter_by(is_active=True).order_by(Slideshow.name).all()
+    return cast(list[Slideshow], Slideshow.query.filter_by(is_active=True).order_by(Slideshow.name).all())

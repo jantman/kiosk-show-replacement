@@ -11,7 +11,7 @@ This module provides utility functions for database operations including:
 import os
 import sqlite3
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 from flask import current_app
 from sqlalchemy import text
@@ -115,7 +115,7 @@ class DatabaseUtils:
         """
         try:
             # Check if user already exists
-            existing_user = User.query.filter_by(username=username).first()
+            existing_user = cast(Optional[User], User.query.filter_by(username=username).first())
             if existing_user:
                 current_app.logger.warning(f"Admin user '{username}' already exists")
                 return existing_user
@@ -298,14 +298,14 @@ class QueryHelpers:
         """Get all active slideshows. Global access - user param unused."""
         query = Slideshow.query.filter_by(is_active=True)
         # Note: user parameter maintained for API compatibility but not used
-        return query.order_by(Slideshow.name).all()
+        return cast(List[Slideshow], query.order_by(Slideshow.name).all())
 
     @staticmethod
     def get_default_slideshow(user: Optional[User] = None) -> Optional[Slideshow]:
         """Get the default slideshow. Global access - user param unused."""
         query = Slideshow.query.filter_by(is_default=True, is_active=True)
         # Note: user parameter maintained for API compatibility but not used
-        return query.first()
+        return cast(Optional[Slideshow], query.first())
 
     @staticmethod
     def get_online_displays(user: Optional[User] = None) -> List[Display]:
@@ -313,7 +313,7 @@ class QueryHelpers:
         query = Display.query.filter_by(is_active=True)
         # Note: user parameter maintained for API compatibility but not used
 
-        displays = query.all()
+        displays = cast(List[Display], query.all())
         return [d for d in displays if d.is_online]
 
     @staticmethod
@@ -321,7 +321,7 @@ class QueryHelpers:
         """Get displays without slideshow. Global access - user param unused."""
         query = Display.query.filter_by(is_active=True, current_slideshow_id=None)
         # Note: user parameter maintained for API compatibility but not used
-        return query.all()
+        return cast(List[Display], query.all())
 
     @staticmethod
     def get_slideshow_with_items(
@@ -331,7 +331,7 @@ class QueryHelpers:
         query = Slideshow.query.filter_by(id=slideshow_id)
         # Note: user parameter maintained for API compatibility but not used
 
-        slideshow = query.first()
+        slideshow = cast(Optional[Slideshow], query.first())
         if slideshow:
             # Ensure items are loaded
             slideshow.items
@@ -351,7 +351,7 @@ class QueryHelpers:
             & (Slideshow.is_active.is_(True))
         )
         # Note: user parameter maintained for API compatibility but not used
-        return query.order_by(Slideshow.name).all()
+        return cast(List[Slideshow], query.order_by(Slideshow.name).all())
 
     @staticmethod
     def get_user_statistics(user: User) -> Dict[str, int]:

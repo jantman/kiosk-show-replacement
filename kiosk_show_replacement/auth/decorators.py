@@ -9,7 +9,7 @@ This module provides decorators and utilities for:
 """
 
 from functools import wraps
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, cast
 
 from flask import current_app, g, redirect, request, session, url_for
 
@@ -109,7 +109,7 @@ def get_current_user() -> Optional[User]:
     if not hasattr(g, "current_user"):
         g.current_user = db.session.get(User, user_id)
 
-    return g.current_user
+    return cast(Optional[User], g.current_user)
 
 
 def get_current_user_id() -> Optional[int]:

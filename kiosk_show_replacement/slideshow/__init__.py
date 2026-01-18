@@ -19,7 +19,6 @@ from typing import Union
 
 from flask import (
     Blueprint,
-    Response,
     flash,
     g,
     redirect,
@@ -27,6 +26,7 @@ from flask import (
     request,
     url_for,
 )
+from werkzeug.wrappers import Response
 
 from ..app import db
 from ..auth.decorators import get_current_user
