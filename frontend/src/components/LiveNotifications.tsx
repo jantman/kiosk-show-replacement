@@ -1,22 +1,11 @@
 /**
- * LiveNotifications - R    notifications.push(
-      addEventListener('display.status_changed', (event) => {
-        const data = event.data as any;
-        const isOnline = data.is_online;
-        
-        addNotification({
-          title: 'Display Status',
-          message: `${data.display_name} is now ${isOnline ? 'online' : 'offline'}`,
-          variant: isOnline ? 'success' : 'warning'
-        });
-      })
-    );ification component using SSE
- * 
+ * LiveNotifications - Real-time notification component using SSE
+ *
  * Displays toast notifications for real-time events like display status changes,
  * slideshow updates, and assignment modifications.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Toast, ToastContainer } from 'react-bootstrap';
 import { useSSEContext, DisplayEventData, SlideshowEventData } from '../hooks/useSSE.tsx';
 
@@ -32,6 +21,29 @@ interface Notification {
 const LiveNotifications: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { addEventListener } = useSSEContext();
+
+  const addNotification = useCallback((notification: Omit<Notification, 'id' | 'timestamp' | 'show'>) => {
+    const newNotification: Notification = {
+      ...notification,
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      timestamp: new Date(),
+      show: true
+    };
+
+    setNotifications(prev => [newNotification, ...prev.slice(0, 4)]); // Keep only last 5 notifications
+
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev =>
+        prev.map(n => n.id === newNotification.id ? { ...n, show: false } : n)
+      );
+    }, 5000);
+
+    // Completely remove after 6 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+    }, 6000);
+  }, []);
 
   useEffect(() => {
     const eventHandlers: Array<() => void> = [];
@@ -122,30 +134,7 @@ const LiveNotifications: React.FC = () => {
     return () => {
       eventHandlers.forEach(cleanup => cleanup());
     };
-  }, [addEventListener]);
-
-  const addNotification = (notification: Omit<Notification, 'id' | 'timestamp' | 'show'>) => {
-    const newNotification: Notification = {
-      ...notification,
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
-      timestamp: new Date(),
-      show: true
-    };
-
-    setNotifications(prev => [newNotification, ...prev.slice(0, 4)]); // Keep only last 5 notifications
-
-    // Auto-hide after 5 seconds
-    setTimeout(() => {
-      setNotifications(prev => 
-        prev.map(n => n.id === newNotification.id ? { ...n, show: false } : n)
-      );
-    }, 5000);
-
-    // Completely remove after 6 seconds
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
-    }, 6000);
-  };
+  }, [addEventListener, addNotification]);
 
   const dismissNotification = (id: string) => {
     setNotifications(prev => 
