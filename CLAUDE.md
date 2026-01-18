@@ -8,40 +8,35 @@ Kiosk Show Replacement is a self-hosted digital signage solution with a Flask ba
 
 ## Development Environment
 
-**Critical**: Activate the Poetry environment once per terminal session before running any commands:
-```bash
-eval $(poetry env activate)
-```
-
-After activation, all commands can be run without the `poetry run` prefix.
+Use `poetry run` prefix to run commands in the Poetry environment. Do not use `eval $(poetry env activate)`.
 
 ## Common Commands
 
 ### Backend (Python)
 ```bash
 # Format code (always run before lint)
-nox -s format
+poetry run nox -s format
 
 # Lint code
-nox -s lint
+poetry run nox -s lint
 
 # Run unit tests
-nox -s test-3.14
+poetry run nox -s test-3.14
 
 # Run a single test file
-nox -s test-3.14 -- tests/unit/test_specific.py
+poetry run nox -s test-3.14 -- tests/unit/test_specific.py
 
 # Run a single test function
-nox -s test-3.14 -- tests/unit/test_file.py::test_function_name
+poetry run nox -s test-3.14 -- tests/unit/test_file.py::test_function_name
 
 # Type checking
-nox -s type_check
+poetry run nox -s type_check
 
 # Integration tests (React + Flask with Playwright)
-nox -s test-integration
+poetry run nox -s test-integration
 
 # E2E tests (Flask-rendered pages with Playwright)
-nox -s test-e2e
+poetry run nox -s test-e2e
 ```
 
 ### Frontend (React/TypeScript)
@@ -68,18 +63,15 @@ npm run lint
 
 #### First-time Setup
 ```bash
-# Activate Poetry environment
-eval $(poetry env activate)
-
 # Initialize the database (creates SQLite DB and admin user)
-flask cli init-db
+poetry run flask cli init-db
 # Default admin credentials: admin / admin (change in production!)
 ```
 
 #### Starting the Application
 ```bash
 # Start Flask backend (serves at http://localhost:5000)
-python run.py
+poetry run python run.py
 
 # The React admin interface is available at http://localhost:5000/admin/
 # It uses the pre-built frontend from kiosk_show_replacement/static/dist/
@@ -89,7 +81,7 @@ python run.py
 If you're actively developing the React frontend:
 ```bash
 # Terminal 1: Start Flask backend
-python run.py
+poetry run python run.py
 
 # Terminal 2: Start Vite dev server with hot reload
 cd frontend && npm run dev
