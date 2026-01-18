@@ -202,7 +202,7 @@ export const SSEDebugger: React.FC = () => {
               </div>
 
               {/* Active Connections Table */}
-              {stats.connections.length > 0 ? (
+              {(stats.connections?.length ?? 0) > 0 ? (
                 <Table striped hover responsive>
                   <thead>
                     <tr>
