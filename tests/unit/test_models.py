@@ -9,28 +9,12 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from kiosk_show_replacement import create_app, db
+from kiosk_show_replacement import db
 from kiosk_show_replacement.models import Display, Slideshow, SlideshowItem, User
 
 
-@pytest.fixture
-def app():
-    """Create application for testing."""
-    app = create_app()
-    app.config["TESTING"] = True
-    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
-    app.config["WTF_CSRF_ENABLED"] = False
-
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    """Create test client."""
-    return app.test_client()
+# Note: app and client fixtures are provided by tests/conftest.py
+# with proper database cleanup (db.engine.dispose(), db.session.remove())
 
 
 @pytest.fixture

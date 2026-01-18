@@ -3,6 +3,10 @@ Test configuration and fixtures for kiosk-show-replacement.
 
 This module provides common test fixtures and configuration
 for unit, integration, and end-to-end tests.
+
+Performance optimization: The app fixture is session-scoped to avoid
+recreating the Flask app and database schema for each test. Instead,
+the clean_test_data fixture truncates tables between tests.
 """
 
 import pytest
@@ -12,12 +16,17 @@ from kiosk_show_replacement.app import create_app, db
 from kiosk_show_replacement.models import SlideItem, Slideshow
 
 
-@pytest.fixture
-def app(tmp_path):
-    """Create application for testing."""
+@pytest.fixture(scope="session")
+def app(tmp_path_factory):
+    """Create application for testing (session-scoped for performance).
+
+    The app and database schema are created once per test session.
+    Data cleanup between tests is handled by the clean_test_data fixture.
+    """
     app = create_app()
 
     # Use pytest's temporary directory for the database file
+    tmp_path = tmp_path_factory.mktemp("test_db")
     db_file = tmp_path / "test.db"
 
     app.config.update(
@@ -39,27 +48,20 @@ def app(tmp_path):
         }
     )
 
+    # Create tables once at session start
     with app.app_context():
         db.create_all()
-        yield app
 
-        # Comprehensive cleanup to prevent ResourceWarnings
+    yield app
+
+    # Comprehensive cleanup at end of test session
+    with app.app_context():
         try:
-            # First, close any active transactions
             db.session.rollback()
-
-            # Close all active sessions
             db.session.close()
             db.session.remove()
-
-            # Drop all tables
             db.drop_all()
-
-            # Dispose of the engine completely - this should close all connections
             db.engine.dispose()
-
-            # pytest will automatically clean up tmp_path, no manual file deletion
-
         except Exception:
             pass
 
@@ -337,28 +339,47 @@ def test_factory():
 
 
 @pytest.fixture(autouse=True)
-def cleanup_db_session(app):
-    """Automatically cleanup database sessions after each test."""
+def clean_test_data(app):
+    """Clean up test data between tests to ensure isolation.
+
+    This fixture runs automatically before and after each test.
+    It truncates all tables (much faster than drop/create) while
+    preserving the schema.
+    """
+    from kiosk_show_replacement.models import (
+        AssignmentHistory,
+        Display,
+        DisplayConfigurationTemplate,
+        Slideshow,
+        SlideshowItem,
+        User,
+    )
+
+    def _clean_all_tables():
+        """Delete all data from tables in correct order (respecting FK constraints)."""
+        # Delete in order to respect foreign key constraints
+        # Children first, then parents
+        # Note: Display has current_slideshow_id FK, so delete Display before Slideshow
+        db.session.query(AssignmentHistory).delete()
+        db.session.query(SlideshowItem).delete()
+        db.session.query(Display).delete()  # Has FK to Slideshow via current_slideshow_id
+        db.session.query(Slideshow).delete()
+        db.session.query(DisplayConfigurationTemplate).delete()
+        db.session.query(User).delete()
+        db.session.commit()
+
+    # Clean before test to ensure clean state
+    with app.app_context():
+        _clean_all_tables()
+
     yield  # Run the test
 
-    # Clean up after each test to prevent connection leaks
+    # Clean after test and reset session state
     with app.app_context():
+        _clean_all_tables()
         try:
-            # Close and remove any open sessions - this should be sufficient
             db.session.rollback()
             db.session.close()
             db.session.remove()
-
-            # Dispose of the engine to close all connections
-            db.engine.dispose()
-
         except Exception:
             pass
-
-
-@pytest.fixture(scope="session", autouse=True)
-def configure_sqlalchemy_session():
-    """Configure SQLAlchemy for better connection management in tests."""
-    yield
-    # Session cleanup is handled by individual test cleanup
-    # Python's automatic garbage collection will handle the rest
