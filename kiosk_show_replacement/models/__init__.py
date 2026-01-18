@@ -22,11 +22,10 @@ __all__ = [
 ]
 
 from datetime import datetime, timezone
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 
 from sqlalchemy import (
     Boolean,
-    Column,
     DateTime,
     ForeignKey,
     Integer,
@@ -34,10 +33,13 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
-from sqlalchemy.orm import relationship, validates
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from ..app import db
+
+if TYPE_CHECKING:
+    pass  # Forward references for type checking
 
 
 class User(db.Model):
@@ -45,39 +47,46 @@ class User(db.Model):
 
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(80), unique=True, nullable=False, index=True)
-    email = Column(String(120), unique=True, nullable=True, index=True)
-    password_hash = Column(String(128), nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_admin = Column(Boolean, default=False, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(80), unique=True, index=True)
+    email: Mapped[Optional[str]] = mapped_column(String(120), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(128))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_admin: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Audit fields
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
     )
-    last_login_at = Column(DateTime, nullable=True)
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
+    updated_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Self-referential relationships for audit tracking
-    created_by = relationship("User", remote_side=[id], foreign_keys=[created_by_id])
-    updated_by = relationship("User", remote_side=[id], foreign_keys=[updated_by_id])
+    created_by: Mapped[Optional["User"]] = relationship(
+        "User", remote_side="User.id", foreign_keys=[created_by_id]
+    )
+    updated_by: Mapped[Optional["User"]] = relationship(
+        "User", remote_side="User.id", foreign_keys=[updated_by_id]
+    )
 
     # Relationships to owned entities
-    slideshows = relationship(
+    slideshows: Mapped[List["Slideshow"]] = relationship(
         "Slideshow",
         back_populates="owner",
         foreign_keys="Slideshow.owner_id",
         cascade="all, delete-orphan",
     )
-    displays = relationship(
+    displays: Mapped[List["Display"]] = relationship(
         "Display",
         back_populates="owner",
         foreign_keys="Display.owner_id",
@@ -142,45 +151,66 @@ class Display(db.Model):
 
     __tablename__ = "displays"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    resolution_width = Column(Integer, nullable=True)
-    resolution_height = Column(Integer, nullable=True)
-    rotation = Column(Integer, default=0, nullable=False)  # 0, 90, 180, or 270 degrees
-    location = Column(String(200), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_archived = Column(Boolean, default=False, nullable=False)
-    archived_at = Column(DateTime, nullable=True)
-    archived_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    resolution_width: Mapped[Optional[int]] = mapped_column(Integer)
+    resolution_height: Mapped[Optional[int]] = mapped_column(Integer)
+    rotation: Mapped[int] = mapped_column(
+        Integer, default=0
+    )  # 0, 90, 180, or 270 degrees
+    location: Mapped[Optional[str]] = mapped_column(String(200))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    archived_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Connection tracking
-    last_seen_at = Column(DateTime, nullable=True)
-    heartbeat_interval = Column(Integer, default=60, nullable=False)  # seconds
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    heartbeat_interval: Mapped[int] = mapped_column(
+        Integer, default=60
+    )  # seconds
 
     # Ownership and audit fields (nullable for auto-registered displays)
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    owner_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
     )
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
+    updated_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Current slideshow assignment
-    current_slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=True)
+    current_slideshow_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("slideshows.id")
+    )
 
     # Relationships
-    owner = relationship("User", back_populates="displays", foreign_keys=[owner_id])
-    created_by = relationship("User", foreign_keys=[created_by_id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id])
-    archived_by = relationship("User", foreign_keys=[archived_by_id])
-    current_slideshow = relationship("Slideshow", foreign_keys=[current_slideshow_id])
+    owner: Mapped[Optional["User"]] = relationship(
+        "User", back_populates="displays", foreign_keys=[owner_id]
+    )
+    created_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[created_by_id]
+    )
+    updated_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[updated_by_id]
+    )
+    archived_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[archived_by_id]
+    )
+    current_slideshow: Mapped[Optional["Slideshow"]] = relationship(
+        "Slideshow", foreign_keys=[current_slideshow_id]
+    )
 
     # Unique constraint: display names must be globally unique
     # (since owner_id can be NULL for auto-registered displays)
@@ -335,35 +365,46 @@ class Slideshow(db.Model):
 
     __tablename__ = "slideshows"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, index=True)
-    description = Column(Text, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_default = Column(Boolean, default=False, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # Display settings
-    default_item_duration = Column(Integer, default=30, nullable=False)  # seconds
-    transition_type = Column(String(50), default="fade", nullable=False)
+    default_item_duration: Mapped[int] = mapped_column(
+        Integer, default=30
+    )  # seconds
+    transition_type: Mapped[str] = mapped_column(String(50), default="fade")
 
     # Ownership and audit fields
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
     )
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
+    updated_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Relationships
-    owner = relationship("User", back_populates="slideshows", foreign_keys=[owner_id])
-    created_by = relationship("User", foreign_keys=[created_by_id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id])
-    items = relationship(
+    owner: Mapped["User"] = relationship(
+        "User", back_populates="slideshows", foreign_keys=[owner_id]
+    )
+    created_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[created_by_id]
+    )
+    updated_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[updated_by_id]
+    )
+    items: Mapped[List["SlideshowItem"]] = relationship(
         "SlideshowItem",
         back_populates="slideshow",
         cascade="all, delete-orphan",
@@ -462,46 +503,57 @@ class SlideshowItem(db.Model):
 
     __tablename__ = "slideshow_items"
 
-    id = Column(Integer, primary_key=True)
-    slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    slideshow_id: Mapped[int] = mapped_column(Integer, ForeignKey("slideshows.id"))
 
     # Content identification
-    title = Column(String(200), nullable=True)
-    content_type = Column(String(50), nullable=False)  # 'image', 'video', 'url', 'text'
+    title: Mapped[Optional[str]] = mapped_column(String(200))
+    content_type: Mapped[str] = mapped_column(
+        String(50)
+    )  # 'image', 'video', 'url', 'text'
 
     # Content sources (only one should be populated based on content_type)
-    content_url = Column(
-        String(500), nullable=True
+    content_url: Mapped[Optional[str]] = mapped_column(
+        String(500)
     )  # URL for images, videos, or web content
-    content_text = Column(Text, nullable=True)  # Text content for text slides
-    content_file_path = Column(
-        String(500), nullable=True
+    content_text: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Text content for text slides
+    content_file_path: Mapped[Optional[str]] = mapped_column(
+        String(500)
     )  # Local file path for uploaded content
 
     # Display settings
-    display_duration = Column(
-        Integer, nullable=True
+    display_duration: Mapped[Optional[int]] = mapped_column(
+        Integer
     )  # Duration in seconds, NULL uses slideshow default
-    order_index = Column(Integer, default=0, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    order_index: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Audit fields
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
     )
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
+    updated_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Relationships
-    slideshow = relationship("Slideshow", back_populates="items")
-    created_by = relationship("User", foreign_keys=[created_by_id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id])
+    slideshow: Mapped["Slideshow"] = relationship("Slideshow", back_populates="items")
+    created_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[created_by_id]
+    )
+    updated_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[updated_by_id]
+    )
 
     def __repr__(self) -> str:
         return f"<SlideshowItem {self.title or self.content_type}>"
@@ -606,30 +658,42 @@ class AssignmentHistory(db.Model):
 
     __tablename__ = "assignment_history"
 
-    id = Column(Integer, primary_key=True)
-    display_id = Column(Integer, ForeignKey("displays.id"), nullable=False)
-    previous_slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=True)
-    new_slideshow_id = Column(Integer, ForeignKey("slideshows.id"), nullable=True)
-    action = Column(String(50), nullable=False)  # 'assign', 'unassign', 'change'
-    reason = Column(Text, nullable=True)  # Optional reason for the change
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    display_id: Mapped[int] = mapped_column(Integer, ForeignKey("displays.id"))
+    previous_slideshow_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("slideshows.id")
+    )
+    new_slideshow_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("slideshows.id")
+    )
+    action: Mapped[str] = mapped_column(
+        String(50)
+    )  # 'assign', 'unassign', 'change'
+    reason: Mapped[Optional[str]] = mapped_column(
+        Text
+    )  # Optional reason for the change
 
     # Audit fields
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Relationships
-    display = relationship("Display", backref="assignment_history")
-    previous_slideshow = relationship(
+    display: Mapped["Display"] = relationship("Display", backref="assignment_history")
+    previous_slideshow: Mapped[Optional["Slideshow"]] = relationship(
         "Slideshow",
         foreign_keys=[previous_slideshow_id],
         backref="previous_assignments",
     )
-    new_slideshow = relationship(
+    new_slideshow: Mapped[Optional["Slideshow"]] = relationship(
         "Slideshow", foreign_keys=[new_slideshow_id], backref="new_assignments"
     )
-    created_by = relationship("User", foreign_keys=[created_by_id])
+    created_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[created_by_id]
+    )
 
     def __repr__(self) -> str:
         return f"<AssignmentHistory {self.display_id}: {self.action}>"
@@ -705,39 +769,42 @@ class DisplayConfigurationTemplate(db.Model):
 
     __tablename__ = "display_configuration_templates"
 
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False, index=True)
-    description = Column(Text, nullable=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(100), index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text)
 
     # Configuration fields
-    template_resolution_width = Column(Integer, nullable=True)
-    template_resolution_height = Column(Integer, nullable=True)
-    template_rotation = Column(Integer, default=0, nullable=False)
-    template_heartbeat_interval = Column(Integer, default=60, nullable=False)
-    template_location = Column(String(200), nullable=True)
+    template_resolution_width: Mapped[Optional[int]] = mapped_column(Integer)
+    template_resolution_height: Mapped[Optional[int]] = mapped_column(Integer)
+    template_rotation: Mapped[int] = mapped_column(Integer, default=0)
+    template_heartbeat_interval: Mapped[int] = mapped_column(Integer, default=60)
+    template_location: Mapped[Optional[str]] = mapped_column(String(200))
 
     # Template metadata
-    is_default = Column(Boolean, default=False, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Ownership and audit fields
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(
-        DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    owner_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
     )
-    updated_at = Column(
+    updated_at: Mapped[datetime] = mapped_column(
         DateTime,
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
-        nullable=False,
     )
-    created_by_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    updated_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    updated_by_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("users.id")
+    )
 
     # Relationships
-    owner = relationship("User", foreign_keys=[owner_id])
-    created_by = relationship("User", foreign_keys=[created_by_id])
-    updated_by = relationship("User", foreign_keys=[updated_by_id])
+    owner: Mapped["User"] = relationship("User", foreign_keys=[owner_id])
+    created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id])
+    updated_by: Mapped[Optional["User"]] = relationship(
+        "User", foreign_keys=[updated_by_id]
+    )
 
     # Unique constraint: template names must be unique per owner
     __table_args__ = (
