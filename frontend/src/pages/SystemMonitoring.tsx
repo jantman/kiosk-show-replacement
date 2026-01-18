@@ -1,18 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Container, Row, Col, Card, Alert, Spinner, Tabs, Tab } from 'react-bootstrap';
 import SSEDebugger from '../components/SSEDebugger';
 import EnhancedDisplayStatus from '../components/EnhancedDisplayStatus';
 import LiveDataIndicator from '../components/LiveDataIndicator';
 
 const SystemMonitoring: React.FC = () => {
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('sse');
 
-  useEffect(() => {
-    // Initialize page
-    setLoading(false);
-  }, []);
+  // No async loading needed - page renders immediately
+  const loading = false;
 
   if (loading) {
     return (
