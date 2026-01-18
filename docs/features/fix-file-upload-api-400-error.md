@@ -1,5 +1,7 @@
 # Fix File Upload API 400 Error
 
+You must read, understand, and follow all instructions in `./README.md` when planning and implementing this feature.
+
 ## Overview
 
 When uploading files (images or videos) through the React admin interface, the upload API endpoints (`/api/v1/uploads/image` and `/api/v1/uploads/video`) return a 400 Bad Request error.

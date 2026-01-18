@@ -1,5 +1,7 @@
 # Fix Display assigned_slideshow API Bug
 
+You must read, understand, and follow all instructions in `./README.md` when planning and implementing this feature.
+
 ## Overview
 
 The Display Detail page's Quick Assignment section doesn't work correctly because the Display API doesn't return the `assigned_slideshow` object that the frontend expects.

@@ -1,5 +1,7 @@
 # Fix Display Delete with Assignment History Bug
 
+You must read, understand, and follow all instructions in `./README.md` when planning and implementing this feature.
+
 ## Overview
 
 When deleting a display through the admin interface, the delete API returns a 500 Internal Server Error with a SQLAlchemy ProgrammingError when the display has associated assignment history records.

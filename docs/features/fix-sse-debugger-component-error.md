@@ -1,5 +1,7 @@
 # Fix SSEDebugger Component Runtime Error
 
+You must read, understand, and follow all instructions in `./README.md` when planning and implementing this feature.
+
 ## Overview
 
 The System Monitoring page (`/admin/monitoring`) fails to load because the SSEDebugger component has a runtime error that is caught by the ErrorBoundary.

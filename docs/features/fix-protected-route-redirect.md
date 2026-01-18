@@ -1,5 +1,7 @@
 # Fix ProtectedRoute Login Redirect Path
 
+You must read, understand, and follow all instructions in `./README.md` when planning and implementing this feature.
+
 ## Overview
 
 The `ProtectedRoute` component in the React frontend redirects unauthenticated users to `/login` instead of `/admin/login`, causing a 404 error.
