@@ -82,28 +82,41 @@ When `Content-Type: application/json` is set for a FormData body, the browser do
 
 ## Implementation Plan
 
-### Milestone 1: Fix the Bug
+### Milestone 1: Fix the Bug and Harden Fallback
 
 **Task 1.1**: Fix array index in `useApi.ts`
 - Change line 95 from `url.split('/')[3]` to `url.split('/')[4]`
 - File: `frontend/src/hooks/useApi.ts`
 
-**Task 1.2**: Remove `@pytest.mark.xfail` markers from integration tests
+**Task 1.2**: Improve fallback to handle FormData correctly
+- In the fallback path, detect when `options.body` is a `FormData` instance
+- When FormData is detected, don't set `Content-Type: application/json` (let browser set the correct multipart boundary automatically)
+- File: `frontend/src/hooks/useApi.ts`
+
+**Task 1.3**: Add console.warn for unmatched endpoints
+- Add a warning when the fallback path is used, especially for endpoints that look like they should have explicit handlers (e.g., `/api/v1/uploads/*`)
+- This surfaces routing bugs during development
+- File: `frontend/src/hooks/useApi.ts`
+
+**Task 1.4**: Remove `@pytest.mark.xfail` markers from integration tests
 - Remove xfail from `test_add_image_item_via_file_upload` (lines 36-39)
 - Remove xfail from `test_add_video_item_via_file_upload` (lines 142-145)
 - File: `tests/integration/test_slideshow_items.py`
 
 ### Milestone 2: Acceptance Criteria
 
-**Task 2.1**: Verify fix with integration tests
+**Task 2.1**: Run frontend linting
+- Run `cd frontend && npm run lint` to ensure TypeScript changes pass linting
+
+**Task 2.2**: Verify fix with integration tests
 - Run `poetry run -- nox -s test-integration`
 - Confirm `test_add_image_item_via_file_upload` passes
 - Confirm `test_add_video_item_via_file_upload` passes
 
-**Task 2.2**: Run all nox sessions
+**Task 2.3**: Run all nox sessions
 - Ensure all tests pass: `poetry run -- nox`
 
-**Task 2.3**: Move feature document to completed folder
+**Task 2.4**: Move feature document to completed folder
 - Move `docs/features/fix-file-upload-api-400-error.md` to `docs/features/completed/`
 
 ## Acceptance Criteria
@@ -113,4 +126,6 @@ When `Content-Type: application/json` is set for a FormData body, the browser do
    - `test_add_video_item_via_file_upload`
 2. Manual upload via admin UI works correctly
 3. Both image and video uploads function properly
-4. All nox sessions pass
+4. Fallback path correctly handles FormData without setting incorrect Content-Type
+5. Console warning is logged when fallback is used for unmatched endpoints
+6. All nox sessions pass
