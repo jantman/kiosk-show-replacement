@@ -82,7 +82,7 @@ export function useSSE(endpoint: string, options?: {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventHandlersRef = useRef<Map<string, ((event: SSEEvent) => void)[]>>(new Map());
-  const connectRef = useRef<() => void>();
+  const connectRef = useRef<(() => void) | undefined>(undefined);
 
   // Add event listener
   const addEventListener = useCallback((eventType: string, handler: (event: SSEEvent) => void) => {
