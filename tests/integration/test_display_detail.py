@@ -155,9 +155,7 @@ class TestDisplayDetail:
 
         finally:
             # Cleanup
-            http_client.delete(
-                f"/api/v1/displays/{display_id}", headers=auth_headers
-            )
+            http_client.delete(f"/api/v1/displays/{display_id}", headers=auth_headers)
 
     @pytest.mark.xfail(
         reason="Bug: Display API doesn't return assigned_slideshow object. "
@@ -197,9 +195,9 @@ class TestDisplayDetail:
             # Wait for Quick Assignment card to load
             quick_assign_card = page.locator(".card:has-text('Quick Assignment')")
             expect(quick_assign_card).to_be_visible(timeout=10000)
-            expect(quick_assign_card.locator("text=Available Slideshows:")).to_be_visible(
-                timeout=5000
-            )
+            expect(
+                quick_assign_card.locator("text=Available Slideshows:")
+            ).to_be_visible(timeout=5000)
 
             # Verify no slideshow is currently assigned (shows "Drop slideshow here")
             expect(
@@ -215,9 +213,9 @@ class TestDisplayDetail:
             slideshow_item.click()
 
             # Verify success message appears
-            expect(page.locator(".alert-success:has-text('assigned successfully')")).to_be_visible(
-                timeout=10000
-            )
+            expect(
+                page.locator(".alert-success:has-text('assigned successfully')")
+            ).to_be_visible(timeout=10000)
 
             # Wait a moment for the UI to refresh
             page.wait_for_timeout(500)
@@ -238,9 +236,7 @@ class TestDisplayDetail:
 
         finally:
             # Cleanup
-            http_client.delete(
-                f"/api/v1/displays/{display_id}", headers=auth_headers
-            )
+            http_client.delete(f"/api/v1/displays/{display_id}", headers=auth_headers)
 
     @pytest.mark.xfail(
         reason="Bug: Display API doesn't return assigned_slideshow object. "
@@ -287,16 +283,18 @@ class TestDisplayDetail:
 
             # Verify something is currently assigned (the unassign button should be visible)
             # The unassign button only appears when a slideshow is assigned
-            unassign_button = quick_assign_card.locator("button[title='Remove Assignment']")
+            unassign_button = quick_assign_card.locator(
+                "button[title='Remove Assignment']"
+            )
             expect(unassign_button).to_be_visible(timeout=5000)
 
             # Click the unassign button
             unassign_button.click()
 
             # Verify success message appears
-            expect(page.locator(".alert-success:has-text('unassigned successfully')")).to_be_visible(
-                timeout=10000
-            )
+            expect(
+                page.locator(".alert-success:has-text('unassigned successfully')")
+            ).to_be_visible(timeout=10000)
 
             # Verify the display now shows no assignment
             expect(
@@ -313,9 +311,7 @@ class TestDisplayDetail:
 
         finally:
             # Cleanup
-            http_client.delete(
-                f"/api/v1/displays/{display_id}", headers=auth_headers
-            )
+            http_client.delete(f"/api/v1/displays/{display_id}", headers=auth_headers)
 
     def test_assignment_history_section_displays(
         self,

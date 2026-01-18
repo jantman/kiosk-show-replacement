@@ -223,9 +223,7 @@ class TestDashboard:
 
         # Test System Monitoring nav link - it's at /admin/monitoring
         navbar.locator("a.nav-link:has-text('System Monitoring')").click()
-        expect(page).to_have_url(
-            re.compile(r".*/admin/monitoring$"), timeout=10000
-        )
+        expect(page).to_have_url(re.compile(r".*/admin/monitoring$"), timeout=10000)
 
     def _login(self, page: Page, vite_url: str, test_database: dict):
         """Helper method to log in to the admin interface."""

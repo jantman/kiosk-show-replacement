@@ -63,9 +63,9 @@ class TestSystemMonitoring:
 
         # Verify SSE tab content is visible
         # The card should have "Server-Sent Events Monitoring" header
-        expect(
-            page.locator("text=Server-Sent Events Monitoring")
-        ).to_be_visible(timeout=5000)
+        expect(page.locator("text=Server-Sent Events Monitoring")).to_be_visible(
+            timeout=5000
+        )
 
     @pytest.mark.xfail(
         reason="Bug: SSEDebugger component has runtime error that breaks the monitoring page. "
@@ -103,9 +103,9 @@ class TestSystemMonitoring:
         # Verify Display Status tab content is visible
         # Note: The tab content might show error if /api/v1/displays/status returns 404
         # but the tab header should still be visible
-        expect(
-            page.locator("text=Enhanced Display Monitoring")
-        ).to_be_visible(timeout=5000)
+        expect(page.locator("text=Enhanced Display Monitoring")).to_be_visible(
+            timeout=5000
+        )
 
     @pytest.mark.xfail(
         reason="Bug: SSEDebugger component has runtime error that breaks the monitoring page. "
@@ -141,14 +141,10 @@ class TestSystemMonitoring:
         health_tab.click()
 
         # Verify System Health tab content is visible
-        expect(
-            page.locator("text=System Health Overview")
-        ).to_be_visible(timeout=5000)
+        expect(page.locator("text=System Health Overview")).to_be_visible(timeout=5000)
 
         # Verify health status is shown ("System Healthy" message)
-        expect(
-            page.locator("text=System Healthy")
-        ).to_be_visible(timeout=5000)
+        expect(page.locator("text=System Healthy")).to_be_visible(timeout=5000)
 
         # Verify the status cards are shown
         expect(page.locator("text=API Status")).to_be_visible()

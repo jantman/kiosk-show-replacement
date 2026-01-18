@@ -188,9 +188,7 @@ class TestDisplayManagement:
             expect(page.locator("text=Status Test Display")).to_be_visible()
 
             # Find status filter dropdown
-            status_filter = page.locator("select").filter(
-                has_text="All Status"
-            ).first
+            status_filter = page.locator("select").filter(has_text="All Status").first
             if not status_filter.is_visible():
                 # Try alternative selector
                 status_filter = page.locator("select").first
@@ -281,9 +279,9 @@ class TestDisplayManagement:
             expect(unassigned_row).to_be_visible()
 
             # Find assignment filter dropdown (second select or one with "All Assignments")
-            assignment_filter = page.locator("select").filter(
-                has_text="All Assignments"
-            ).first
+            assignment_filter = (
+                page.locator("select").filter(has_text="All Assignments").first
+            )
             if not assignment_filter.is_visible():
                 # Try getting second select
                 assignment_filter = page.locator("select").nth(1)
