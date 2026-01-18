@@ -110,7 +110,7 @@ def type_check(session):
 def test(session):
     """Run unit tests with pytest."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
+    session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock", "pytest-html")
 
     # Run tests with coverage
     session.run(
@@ -121,6 +121,7 @@ def test(session):
         "--cov-report=html:htmlcov",
         "--cov-fail-under=30",
         "--durations=10",  # Show slowest 10 tests
+        "--html=reports/test.html",  # Generate HTML report
         "-v",
         *session.posargs,
     )
@@ -226,7 +227,7 @@ def _run_playwright_tests(
 def test_integration(session):
     """Run integration tests: React frontend + Flask backend through real browser."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-flask", "requests")
+    session.install("pytest", "pytest-flask", "requests", "pytest-html")
 
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
@@ -245,7 +246,8 @@ def test_integration(session):
         TEST_DIR + "/integration",
         timeout_seconds=300,  # 5 minutes for full test suite
         extra_args=[
-            "--tb=short"
+            "--tb=short",
+            "--html=reports/integration.html"  # Generate HTML report
         ],  # Shorter traceback for better error visibility, allow cleanup
         enable_asyncio=True,  # Enable asyncio support for integration tests
     )
@@ -255,7 +257,7 @@ def test_integration(session):
 def test_e2e(session):
     """Run end-to-end tests: Flask server-rendered pages through browser automation."""
     session.install("-e", ".")
-    session.install("pytest", "pytest-flask")
+    session.install("pytest", "pytest-flask", "pytest-html")
     session.install("pytest-asyncio")  # Required for async test functions
 
     # Set up Playwright browser environment
@@ -266,7 +268,7 @@ def test_e2e(session):
         session,
         TEST_DIR + "/e2e",
         timeout_seconds=180,
-        extra_args=["--tb=short"],  # Shorter traceback for better error visibility
+        extra_args=["--tb=short", "--html=reports/e2e.html"],  # Shorter traceback for better error visibility, generate HTML report
         enable_asyncio=True,  # Enable asyncio support for E2E tests
     )
 
@@ -302,7 +304,7 @@ def test_comprehensive(session):
         # 1. Run backend unit tests
         session.log("1. Running backend unit tests...")
         session.install("-e", ".")
-        session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock")
+        session.install("pytest", "pytest-cov", "pytest-flask", "pytest-mock", "pytest-html")
 
         session.run(
             "pytest",
@@ -312,6 +314,7 @@ def test_comprehensive(session):
             "--cov-report=html:htmlcov",
             "--cov-report=xml:coverage.xml",
             "--cov-fail-under=30",
+            "--html=reports/comprehensive.html"  # Generate HTML report
         )
         results.append("✅ Backend unit tests: PASSED")
 
