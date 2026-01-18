@@ -12,7 +12,7 @@ Designed for reliability on kiosk hardware with minimal JavaScript dependencies.
 """
 
 from datetime import datetime, timezone
-from typing import Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 from flask import (
     Blueprint,
@@ -30,8 +30,10 @@ try:
     from ..api.v1 import broadcast_display_update
 except ImportError:
     # SSE not available, define no-op function
-    def broadcast_display_update(display, event_type, data=None):
-        pass
+    def broadcast_display_update(
+        display: Display, event_type: str, data: Optional[Dict[str, Any]] = None
+    ) -> int:
+        return 0
 
 
 # Create the display blueprint

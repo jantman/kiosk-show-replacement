@@ -118,7 +118,7 @@ class StandardFormatter(logging.Formatter):
     Used for development environments where human-readable logs are preferred.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the formatter with a standard format."""
         super().__init__(
             fmt="%(asctime)s [%(levelname)s] [%(correlation_id)s] %(name)s: %(message)s",

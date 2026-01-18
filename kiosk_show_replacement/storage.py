@@ -10,10 +10,13 @@ import logging
 import mimetypes
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
 from urllib.parse import quote_plus
 
 from flask import current_app
+
+if TYPE_CHECKING:
+    from flask import Flask
 from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
@@ -423,7 +426,7 @@ def get_storage_manager() -> StorageManager:
     return storage_manager
 
 
-def init_storage(app) -> None:
+def init_storage(app: "Flask") -> None:
     """
     Initialize storage system with Flask app.
 

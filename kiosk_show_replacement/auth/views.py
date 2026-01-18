@@ -34,7 +34,7 @@ bp = Blueprint("auth", __name__, url_prefix="/auth")
 
 
 @bp.app_context_processor
-def inject_current_user():
+def inject_current_user() -> dict[str, Optional[User]]:
     """Make current_user available in all templates."""
     from .decorators import get_current_user
 

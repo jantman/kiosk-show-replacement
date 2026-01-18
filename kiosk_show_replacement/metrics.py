@@ -27,7 +27,7 @@ metrics_bp = Blueprint("metrics", __name__)
 class MetricsCollector:
     """Thread-safe metrics collector for Prometheus-style metrics."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the metrics collector."""
         self._lock = threading.Lock()
 

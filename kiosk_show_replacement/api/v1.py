@@ -9,7 +9,7 @@ This module contains all version 1 REST API endpoints:
 All endpoints require authentication and return consistent JSON responses.
 """
 
-from typing import Tuple
+from typing import Any, Callable, Dict, Optional, Tuple
 
 from flask import Blueprint, Response, current_app, request, session
 from sqlalchemy.exc import IntegrityError
@@ -49,7 +49,7 @@ api_v1_bp = Blueprint("api_v1", __name__)
 # =============================================================================
 
 
-def api_auth_required(f):
+def api_auth_required(f: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to require authentication for API endpoints.
 
     Raises AuthenticationError if the user is not authenticated,
@@ -58,7 +58,7 @@ def api_auth_required(f):
     from functools import wraps
 
     @wraps(f)
-    def decorated_function(*args, **kwargs):
+    def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not get_current_user():
             raise AuthenticationError()
         return f(*args, **kwargs)
@@ -1571,7 +1571,7 @@ def get_upload_stats() -> Tuple[Response, int]:
         stats = storage.get_storage_stats()
 
         # Add formatted sizes
-        def format_bytes(size):
+        def format_bytes(size: float) -> str:
             for unit in ["B", "KB", "MB", "GB"]:
                 if size < 1024:
                     return f"{size:.1f} {unit}"
@@ -1609,7 +1609,7 @@ def delete_file(file_id: int) -> Tuple[Response, int]:
 
 
 @api_v1_bp.route("/events/admin", methods=["GET"])
-def admin_events_stream():
+def admin_events_stream() -> Response | Tuple[Response, int]:
     """Server-Sent Events stream for admin interface."""
     try:
         # Require authentication for admin events
@@ -1633,7 +1633,7 @@ def admin_events_stream():
 
 
 @api_v1_bp.route("/events/display/<display_name>", methods=["GET"])
-def display_events_stream(display_name: str):
+def display_events_stream(display_name: str) -> Response | Tuple[Response, int]:
     """Server-Sent Events stream for specific display."""
     try:
         # Look up display by name

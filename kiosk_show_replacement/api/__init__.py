@@ -22,7 +22,7 @@ api_bp.register_blueprint(api_v1_bp, url_prefix="/v1")
 
 # API root endpoint for version discovery
 @api_bp.route("/")
-def api_root():
+def api_root() -> dict[str, object]:
     """API root endpoint providing version information."""
     return {
         "message": "Kiosk.show Replacement API",
@@ -33,7 +33,7 @@ def api_root():
 
 # Health check for API
 @api_bp.route("/health")
-def api_health():
+def api_health() -> dict[str, object]:
     """API health check endpoint."""
     return {
         "status": "healthy",

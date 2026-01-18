@@ -15,7 +15,8 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, TypeVar
+from types import TracebackType
+from typing import IO, Any, Callable, Dict, Optional, TypeVar
 
 from flask import current_app
 from werkzeug.datastructures import FileStorage
@@ -168,7 +169,7 @@ class AtomicFileWriter:
         self.temp_path: Optional[Path] = None
         self.file = None
 
-    def __enter__(self):
+    def __enter__(self) -> IO[Any]:
         """Create temporary file and return file handle."""
         # Create temp file in same directory to ensure same filesystem
         self.target_path.parent.mkdir(parents=True, exist_ok=True)
@@ -184,7 +185,12 @@ class AtomicFileWriter:
         self.file = open(self.temp_path, self.mode)
         return self.file
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> bool:
         """Finalize write or cleanup on error."""
         if self.file:
             self.file.close()
@@ -378,7 +384,7 @@ def with_storage_cleanup(
 
     def decorator(func: Callable[..., T]) -> Callable[..., T]:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs) -> T:
+        def wrapper(*args: Any, **kwargs: Any) -> T:
             try:
                 return func(*args, **kwargs)
             except Exception:

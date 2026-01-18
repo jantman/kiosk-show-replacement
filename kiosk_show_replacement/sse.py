@@ -33,7 +33,7 @@ class SSEEvent:
     retry: Optional[int] = None
     timestamp: Optional[datetime] = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize event with defaults."""
         if self.event_id is None:
             self.event_id = str(uuid.uuid4())
@@ -125,7 +125,7 @@ class SSEConnection:
 class SSEManager:
     """Manages all SSE connections and event broadcasting."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize SSE manager."""
         self.connections: Dict[str, SSEConnection] = {}
         self.connections_lock = Lock()
@@ -261,7 +261,7 @@ def create_sse_response(connection: SSEConnection) -> Response:
         Flask response with SSE stream
     """
 
-    def event_stream():
+    def event_stream() -> Generator[str, None, None]:
         """Generate SSE event stream."""
         try:
             # Send initial connection event

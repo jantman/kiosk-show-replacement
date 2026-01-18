@@ -9,7 +9,7 @@ import os
 import re
 from typing import Any, Optional
 
-from flask import Flask, abort, redirect, send_from_directory
+from flask import Flask, Response, abort, redirect, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -146,7 +146,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     # File serving endpoint
     @app.route("/uploads/<path:filename>")
-    def uploaded_file(filename: str):
+    def uploaded_file(filename: str) -> Response:
         """Serve uploaded files."""
         from urllib.parse import unquote_plus
 
