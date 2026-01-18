@@ -82,6 +82,7 @@ export function useSSE(endpoint: string, options?: {
   const reconnectAttemptsRef = useRef(0);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventHandlersRef = useRef<Map<string, ((event: SSEEvent) => void)[]>>(new Map());
+  const connectRef = useRef<() => void>();
 
   // Add event listener
   const addEventListener = useCallback((eventType: string, handler: (event: SSEEvent) => void) => {
@@ -181,7 +182,7 @@ export function useSSE(endpoint: string, options?: {
 
           reconnectTimeoutRef.current = setTimeout(() => {
             if (reconnectAttemptsRef.current <= maxReconnectAttempts) {
-              connect();
+              connectRef.current?.();
             }
           }, delay);
         } else {
@@ -225,6 +226,11 @@ export function useSSE(endpoint: string, options?: {
     }
   }, [endpoint, handleEvent, maxReconnectAttempts, baseReconnectInterval, maxReconnectInterval]);
 
+  // Keep connectRef updated so reconnection can access the latest connect function
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
+
   // Disconnect from SSE
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -243,12 +249,20 @@ export function useSSE(endpoint: string, options?: {
 
   // Auto-connect on mount if enabled
   useEffect(() => {
+    let connectTimer: ReturnType<typeof setTimeout> | null = null;
+
     if (autoConnect) {
-      connect();
+      // Defer connect to avoid synchronous setState within effect
+      connectTimer = setTimeout(() => {
+        connect();
+      }, 0);
     }
 
     // Cleanup on unmount
     return () => {
+      if (connectTimer) {
+        clearTimeout(connectTimer);
+      }
       disconnect();
     };
   }, [autoConnect, connect, disconnect]);
