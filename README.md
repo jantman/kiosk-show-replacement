@@ -19,9 +19,9 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 
 ### Prerequisites
 
-- Python 3.9 or higher
+- Python 3.14 or higher
 - Poetry (for dependency management)
-- Node.js 18.0 or higher and npm (for the React admin interface)
+- Node.js 25.0 or higher and npm (for the React admin interface)
 
 ### Important: Environment Activation
 
