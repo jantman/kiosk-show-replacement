@@ -130,7 +130,7 @@ This is the cleanest solution because:
 - [x] Milestone 1: Backend Fix
   - [x] Task 1.1: Modify `Display.to_dict()` - Added `assigned_slideshow` field to Display model's `to_dict()` method
   - [x] Task 1.2: Add unit tests - Added `test_display_to_dict_with_assigned_slideshow` and updated `test_display_to_dict` to verify `assigned_slideshow` is None when not set
-- [ ] Milestone 2: Acceptance Criteria
-  - [ ] Task 2.1: Verify integration tests pass
-  - [ ] Task 2.2: Run all nox sessions
-  - [ ] Task 2.3: Move feature file to completed
+- [x] Milestone 2: Acceptance Criteria
+  - [x] Task 2.1: Verify integration tests pass - `test_quick_assign_slideshow_via_click` and `test_unassign_slideshow` both pass
+  - [x] Task 2.2: Run all nox sessions - All sessions pass (test-3.14, type_check, test-integration, test-e2e)
+  - [x] Task 2.3: Move feature file to completed
