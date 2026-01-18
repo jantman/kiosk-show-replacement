@@ -258,7 +258,7 @@ def test_integration(session):
             "--tb=short",
             "--durations=25",  # Show slowest 25 tests
             "--junitxml=reports/integration_results.xml",  # JUnit XML report for CI
-            "--html=reports/integration.html"  # Generate HTML report
+            "--html=reports/integration.html",  # Generate HTML report
         ],  # Shorter traceback for better error visibility, allow cleanup
         enable_asyncio=True,  # Enable asyncio support for integration tests
     )
@@ -283,7 +283,7 @@ def test_e2e(session):
             "--tb=short",  # Shorter traceback for better error visibility
             "--durations=25",  # Show slowest 25 tests
             "--junitxml=reports/e2e_results.xml",  # JUnit XML report for CI
-            "--html=reports/e2e.html"  # Generate HTML report
+            "--html=reports/e2e.html",  # Generate HTML report
         ],
         enable_asyncio=True,  # Enable asyncio support for E2E tests
     )

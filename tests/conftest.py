@@ -362,7 +362,9 @@ def clean_test_data(app):
         # Note: Display has current_slideshow_id FK, so delete Display before Slideshow
         db.session.query(AssignmentHistory).delete()
         db.session.query(SlideshowItem).delete()
-        db.session.query(Display).delete()  # Has FK to Slideshow via current_slideshow_id
+        db.session.query(
+            Display
+        ).delete()  # Has FK to Slideshow via current_slideshow_id
         db.session.query(Slideshow).delete()
         db.session.query(DisplayConfigurationTemplate).delete()
         db.session.query(User).delete()
