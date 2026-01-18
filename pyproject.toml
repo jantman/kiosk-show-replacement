@@ -16,18 +16,14 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     "Topic :: Multimedia :: Graphics :: Presentation",
     "Topic :: System :: Systems Administration",
 ]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.14"
 # Core Flask and web framework dependencies
 flask = "^3.0.0"
 flask-sqlalchemy = "^3.1.0"
@@ -104,7 +100,7 @@ build-backend = "poetry.core.masonry.api"
 # Tool configurations
 [tool.black]
 line-length = 88
-target-version = ['py39']
+target-version = ['py314']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -129,7 +125,7 @@ line_length = 88
 known_first_party = ["kiosk_show_replacement"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
