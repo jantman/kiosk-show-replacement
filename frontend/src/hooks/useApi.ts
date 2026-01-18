@@ -92,7 +92,7 @@ export const useApi = (): UseApiResult => {
       }
       
       if (url.startsWith('/api/v1/uploads/')) {
-        const uploadType = url.split('/')[3];
+        const uploadType = url.split('/')[4];
         if (uploadType === 'image') {
           const formData = options?.body as FormData;
           const file = formData.get('file') as File;
