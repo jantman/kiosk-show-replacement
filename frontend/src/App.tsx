@@ -22,7 +22,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 
 const App: React.FC = () => {
   return (
-    <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
+    <ErrorBoundary showDetails={import.meta.env.DEV}>
       <ErrorProvider>
         <AuthProvider>
           <Router>
