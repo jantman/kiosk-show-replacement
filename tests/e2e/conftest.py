@@ -5,7 +5,19 @@ This module provides fixtures specifically for end-to-end testing using
 Playwright and a live Flask server.
 """
 
+import multiprocessing
+
 import pytest
+
+# Python 3.14 changed the default multiprocessing start method to 'forkserver',
+# but pytest-flask's LiveServer requires 'fork' for pickling to work correctly.
+# Set the start method to 'fork' before any tests run.
+if multiprocessing.get_start_method(allow_none=True) != "fork":
+    try:
+        multiprocessing.set_start_method("fork", force=True)
+    except RuntimeError:
+        # Start method has already been set, ignore
+        pass
 
 from kiosk_show_replacement.app import create_app, db
 from kiosk_show_replacement.models import Display, Slideshow, User

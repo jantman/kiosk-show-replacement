@@ -37,7 +37,7 @@ class TestDashboardNavigation:
         submit_button.click()
 
         # Wait for navigation to complete
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("load")
 
     def test_navbar_slideshows_link_href(
         self,
@@ -162,7 +162,7 @@ class TestDashboardNavigation:
         slideshows_link.click()
 
         # Wait for navigation
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("load")
 
         # Should navigate to /admin/slideshows
         expect(page).to_have_url(f"{live_server_url}/admin/slideshows")
@@ -184,7 +184,7 @@ class TestDashboardNavigation:
         displays_link.click()
 
         # Wait for navigation
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("load")
 
         # Should navigate to /admin/displays
         expect(page).to_have_url(f"{live_server_url}/admin/displays")
@@ -217,7 +217,7 @@ class TestDashboardLinksNotBroken:
         ).first
         submit_button.click()
 
-        page.wait_for_load_state("networkidle")
+        page.wait_for_load_state("load")
 
     def test_no_links_to_api_root(
         self,

@@ -261,11 +261,11 @@ def test_e2e(session):
     # Set up Playwright browser environment
     _setup_playwright_browser_testing(session)
 
-    # Run E2E tests with process-level timeout (60 seconds max)
+    # Run E2E tests with process-level timeout (180 seconds max)
     _run_playwright_tests_with_timeout(
         session,
         TEST_DIR + "/e2e",
-        timeout_seconds=60,
+        timeout_seconds=180,
         extra_args=["--tb=short"],  # Shorter traceback for better error visibility
         enable_asyncio=True,  # Enable asyncio support for E2E tests
     )

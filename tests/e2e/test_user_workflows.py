@@ -91,7 +91,9 @@ class TestUserAuthenticationE2E:
 
         # Step 4: Verify successful login and dashboard access
         # Wait for navigation to complete
-        page.wait_for_load_state("networkidle")
+        # Note: Using "load" instead of "networkidle" because SSE connections
+        # keep the network active indefinitely
+        page.wait_for_load_state("load")
 
         # Check if we're still on login page (login failed)
         still_on_login = page.locator("input[name='username']").is_visible()
