@@ -5,7 +5,7 @@
  * via SSE events.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Badge } from 'react-bootstrap';
 import { useSSEContext, DisplayEventData, SlideshowEventData } from '../hooks/useSSE.tsx';
 
@@ -26,6 +26,16 @@ const LiveDataIndicator: React.FC<LiveDataIndicatorProps> = ({
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const { addEventListener, connectionState } = useSSEContext();
+
+  const handleUpdate = useCallback(() => {
+    setLastUpdate(new Date());
+    setIsUpdating(true);
+
+    // Reset updating state after animation
+    setTimeout(() => {
+      setIsUpdating(false);
+    }, 1000);
+  }, []);
 
   useEffect(() => {
     const eventHandlers: Array<() => void> = [];
@@ -84,17 +94,7 @@ const LiveDataIndicator: React.FC<LiveDataIndicatorProps> = ({
     return () => {
       eventHandlers.forEach(cleanup => cleanup());
     };
-  }, [dataType, dataId, addEventListener]);
-
-  const handleUpdate = () => {
-    setLastUpdate(new Date());
-    setIsUpdating(true);
-    
-    // Reset updating state after animation
-    setTimeout(() => {
-      setIsUpdating(false);
-    }, 1000);
-  };
+  }, [dataType, dataId, addEventListener, handleUpdate]);
 
   const getStatusIcon = () => {
     if (connectionState !== 'connected') {
