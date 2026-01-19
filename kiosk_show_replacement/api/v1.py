@@ -355,11 +355,12 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
             content_type=content_type,
             content_url=data.get("content_url"),
             content_text=data.get("content_text"),
-            display_duration=data.get("display_duration", 30),
+            content_file_path=data.get("content_file_path"),
+            display_duration=data.get("display_duration"),
             order_index=max_order + 1,
             created_by_id=current_user.id,
             updated_by_id=current_user.id,
-            is_active=True,
+            is_active=data.get("is_active", True),
         )
 
         db.session.add(item)
@@ -402,12 +403,18 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
         # Update fields if provided
         if "title" in data:
             item.title = data["title"]
+        if "content_type" in data:
+            item.content_type = data["content_type"]
         if "content_url" in data:
             item.content_url = data["content_url"]
         if "content_text" in data:
             item.content_text = data["content_text"]
+        if "content_file_path" in data:
+            item.content_file_path = data["content_file_path"]
         if "display_duration" in data:
             item.display_duration = data["display_duration"]
+        if "is_active" in data:
+            item.is_active = data["is_active"]
 
         item.updated_by_id = current_user.id
         db.session.commit()

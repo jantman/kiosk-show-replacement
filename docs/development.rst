@@ -638,6 +638,55 @@ Frontend Project Structure
            ├── auth.ts             # Authentication types
            └── slideshow.ts        # Slideshow data types
 
+Running the Application Locally
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. important::
+
+   **In development mode, you MUST run BOTH Flask and Vite servers.**
+
+   Flask redirects ``/admin/`` requests to the Vite dev server on port 3000.
+   If Vite is not running, the admin interface will not load.
+
+**Port Summary:**
+
++------+---------+------------------------------------------------+
+| Port | Service | Purpose                                        |
++======+=========+================================================+
+| 5000 | Flask   | Backend API, redirects /admin/ to Vite in dev  |
++------+---------+------------------------------------------------+
+| 3000 | Vite    | React frontend with hot reload (dev only)      |
++------+---------+------------------------------------------------+
+
+**First-time Setup:**
+
+1. Initialize the database:
+
+   .. code-block:: bash
+
+      FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
+      # Default credentials: admin / admin
+
+**Starting for Development:**
+
+1. Start Flask backend (Terminal 1):
+
+   .. code-block:: bash
+
+      # From project root
+      poetry run python run.py
+      # API available at http://localhost:5000/api/
+
+2. Start Vite frontend (Terminal 2):
+
+   .. code-block:: bash
+
+      cd frontend
+      npm run dev
+      # Admin interface at http://localhost:3000/admin/
+
+3. Access the admin interface at http://localhost:3000/admin/ (or http://localhost:5000/admin/ which redirects to port 3000)
+
 Setting Up Frontend Development
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -660,22 +709,7 @@ Setting Up Frontend Development
 
       npm install
 
-3. Start the Flask backend (in another terminal):
-
-   .. code-block:: bash
-
-      # From project root
-      eval $(poetry env activate)
-      python -m flask --app kiosk_show_replacement.app run --debug
-
-4. Start the frontend development server:
-
-   .. code-block:: bash
-
-      # From frontend/ directory
-      npm run dev
-
-The frontend development server will start on http://localhost:3000 and proxy API requests to the Flask backend on http://localhost:5000.
+The frontend development server runs on http://localhost:3000 and proxies API requests to the Flask backend on http://localhost:5000.
 
 Frontend Development Commands
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -10,13 +10,14 @@ interface SlideshowItemFormProps {
   onCancel: () => void;
 }
 
+// Form state uses backend field names for consistency
 interface SlideshowItemFormState {
   title: string;
   content_type: 'image' | 'video' | 'url' | 'text';
-  url: string;
-  text_content: string;
-  file_path: string;
-  duration: number | null;
+  content_url: string;
+  content_text: string;
+  content_file_path: string;
+  display_duration: number | null;
   is_active: boolean;
 }
 
@@ -32,10 +33,10 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   const [formData, setFormData] = useState<SlideshowItemFormState>({
     title: '',
     content_type: 'image',
-    url: '',
-    text_content: '',
-    file_path: '',
-    duration: null,
+    content_url: '',
+    content_text: '',
+    content_file_path: '',
+    display_duration: null,
     is_active: true,
   });
 
@@ -49,10 +50,10 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       setFormData({
         title: item.title || '',
         content_type: item.content_type as 'image' | 'video' | 'url' | 'text',
-        url: item.url || '',
-        text_content: item.text_content || '',
-        file_path: item.file_path || '',
-        duration: item.duration ?? null,
+        content_url: item.content_url || '',
+        content_text: item.content_text || '',
+        content_file_path: item.content_file_path || '',
+        display_duration: item.display_duration ?? null,
         is_active: item.is_active,
       });
     }
@@ -65,27 +66,27 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       errors.title = 'Title is required';
     }
 
-    if (formData.content_type === 'url' && !formData.url.trim()) {
-      errors.url = 'URL is required for URL content type';
-    } else if (formData.content_type === 'url' && formData.url.trim()) {
+    if (formData.content_type === 'url' && !formData.content_url.trim()) {
+      errors.content_url = 'URL is required for URL content type';
+    } else if (formData.content_type === 'url' && formData.content_url.trim()) {
       try {
-        new URL(formData.url);
+        new URL(formData.content_url);
       } catch {
-        errors.url = 'Please enter a valid URL';
+        errors.content_url = 'Please enter a valid URL';
       }
     }
 
-    if (formData.content_type === 'text' && !formData.text_content.trim()) {
-      errors.text_content = 'Text content is required for text content type';
+    if (formData.content_type === 'text' && !formData.content_text.trim()) {
+      errors.content_text = 'Text content is required for text content type';
     }
 
-    if ((formData.content_type === 'image' || formData.content_type === 'video') && 
-        !formData.file_path && !formData.url) {
+    if ((formData.content_type === 'image' || formData.content_type === 'video') &&
+        !formData.content_file_path && !formData.content_url) {
       errors.content = `Please upload a ${formData.content_type} file or provide a URL`;
     }
 
-    if (formData.duration !== null && formData.duration <= 0) {
-      errors.duration = 'Duration must be greater than 0';
+    if (formData.display_duration !== null && formData.display_duration <= 0) {
+      errors.display_duration = 'Duration must be greater than 0';
     }
 
     setValidationErrors(errors);
@@ -103,14 +104,31 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       setLoading(true);
       setError(null);
 
+      // Determine content_url based on content type
+      const getContentUrl = (): string | null => {
+        switch (formData.content_type) {
+          case 'url':
+            // URL type always uses content_url
+            return formData.content_url.trim() || null;
+          case 'text':
+            // Text type never has a URL
+            return null;
+          case 'image':
+          case 'video':
+            // Image/video use URL only if no file was uploaded
+            return formData.content_file_path ? null : (formData.content_url.trim() || null);
+          default:
+            return null;
+        }
+      };
+
       const submitData = {
         title: formData.title.trim(),
         content_type: formData.content_type,
-        url: formData.content_type === 'url' ? formData.url.trim() : 
-             (formData.file_path ? null : formData.url.trim()),
-        text_content: formData.content_type === 'text' ? formData.text_content.trim() : null,
-        file_path: formData.file_path || null,
-        duration: formData.duration,
+        content_url: getContentUrl(),
+        content_text: formData.content_type === 'text' ? formData.content_text.trim() : null,
+        content_file_path: formData.content_file_path || null,
+        display_duration: formData.display_duration,
         is_active: formData.is_active,
       };
 
@@ -170,12 +188,12 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         const uploadData = response.data as { file_path: string };
         setFormData(prev => ({
           ...prev,
-          file_path: uploadData.file_path,
+          content_file_path: uploadData.file_path,
           content_type: file.type.startsWith('image/') ? 'image' : 'video',
         }));
         // Clear any URL when file is uploaded
-        if (formData.url) {
-          setFormData(prev => ({ ...prev, url: '' }));
+        if (formData.content_url) {
+          setFormData(prev => ({ ...prev, content_url: '' }));
         }
       } else {
         setError(response.error || 'Failed to upload file');
@@ -205,13 +223,13 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
             <Form.Control
               id="url"
               type="url"
-              value={formData.url}
-              onChange={(e) => handleInputChange('url', e.target.value)}
-              isInvalid={!!validationErrors.url}
+              value={formData.content_url}
+              onChange={(e) => handleInputChange('content_url', e.target.value)}
+              isInvalid={!!validationErrors.content_url}
               placeholder="https://example.com"
             />
             <Form.Control.Feedback type="invalid">
-              {validationErrors.url}
+              {validationErrors.content_url}
             </Form.Control.Feedback>
             <Form.Text className="text-muted">
               Enter the URL of the webpage to display
@@ -227,13 +245,13 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
               id="text_content"
               as="textarea"
               rows={4}
-              value={formData.text_content}
-              onChange={(e) => handleInputChange('text_content', e.target.value)}
-              isInvalid={!!validationErrors.text_content}
+              value={formData.content_text}
+              onChange={(e) => handleInputChange('content_text', e.target.value)}
+              isInvalid={!!validationErrors.content_text}
               placeholder="Enter the text to display"
             />
             <Form.Control.Feedback type="invalid">
-              {validationErrors.text_content}
+              {validationErrors.content_text}
             </Form.Control.Feedback>
           </Form.Group>
         );
@@ -262,11 +280,11 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   Uploading...
                 </div>
               )}
-              {formData.file_path && (
+              {formData.content_file_path && (
                 <div className="mt-2">
                   <span className="badge bg-success">
                     <i className="bi bi-check-lg me-1"></i>
-                    File uploaded: {formData.file_path}
+                    File uploaded: {formData.content_file_path}
                   </span>
                 </div>
               )}
@@ -286,12 +304,12 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
               <Form.Control
                 id="url_alternative"
                 type="url"
-                value={formData.url}
+                value={formData.content_url}
                 onChange={(e) => {
-                  handleInputChange('url', e.target.value);
+                  handleInputChange('content_url', e.target.value);
                   // Clear file path when URL is entered
-                  if (e.target.value && formData.file_path) {
-                    handleInputChange('file_path', '');
+                  if (e.target.value && formData.content_file_path) {
+                    handleInputChange('content_file_path', '');
                   }
                 }}
                 placeholder={`https://example.com/${formData.content_type}.jpg`}
@@ -343,9 +361,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
               onChange={(e) => {
                 handleInputChange('content_type', e.target.value);
                 // Clear content-specific fields when type changes
-                handleInputChange('url', '');
-                handleInputChange('text_content', '');
-                handleInputChange('file_path', '');
+                handleInputChange('content_url', '');
+                handleInputChange('content_text', '');
+                handleInputChange('content_file_path', '');
               }}
             >
               <option value="image">Image</option>
@@ -368,13 +386,13 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
               type="number"
               min="1"
               max="300"
-              value={formData.duration || ''}
-              onChange={(e) => handleInputChange('duration', e.target.value ? parseInt(e.target.value) : null)}
-              isInvalid={!!validationErrors.duration}
+              value={formData.display_duration || ''}
+              onChange={(e) => handleInputChange('display_duration', e.target.value ? parseInt(e.target.value) : null)}
+              isInvalid={!!validationErrors.display_duration}
               placeholder="Use slideshow default"
             />
             <Form.Control.Feedback type="invalid">
-              {validationErrors.duration}
+              {validationErrors.display_duration}
             </Form.Control.Feedback>
             <Form.Text className="text-muted">
               Leave empty to use the slideshow's default duration

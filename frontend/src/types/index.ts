@@ -69,16 +69,19 @@ export interface Slideshow {
 }
 
 // Slideshow item types
+// Field names match backend/database schema for consistency
 export interface SlideshowItem {
   id: number;
   slideshow_id: number;
   title?: string;
   content_type: 'image' | 'video' | 'url' | 'text';
-  url?: string;
-  file_path?: string;
-  text_content?: string;
+  content_url?: string;
+  content_file_path?: string;
+  content_text?: string;
+  content_source?: string;
   display_url?: string;
-  duration?: number;
+  display_duration?: number;
+  effective_duration?: number;
   order_index: number;
   is_active: boolean;
   created_at: string;
