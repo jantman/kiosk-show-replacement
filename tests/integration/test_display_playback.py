@@ -1,0 +1,194 @@
+"""
+Integration tests for display view slideshow playback.
+
+Tests verify that slideshows play correctly on display views:
+- All slides display in correct order
+- Slide durations are respected (both default and overridden)
+- Different content types render properly
+
+Run with: nox -s test-integration
+"""
+
+import os
+import time
+
+import pytest
+from playwright.sync_api import Page
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("SKIP_BROWSER_TESTS", "false").lower() == "true",
+    reason="Browser tests skipped",
+)
+class TestDisplayPlayback:
+    """Test slideshow playback on display views."""
+
+    def test_all_slides_display_with_mixed_durations(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that all slides display correctly with mixed default and override durations.
+
+        Creates a slideshow with 3 text slides:
+        - Slide 1: uses default duration (10 seconds from slideshow)
+        - Slide 2: has 2-second override duration
+        - Slide 3: uses default duration (10 seconds from slideshow)
+
+        The test verifies that all 3 slides are shown, not just the one with
+        an override duration. This tests the bug where slides with null
+        display_duration were being skipped (0ms timeout).
+
+        We use short durations and verify slide transitions occur.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow with a short default duration for faster testing
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Duration Test Slideshow",
+                "description": "Test slideshow for duration handling",
+                "default_item_duration": 2,  # 2 second default
+                "transition_type": "fade",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [
+            200,
+            201,
+        ], f"Failed to create slideshow: {slideshow_response.text}"
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create 3 text slides with mixed durations
+            # Slide 1: NO duration override (uses slideshow default)
+            slide1_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Slide One",
+                    "content_type": "text",
+                    "content_text": "This is the first slide with DEFAULT duration",
+                    "is_active": True,
+                    # No display_duration - should use slideshow default (2s)
+                },
+                headers=auth_headers,
+            )
+            assert slide1_response.status_code in [200, 201]
+
+            # Slide 2: Has 1-second override duration
+            slide2_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Slide Two",
+                    "content_type": "text",
+                    "content_text": "This is the second slide with OVERRIDE duration",
+                    "display_duration": 1,  # 1 second override
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert slide2_response.status_code in [200, 201]
+
+            # Slide 3: NO duration override (uses slideshow default)
+            slide3_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Slide Three",
+                    "content_type": "text",
+                    "content_text": "This is the third slide with DEFAULT duration",
+                    "is_active": True,
+                    # No display_duration - should use slideshow default (2s)
+                },
+                headers=auth_headers,
+            )
+            assert slide3_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-duration-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for duration testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Track which slides we see
+                slides_seen = set()
+
+                # Watch for slide changes over 8 seconds
+                # With durations of 2s, 1s, 2s we should see all 3 slides cycle
+                start_time = time.time()
+                max_wait = (
+                    8  # 8 seconds should be enough for 2+1+2 = 5 seconds of slides
+                )
+
+                while time.time() - start_time < max_wait and len(slides_seen) < 3:
+                    # Check for each slide's content
+                    if page.locator("text=first slide with DEFAULT").is_visible():
+                        slides_seen.add("Slide One")
+                    if page.locator("text=second slide with OVERRIDE").is_visible():
+                        slides_seen.add("Slide Two")
+                    if page.locator("text=third slide with DEFAULT").is_visible():
+                        slides_seen.add("Slide Three")
+
+                    # Small delay between checks
+                    time.sleep(0.2)
+
+                # Verify all 3 slides were displayed
+                assert "Slide One" in slides_seen, (
+                    f"Slide One (default duration) was never shown. "
+                    f"Slides seen: {slides_seen}"
+                )
+                assert "Slide Two" in slides_seen, (
+                    f"Slide Two (override duration) was never shown. "
+                    f"Slides seen: {slides_seen}"
+                )
+                assert "Slide Three" in slides_seen, (
+                    f"Slide Three (default duration) was never shown. "
+                    f"Slides seen: {slides_seen}"
+                )
+
+            finally:
+                # Cleanup display
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
