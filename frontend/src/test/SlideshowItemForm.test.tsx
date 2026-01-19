@@ -221,7 +221,7 @@ describe('SlideshowItemForm', () => {
         body: JSON.stringify({
           title: 'Text Item',
           content_type: 'text',
-          content_url: '', // This will be empty string, not null, when content type is changed
+          content_url: null, // Explicitly null for text content type
           content_text: 'Hello World',
           content_file_path: null,
           display_duration: null,
