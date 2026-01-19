@@ -115,6 +115,7 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({
 /**
  * Hook to access the error context.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const useErrors = (): ErrorContextType => {
   const context = useContext(ErrorContext);
   if (!context) {
@@ -126,6 +127,7 @@ export const useErrors = (): ErrorContextType => {
 /**
  * Convenience hook for adding errors with common patterns.
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export const useErrorHandler = () => {
   const { addError } = useErrors();
 

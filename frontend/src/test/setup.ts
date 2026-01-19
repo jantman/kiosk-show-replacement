@@ -30,7 +30,7 @@ class MockEventSource {
 }
 
 // Add EventSource to global
-global.EventSource = MockEventSource as any;
+global.EventSource = MockEventSource as unknown as typeof EventSource;
 
 // Global test setup
 global.ResizeObserver = global.ResizeObserver || vi.fn().mockImplementation(() => ({

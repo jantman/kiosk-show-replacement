@@ -7,6 +7,7 @@ interface TestProvidersProps {
   children: ReactNode;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 const TestProviders: React.FC<TestProvidersProps> = ({ children }) => {
   return (
     <BrowserRouter>
@@ -18,7 +19,7 @@ const TestProviders: React.FC<TestProvidersProps> = ({ children }) => {
 };
 
 interface CustomRenderOptions extends Omit<RenderOptions, 'wrapper'> {
-  wrapper?: React.ComponentType<any>;
+  wrapper?: React.ComponentType<{ children: ReactNode }>;
 }
 
 const customRender = (ui: React.ReactElement, options?: CustomRenderOptions) => {
@@ -26,6 +27,7 @@ const customRender = (ui: React.ReactElement, options?: CustomRenderOptions) => 
 };
 
 // Re-export everything
+// eslint-disable-next-line react-refresh/only-export-components
 export * from '@testing-library/react';
 
 // Override render method

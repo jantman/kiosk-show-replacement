@@ -60,6 +60,7 @@ function calculateBackoff(
 }
 
 // SSE Hook for managing connections
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSSE(endpoint: string, options?: {
   autoConnect?: boolean;
   baseReconnectInterval?: number;
@@ -293,6 +294,7 @@ export function useSSE(endpoint: string, options?: {
 }
 
 // Hook for display-specific events
+// eslint-disable-next-line react-refresh/only-export-components
 export function useDisplayEvents(onDisplayUpdate?: (display: Display) => void) {
   const sse = useSSE('/api/v1/events/admin');
 
@@ -340,6 +342,7 @@ export function useDisplayEvents(onDisplayUpdate?: (display: Display) => void) {
 }
 
 // Hook for slideshow-specific events
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSlideshowEvents(onSlideshowUpdate?: (slideshow: Slideshow) => void) {
   const sse = useSSE('/api/v1/events/admin');
 
@@ -431,6 +434,7 @@ export function SSEProvider({ children }: { children: React.ReactNode }) {
 }
 
 // Hook to use SSE context
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSSEContext() {
   const context = useContext(SSEContext);
   if (!context) {
@@ -440,6 +444,7 @@ export function useSSEContext() {
 }
 
 // Hook to track network/online status
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNetworkStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [wasOffline, setWasOffline] = useState(false);
@@ -567,6 +572,7 @@ export function ConnectionStatusBadge({ sse }: { sse: ReturnType<typeof useSSE> 
 }
 
 // Connection Health Monitor - tracks connection quality
+// eslint-disable-next-line react-refresh/only-export-components
 export function useConnectionHealth(sse: ReturnType<typeof useSSE>) {
   const [health, setHealth] = useState<{
     latency: number | null;

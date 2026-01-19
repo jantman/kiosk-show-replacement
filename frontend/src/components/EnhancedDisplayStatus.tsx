@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Badge, ProgressBar, Table, Alert, Button, Modal } from 'react-bootstrap';
 import { useSSE } from '../hooks/useSSE';
 
@@ -42,26 +42,26 @@ export const EnhancedDisplayStatus: React.FC<EnhancedDisplayStatusProps> = ({
   // Use SSE to get real-time display updates
   const { connectionState, lastEvent } = useSSE('/api/v1/events/admin');
 
-  const fetchDisplayStatuses = async () => {
+  const fetchDisplayStatuses = useCallback(async () => {
     try {
-      const url = displayId 
-        ? `/api/v1/displays/${displayId}/status` 
+      const url = displayId
+        ? `/api/v1/displays/${displayId}/status`
         : '/api/v1/displays/status';
-      
+
       const response = await fetch(url, {
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
         throw new Error(`Failed to fetch display status: ${response.statusText}`);
       }
-      
+
       const data = await response.json();
       setDisplays(Array.isArray(data) ? data : [data]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
-  };
+  }, [displayId]);
 
   // Update display status from SSE events
   useEffect(() => {
@@ -89,7 +89,7 @@ export const EnhancedDisplayStatus: React.FC<EnhancedDisplayStatusProps> = ({
     // Set up periodic refresh as fallback
     const interval = setInterval(fetchDisplayStatuses, 30000); // Every 30 seconds
     return () => clearInterval(interval);
-  }, [displayId]);
+  }, [fetchDisplayStatuses]);
 
   const getConnectionQualityBadge = (quality: string) => {
     const badges = {
