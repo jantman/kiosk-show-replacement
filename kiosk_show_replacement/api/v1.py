@@ -402,12 +402,18 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
         # Update fields if provided
         if "title" in data:
             item.title = data["title"]
+        if "content_type" in data:
+            item.content_type = data["content_type"]
         if "content_url" in data:
             item.content_url = data["content_url"]
         if "content_text" in data:
             item.content_text = data["content_text"]
+        if "content_file_path" in data:
+            item.content_file_path = data["content_file_path"]
         if "display_duration" in data:
             item.display_duration = data["display_duration"]
+        if "is_active" in data:
+            item.is_active = data["is_active"]
 
         item.updated_by_id = current_user.id
         db.session.commit()
