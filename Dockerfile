@@ -48,8 +48,9 @@ RUN groupadd --gid 1000 appgroup \
 # Set working directory
 WORKDIR /app
 
-# Install Poetry for dependency management
-RUN pip install poetry==2.2.1
+# Install Poetry for dependency management and the export plugin
+RUN pip install poetry==2.2.1 \
+    && poetry self add poetry-plugin-export
 
 # Copy dependency files
 COPY pyproject.toml poetry.lock* ./
