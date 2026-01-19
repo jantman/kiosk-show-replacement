@@ -68,37 +68,43 @@ npm run lint
 #### First-time Setup
 ```bash
 # Initialize the database (creates SQLite DB and admin user)
-poetry run flask cli init-db
+FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
 # Default admin credentials: admin / admin (change in production!)
 ```
 
-#### Starting the Application
+#### Starting the Application for Development
+
+**IMPORTANT:** In development mode, you must run BOTH Flask and Vite:
+- **Flask** (port 5000): Backend API server
+- **Vite** (port 3000): Frontend dev server with hot reload
+
+Flask redirects `/admin/` to port 3000 in development mode, so Vite must be running.
+
 ```bash
-# Start Flask backend (serves at http://localhost:5000)
+# Terminal 1: Start Flask backend (API server)
 poetry run python run.py
+# API available at http://localhost:5000/api/
 
-# The React admin interface is available at http://localhost:5000/admin/
-# It uses the pre-built frontend from kiosk_show_replacement/static/dist/
-```
-
-#### Frontend Development with Hot Reload
-If you're actively developing the React frontend:
-```bash
-# Terminal 1: Start Flask backend
-poetry run python run.py
-
-# Terminal 2: Start Vite dev server with hot reload
+# Terminal 2: Start Vite dev server (React frontend)
 cd frontend && npm run dev
-# Access React admin at http://localhost:3000 (proxies API to Flask)
+# Admin interface at http://localhost:3000/admin/
+# (or http://localhost:5000/admin/ which redirects to port 3000)
 ```
 
-#### Rebuilding the Frontend
+#### Port Summary
+
+| Port | Service | Purpose |
+|------|---------|---------|
+| 5000 | Flask | Backend API, redirects /admin/ to Vite in dev mode |
+| 3000 | Vite | React frontend with hot reload (dev only) |
+
+#### Rebuilding the Frontend (Production Build)
 After making changes to frontend code, rebuild for production:
 ```bash
 cd frontend
 npm run build
 # This outputs to kiosk_show_replacement/static/dist/
-# Flask serves this automatically at /admin/
+# Flask serves this automatically at /admin/ in production mode
 ```
 
 ## Architecture
