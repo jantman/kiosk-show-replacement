@@ -149,51 +149,71 @@ This causes the edit form to not populate with saved values (it looks for `url` 
 
 ## Implementation Plan
 
-### Milestone 1: Fix Field Name Mapping
+### Approach
+
+Update the frontend to use the same field names as the backend/database schema. This maintains consistency and avoids "magic" field name translation in the backend. The database schema is the source of truth.
+
+### Milestone 1: Fix Frontend Field Names
 **Prefix:** `SIF-1`
 
-Update the backend to accept frontend field names and map them to model columns, and update the model's `to_dict()` to include frontend-friendly aliases.
+Update frontend TypeScript types and components to use backend field names.
 
 **Tasks:**
-1. **SIF-1.1** Update `SlideshowItem.to_dict()` to include both database column names and frontend aliases for backward compatibility
-2. **SIF-1.2** Update `create_slideshow_item` API handler to accept both naming conventions
-3. **SIF-1.3** Update `update_slideshow_item` API handler to:
-   - Accept both naming conventions
-   - Handle `content_type` updates
-   - Handle `file_path`/`content_file_path` updates
-   - Handle `is_active` updates
-4. **SIF-1.4** Run existing tests to ensure no regressions
+1. **SIF-1.1** Update `frontend/src/types/index.ts` `SlideshowItem` interface:
+   - `url` → `content_url`
+   - `file_path` → `content_file_path`
+   - `text_content` → `content_text`
+   - `duration` → `display_duration`
+2. **SIF-1.2** Update `frontend/src/components/SlideshowItemForm.tsx`:
+   - Update form state interface to use backend field names
+   - Update form field bindings and submission payload
+3. **SIF-1.3** Update `frontend/src/pages/SlideshowDetail.tsx`:
+   - Update references to item fields in the table display
+4. **SIF-1.4** Run frontend tests (`npm run test:run`) to catch any missed references
 
-### Milestone 2: Enhance Integration Tests
+### Milestone 2: Fix Backend Update Handler
 **Prefix:** `SIF-2`
+
+The `update_slideshow_item` API handler is missing support for several fields.
+
+**Tasks:**
+1. **SIF-2.1** Update `update_slideshow_item` in `api/v1.py` to handle:
+   - `content_type` updates
+   - `content_file_path` updates
+   - `is_active` updates
+2. **SIF-2.2** Run backend tests (`nox -s test-3.14`) to ensure no regressions
+
+### Milestone 3: Enhance Integration Tests
+**Prefix:** `SIF-3`
 
 Update integration tests to properly verify data persistence.
 
 **Tasks:**
-1. **SIF-2.1** Update `test_add_text_item` to verify text content is persisted (reload page and check)
-2. **SIF-2.2** Update `test_edit_existing_item` to verify:
+1. **SIF-3.1** Update `test_add_text_item` to verify text content is persisted (reload page and check)
+2. **SIF-3.2** Update `test_edit_existing_item` to verify:
    - Form is pre-populated with all saved values (not just title)
    - All field changes are persisted after save
-3. **SIF-2.3** Add test to verify duration override is persisted
-4. **SIF-2.4** Run full test suite to ensure all tests pass
+3. **SIF-3.3** Add test to verify duration override is persisted
+4. **SIF-3.4** Run full test suite to ensure all tests pass
 
-### Milestone 3: Acceptance Criteria
-**Prefix:** `SIF-3`
+### Milestone 4: Acceptance Criteria
+**Prefix:** `SIF-4`
 
 Final validation and documentation.
 
 **Tasks:**
-1. **SIF-3.1** Manual testing of all acceptance criteria
-2. **SIF-3.2** Ensure all nox sessions pass
-3. **SIF-3.3** Move feature file to `docs/features/completed/`
+1. **SIF-4.1** Manual testing of all acceptance criteria
+2. **SIF-4.2** Ensure all nox sessions pass
+3. **SIF-4.3** Move feature file to `docs/features/completed/`
 
 ## Progress Tracking
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M1: Fix Field Name Mapping | Not Started | |
-| M2: Enhance Integration Tests | Not Started | |
-| M3: Acceptance Criteria | Not Started | |
+| M1: Fix Frontend Field Names | Not Started | |
+| M2: Fix Backend Update Handler | Not Started | |
+| M3: Enhance Integration Tests | Not Started | |
+| M4: Acceptance Criteria | Not Started | |
 
 ## Acceptance Criteria
 
