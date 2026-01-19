@@ -36,7 +36,9 @@ def browser_context_args(browser_context_args):
 @pytest.fixture(scope="session")
 def e2e_app(tmp_path_factory):
     """Create application instance for E2E testing."""
-    app = create_app()
+    # Use "testing" mode to serve static files directly instead of
+    # redirecting to the Vite dev server (which doesn't exist in tests)
+    app = create_app("testing")
 
     # Use pytest's session temporary directory for the database file
     tmp_path = tmp_path_factory.mktemp("e2e_test")
