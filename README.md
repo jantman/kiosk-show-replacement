@@ -20,7 +20,10 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 
 ## Quick Start
 
-### Prerequisites
+> **Note:** This Quick Start section is for **development** setup. For production deployment,
+> see the [Deployment](#deployment) section below, which uses Docker.
+
+### Prerequisites (Development)
 
 - Python 3.14 or higher
 - Poetry (for dependency management)
@@ -36,7 +39,7 @@ eval $(poetry env activate)
 
 This activates the Poetry virtual environment **once per terminal session** and allows you to run all subsequent commands without the `poetry run` prefix. All examples in this documentation assume you have already activated the environment in your current terminal session.
 
-### Installation
+### Development Installation
 
 1. **Clone the repository:**
    ```bash
@@ -357,13 +360,19 @@ Key configuration options:
 
 ## Deployment
 
-### Using Docker (Recommended)
+> **Docker is the only supported deployment method for production.**
+> For local development setup, see the [Quick Start](#quick-start) section above.
 
-Docker provides the easiest deployment method with support for both x86_64 and ARM64 (Raspberry Pi).
+Docker provides the easiest and most reproducible deployment method with support for
+both x86_64 and ARM64 architectures (including Raspberry Pi).
 
 **Quick Start (Production with MariaDB):**
 
 ```bash
+# Clone the repository
+git clone https://github.com/jantman/kiosk-show-replacement.git
+cd kiosk-show-replacement
+
 # Copy and configure environment
 cp .env.docker.example .env
 # Edit .env with your passwords and secret key
@@ -374,43 +383,10 @@ docker-compose -f docker-compose.prod.yml up -d
 # Access at http://localhost:5000/admin
 ```
 
-**Development with Docker (SQLite):**
+For detailed deployment instructions, environment variables, NewRelic APM setup,
+production checklist, and troubleshooting, see the [Deployment Guide](docs/deployment.rst).
 
-```bash
-# Start development environment
-docker-compose up
-
-# Access at http://localhost:5000/admin (login: admin/admin)
-```
-
-For detailed deployment instructions, production checklist, and troubleshooting, see the [Deployment Guide](docs/deployment.rst).
-
-### Manual Deployment
-
-1. Install dependencies in production mode:
-   ```bash
-   poetry install --without dev
-   eval $(poetry env activate)
-   ```
-
-2. Set environment variables:
-   ```bash
-   export FLASK_ENV=production
-   export SECRET_KEY=your-secure-secret-key
-   export DATABASE_URL=postgresql://user:pass@localhost/kiosk_show
-   ```
-
-3. Initialize database:
-   ```bash
-   kiosk-init-db
-   # Or with sample data for initial testing:
-   # kiosk-init-db --sample-data
-   ```
-
-4. Run with a production WSGI server:
-   ```bash
-   gunicorn "kiosk_show_replacement.app:create_app()" -b 0.0.0.0:5000
-   ```
+For local development setup (Python/Poetry), see [docs/development.rst](docs/development.rst).
 
 ## Contributing
 
