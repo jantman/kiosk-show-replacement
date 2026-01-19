@@ -15,12 +15,11 @@ const mockItem = {
   slideshow_id: 1,
   title: 'Test Item',
   content_type: 'image' as const,
-  url: undefined,
-  file_path: 'images/test.jpg',
-  text_content: undefined,
+  content_url: undefined,
+  content_file_path: 'images/test.jpg',
+  content_text: undefined,
   display_url: '/uploads/images/test.jpg',
-  duration: 10,
-  order: 1,
+  display_duration: 10,
   order_index: 1,
   is_active: true,
   created_at: '2023-01-01T00:00:00Z',
@@ -134,10 +133,10 @@ describe('SlideshowItemForm', () => {
         body: JSON.stringify({
           title: 'New Item',
           content_type: 'url',
-          url: 'https://example.com',
-          text_content: null,
-          file_path: null,
-          duration: 15,
+          content_url: 'https://example.com',
+          content_text: null,
+          content_file_path: null,
+          display_duration: 15,
           is_active: true
         })
       });
@@ -176,10 +175,10 @@ describe('SlideshowItemForm', () => {
         body: JSON.stringify({
           title: 'Updated Item',
           content_type: 'image',
-          url: null,
-          text_content: null,
-          file_path: 'images/test.jpg',
-          duration: 10,
+          content_url: null,
+          content_text: null,
+          content_file_path: 'images/test.jpg',
+          display_duration: 10,
           is_active: true
         })
       });
@@ -222,10 +221,10 @@ describe('SlideshowItemForm', () => {
         body: JSON.stringify({
           title: 'Text Item',
           content_type: 'text',
-          url: '', // This will be empty string, not null, when content type is changed
-          text_content: 'Hello World',
-          file_path: null,
-          duration: null,
+          content_url: '', // This will be empty string, not null, when content type is changed
+          content_text: 'Hello World',
+          content_file_path: null,
+          display_duration: null,
           is_active: true
         })
       });
