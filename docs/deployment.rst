@@ -4,8 +4,14 @@ Deployment
 This guide covers deploying kiosk-show-replacement in production environments
 using Docker.
 
-Docker Deployment (Recommended)
--------------------------------
+.. note::
+
+   **Docker is the only supported deployment method for production.**
+
+   For local development setup without Docker, see :doc:`development`.
+
+Docker Deployment
+-----------------
 
 Docker provides the easiest and most reproducible deployment method. The
 application supports both x86_64 and ARM64 architectures (including Raspberry Pi).
@@ -117,6 +123,55 @@ environment variable:
 
 The production Docker Compose file automatically configures MariaDB.
 
+NewRelic APM Monitoring
+~~~~~~~~~~~~~~~~~~~~~~~
+
+The application supports optional NewRelic APM monitoring for performance
+insights and error tracking. NewRelic is automatically enabled when the
+``NEW_RELIC_LICENSE_KEY`` environment variable is set.
+
+**Enabling NewRelic:**
+
+1. Obtain a license key from `NewRelic <https://one.newrelic.com/admin-portal/api-keys/home>`_
+
+2. Add the following to your ``.env`` file:
+
+   .. code-block:: bash
+
+      NEW_RELIC_LICENSE_KEY=your-license-key-here
+      NEW_RELIC_APP_NAME=kiosk-show-replacement
+
+3. Restart the application:
+
+   .. code-block:: bash
+
+      docker-compose -f docker-compose.prod.yml restart app
+
+**NewRelic Environment Variables:**
+
+================================== ==========================================
+Variable                           Description
+================================== ==========================================
+``NEW_RELIC_LICENSE_KEY``          Required. Your NewRelic license key.
+``NEW_RELIC_APP_NAME``             Application name in dashboard
+                                   (default: kiosk-show-replacement)
+``NEW_RELIC_ENVIRONMENT``          Environment tag (e.g., production, staging)
+``NEW_RELIC_LOG_LEVEL``            Agent log level: critical, error, warning,
+                                   info, debug (default: info)
+``NEW_RELIC_DISTRIBUTED_TRACING_ENABLED``
+                                   Enable distributed tracing (default: true)
+================================== ==========================================
+
+**Verifying NewRelic is Active:**
+
+Check the application logs for NewRelic activation:
+
+.. code-block:: bash
+
+   docker-compose -f docker-compose.prod.yml logs app | grep -i newrelic
+
+You should see "NewRelic monitoring enabled" if properly configured.
+
 Resource Limits
 ~~~~~~~~~~~~~~~
 
@@ -165,6 +220,7 @@ Before deploying to production:
    * [ ] Set up container health monitoring
    * [ ] Configure log aggregation if needed
    * [ ] Set up alerts for container failures
+   * [ ] Consider enabling NewRelic APM for performance monitoring
 
 4. **Data Persistence**
 
@@ -299,40 +355,3 @@ If you're migrating from a SQLite development database to MariaDB production:
 
 For large datasets, consider using database migration tools like ``pgloader``
 or custom scripts.
-
-Manual Deployment (Without Docker)
-----------------------------------
-
-If Docker is not available, you can deploy manually:
-
-1. Install dependencies:
-
-   .. code-block:: bash
-
-      poetry install --without dev
-      cd frontend && npm ci && npm run build && cd ..
-
-2. Set environment variables:
-
-   .. code-block:: bash
-
-      export FLASK_ENV=production
-      export SECRET_KEY=<your-secret-key>
-      export DATABASE_URL=<your-database-url>
-
-3. Initialize database:
-
-   .. code-block:: bash
-
-      flask db upgrade
-      kiosk-init-db
-
-4. Run with Gunicorn:
-
-   .. code-block:: bash
-
-      gunicorn --worker-class eventlet --workers 2 \
-        --bind 0.0.0.0:5000 --timeout 120 \
-        "kiosk_show_replacement.app:create_app('production')"
-
-Note: The ``eventlet`` worker is required for Server-Sent Events (SSE) support.
