@@ -103,5 +103,17 @@ with app.app_context():
 
 echo "Starting application..."
 
-# Execute the main command (usually gunicorn)
-exec "$@"
+# Check if NewRelic is enabled (NEW_RELIC_LICENSE_KEY is set and non-empty)
+if [ -n "${NEW_RELIC_LICENSE_KEY:-}" ]; then
+    echo "NewRelic monitoring enabled"
+
+    # Set default app name if not provided
+    export NEW_RELIC_APP_NAME="${NEW_RELIC_APP_NAME:-kiosk-show-replacement}"
+
+    # Wrap the command with newrelic-admin for automatic instrumentation
+    exec newrelic-admin run-program "$@"
+else
+    echo "NewRelic monitoring disabled (NEW_RELIC_LICENSE_KEY not set)"
+    # Execute the main command directly (usually gunicorn)
+    exec "$@"
+fi

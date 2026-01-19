@@ -1,8 +1,16 @@
 Development
 ===========
 
+.. note::
+
+   **This guide is for local development only.**
+
+   Local Python/Poetry installation is only supported for development purposes.
+   For production deployments, Docker is the only supported method.
+   See :doc:`deployment` for production setup instructions.
+
 Setting up Development Environment
----------------------------------------
+----------------------------------
 
 1. Clone the repository:
 
