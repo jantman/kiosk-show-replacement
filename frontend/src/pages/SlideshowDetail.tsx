@@ -358,11 +358,11 @@ const SlideshowDetail: React.FC = () => {
                             )}
                             <div className="text-muted small">
                               {item.content_type === 'text' ? (
-                                item.text_content?.substring(0, 50) + (item.text_content && item.text_content.length > 50 ? '...' : '')
+                                item.content_text?.substring(0, 50) + (item.content_text && item.content_text.length > 50 ? '...' : '')
                               ) : item.content_type === 'url' ? (
-                                item.url
+                                item.content_url
                               ) : (
-                                item.file_path || item.url
+                                item.content_file_path || item.content_url
                               )}
                             </div>
                           </div>
@@ -378,7 +378,7 @@ const SlideshowDetail: React.FC = () => {
                           </Badge>
                         </td>
                         <td>
-                          {formatDuration(item.duration || slideshow.default_item_duration)}
+                          {formatDuration(item.display_duration || slideshow.default_item_duration)}
                         </td>
                         <td>
                           <Badge 
