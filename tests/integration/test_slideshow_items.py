@@ -28,7 +28,9 @@ from playwright.sync_api import Page, expect
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
 
 
-def get_item_by_title(http_client, auth_headers, slideshow_id: int, title: str) -> dict:
+def get_item_by_title(
+    http_client, auth_headers, slideshow_id: int, title: str
+) -> dict | None:
     """Helper to fetch a slideshow item by title via API."""
     response = http_client.get(
         f"/api/v1/slideshows/{slideshow_id}/items",
@@ -120,12 +122,6 @@ class TestSlideshowItems:
             item.get("content_type") == "image"
         ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_file_path"), f"content_file_path not persisted: {item}"
-
-        # Verify content_file_path is set
-        file_path = item.get("content_file_path")
-        # Note: We can't directly check file system in integration tests,
-        # but we can verify the path is set and non-empty
-        assert file_path and len(file_path) > 0, "content_file_path is empty"
 
     def test_add_image_item_via_url(
         self,
@@ -254,10 +250,6 @@ class TestSlideshowItems:
             item.get("content_type") == "video"
         ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_file_path"), f"content_file_path not persisted: {item}"
-
-        # Verify file path is set and non-empty
-        file_path = item.get("content_file_path")
-        assert len(file_path) > 0, "content_file_path is empty"
 
     def test_add_video_item_via_url(
         self,

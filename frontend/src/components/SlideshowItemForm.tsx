@@ -107,8 +107,14 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       const submitData = {
         title: formData.title.trim(),
         content_type: formData.content_type,
-        content_url: formData.content_type === 'url' ? formData.content_url.trim() :
-             (formData.content_file_path ? null : formData.content_url.trim()),
+        content_url:
+          formData.content_type === 'url'
+            ? (formData.content_url.trim() || null)
+            : formData.content_type === 'text'
+            ? null
+            : formData.content_file_path
+            ? null
+            : (formData.content_url.trim() || null),
         content_text: formData.content_type === 'text' ? formData.content_text.trim() : null,
         content_file_path: formData.content_file_path || null,
         display_duration: formData.display_duration,
