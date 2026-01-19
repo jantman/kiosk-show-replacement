@@ -11,3 +11,50 @@ The fix should ensure:
 - The container runs the Flask backend with the built React frontend
 - All necessary dependencies are included
 - Environment variables and configuration are properly handled
+
+## Root Cause Analysis
+
+The Docker build fails at step 14 with the error:
+```
+The requested command export does not exist.
+```
+
+The issue is that Poetry 2.x no longer includes the `export` command by default. It requires the `poetry-plugin-export` plugin to be installed separately.
+
+Current failing line in Dockerfile:
+```dockerfile
+RUN poetry export -f requirements.txt --without-hashes --only main > requirements.txt \
+    && pip install -r requirements.txt \
+    && rm -rf ~/.cache/pip
+```
+
+## Implementation Plan
+
+### Milestone 1: Fix Poetry Export Plugin Issue (FDB-1)
+
+**Task 1.1 (FDB-1.1)**: Update Dockerfile to install the `poetry-plugin-export` plugin before running `poetry export`.
+
+Changes required:
+- Add `poetry self add poetry-plugin-export` after installing Poetry
+- This ensures the `poetry export` command is available
+
+### Milestone 2: Verify Docker Build and Container Functionality (FDB-2)
+
+**Task 2.1 (FDB-2.1)**: Build the Docker image and verify it completes successfully.
+
+**Task 2.2 (FDB-2.2)**: Test container startup with docker-compose.yml (development configuration).
+- Verify the container starts without errors
+- Verify the health check passes
+- Verify the Flask application is accessible at http://localhost:5000/health
+
+**Task 2.3 (FDB-2.3)**: Verify the React admin interface is properly served.
+- Access http://localhost:5000/admin/
+- Confirm the React application loads correctly
+
+### Milestone 3: Acceptance Criteria (FDB-3)
+
+**Task 3.1 (FDB-3.1)**: Ensure all nox sessions pass (no new test failures).
+
+**Task 3.2 (FDB-3.2)**: Update documentation if needed (CLAUDE.md, README.md).
+
+**Task 3.3 (FDB-3.3)**: Move feature file to `docs/features/completed/`.
