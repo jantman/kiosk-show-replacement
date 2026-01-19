@@ -229,17 +229,47 @@ Final validation and documentation.
 
 | Milestone | Status | Notes |
 |-----------|--------|-------|
-| M1: Enhance Integration Tests | Not Started | TDD - tests should fail initially |
-| M2: Fix Frontend Field Names | Not Started | |
-| M3: Fix Backend Update Handler | Not Started | |
-| M4: Verify Tests Pass | Not Started | |
-| M5: Acceptance Criteria | Not Started | |
+| M1: Enhance Integration Tests | Complete | Tests enhanced to verify all field persistence via API |
+| M2: Fix Frontend Field Names | Complete | TypeScript types and form updated to use backend field names |
+| M3: Fix Backend Update Handler | Complete | Added content_type, content_file_path, is_active handlers |
+| M4: Verify Tests Pass | Complete | All 66 integration tests pass (64 passed + 2 xpassed) |
+| M5: Acceptance Criteria | Complete | All criteria met |
+
+## Implementation Summary
+
+### Commits
+
+1. **2dc1623** - SIF-1: Enhanced integration tests with API verification
+2. **9f9b2ac** - SIF-2: Frontend field name fixes (types, form, detail page)
+3. **1975878** - SIF-3: Backend update handler (added missing fields)
+4. **48ae4e8** - SIF-4: Backend create handler fix (added content_file_path)
+
+### Key Changes
+
+1. **Frontend Types** (`frontend/src/types/index.ts`):
+   - Updated `SlideshowItem` interface to use backend field names
+
+2. **Frontend Form** (`frontend/src/components/SlideshowItemForm.tsx`):
+   - Updated form state to use `content_url`, `content_text`, `content_file_path`, `display_duration`
+   - Fixed data binding in useEffect, validation, and submission
+
+3. **Frontend Detail Page** (`frontend/src/pages/SlideshowDetail.tsx`):
+   - Updated table display to use correct field names
+
+4. **Backend API** (`kiosk_show_replacement/api/v1.py`):
+   - `update_slideshow_item`: Added handlers for `content_type`, `content_file_path`, `is_active`
+   - `create_slideshow_item`: Added `content_file_path`, fixed `display_duration` default, made `is_active` configurable
+
+5. **Integration Tests** (`tests/integration/test_slideshow_items.py`):
+   - All tests now verify field persistence via API calls
+   - Added `test_add_text_item_with_duration_override`
+   - Added `test_edit_file_upload_item`
 
 ## Acceptance Criteria
 
-- [ ] Creating a text item with content and duration override persists all values
-- [ ] Creating an image item with uploaded file persists the image association
-- [ ] Creating a video item persists the video content
-- [ ] Editing any item type shows current values in the form
-- [ ] Saving edits persists all changed values
-- [ ] Items list displays correct values for all fields
+- [x] Creating a text item with content and duration override persists all values
+- [x] Creating an image item with uploaded file persists the image association
+- [x] Creating a video item persists the video content
+- [x] Editing any item type shows current values in the form
+- [x] Saving edits persists all changed values
+- [x] Items list displays correct values for all fields
