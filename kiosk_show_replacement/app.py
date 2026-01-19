@@ -179,7 +179,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     init_storage(app)
 
     # Serve React frontend (for production build)
-    @app.route("/admin")
+    @app.route("/admin", strict_slashes=False)
     @app.route("/admin/<path:path>")
     def serve_admin(path: str = "") -> Any:
         """Serve React admin interface."""
