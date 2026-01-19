@@ -106,7 +106,9 @@ class JsonFormatter(logging.Formatter):
             try:
                 json.dumps(value)
                 log_entry[key] = value
-            except TypeError, ValueError:
+            # fmt: off
+            except (TypeError, ValueError):
+                # fmt: on
                 log_entry[key] = str(value)
 
         return json.dumps(log_entry)
