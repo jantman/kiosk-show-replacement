@@ -8,6 +8,10 @@ Kiosk Show Replacement is a self-hosted digital signage solution with a Flask ba
 
 ## Development Environment
 
+> **Note:** This file documents local development setup. Local Python/Poetry
+> installation is only supported for development purposes. For production
+> deployments, Docker is the only supported method. See `docs/deployment.rst`.
+
 Use `poetry run --` prefix to run commands in the Poetry environment. The `--` after `run` prevents poetry from interpreting nox arguments (like `-s`) as its own. Do not use `eval $(poetry env activate)`.
 
 ## Common Commands
