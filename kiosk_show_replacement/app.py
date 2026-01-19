@@ -58,6 +58,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     from .config import config
 
     app.config.from_object(config.get(config_name, config["default"]))
+    app.config["ENV"] = config_name  # Store environment name for route handlers
 
     # Configure SQLAlchemy engine options for better connection management
     if config_name == "testing" or app.config.get("TESTING"):
