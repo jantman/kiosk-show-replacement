@@ -23,6 +23,12 @@ The Create/Edit Slideshow Item modal on the slideshow edit page (`/admin/slidesh
 - The items list does not display the configured values
 - Opening the edit modal shows empty/default values instead of saved data
 
+## Integration Test Investigation - Mandatory First Step
+
+Perform this step BEFORE proceeding with any analysis or investigation!
+
+We previously implemented integration tests for slideshow item adding and editing as described in Milestone 3 of `./completed/admin-integration-tests.md` and committed in `6eb6451`. These tests were intended to catch exactly the sort of bugs this feature is describing. Please analyze the existing integration tests for adding/editing slideshow items and determine why they are all passing when the functionality they're intended to test does not work.
+
 ## Log Analysis
 
 Despite the failures, all API calls return success responses with no errors:
