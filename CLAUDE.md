@@ -136,6 +136,7 @@ npm run build
 6. **Close resources explicitly** - Use context managers or try/finally
 7. **Database sessions**: Close with `db.session.close()`, dispose engines with `db.engine.dispose()`
 8. **Git commits**: Use detailed commit messages beginning with a concise one-sentence summary, followed by a blank line and detailed explanation of changes
+9. **Command output**: When running commands that may be long-running and/or produce a lot of output, such as tests, do not pipe the command directly to grep/head/tail/etc. Rather, tee the output to a scratchpad file and read from there as needed.
 
 ## Test Types
 
