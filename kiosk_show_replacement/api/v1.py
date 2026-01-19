@@ -355,11 +355,12 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
             content_type=content_type,
             content_url=data.get("content_url"),
             content_text=data.get("content_text"),
-            display_duration=data.get("display_duration", 30),
+            content_file_path=data.get("content_file_path"),
+            display_duration=data.get("display_duration"),
             order_index=max_order + 1,
             created_by_id=current_user.id,
             updated_by_id=current_user.id,
-            is_active=True,
+            is_active=data.get("is_active", True),
         )
 
         db.session.add(item)

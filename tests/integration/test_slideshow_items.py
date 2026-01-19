@@ -69,10 +69,9 @@ class TestSlideshowItems:
         vite_url = servers["vite_url"]
         slideshow_id = test_slideshow["id"]
 
-        # Get original file size for verification
+        # Get the image path for upload
         image_path = ASSETS_DIR / "smallPhoto.jpg"
         assert image_path.exists(), f"Test asset not found: {image_path}"
-        original_file_size = image_path.stat().st_size
 
         # Login and navigate to slideshow detail page
         self._login(page, vite_url, test_database)
@@ -117,21 +116,16 @@ class TestSlideshowItems:
             http_client, auth_headers, slideshow_id, "Test Image Upload"
         )
         assert item is not None, "Item not found via API after creation"
-        assert item.get("content_type") == "image", (
-            f"content_type not persisted correctly: {item.get('content_type')}"
-        )
-        assert item.get("content_file_path"), (
-            f"content_file_path not persisted: {item}"
-        )
+        assert (
+            item.get("content_type") == "image"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
+        assert item.get("content_file_path"), f"content_file_path not persisted: {item}"
 
-        # Verify uploaded file exists and size matches
-        flask_url = servers["flask_url"]
+        # Verify content_file_path is set
         file_path = item.get("content_file_path")
-        # The file should be accessible via the uploads endpoint
-        # Check that the file size in the response matches original
         # Note: We can't directly check file system in integration tests,
         # but we can verify the path is set and non-empty
-        assert len(file_path) > 0, "content_file_path is empty"
+        assert file_path and len(file_path) > 0, "content_file_path is empty"
 
     def test_add_image_item_via_url(
         self,
@@ -185,9 +179,9 @@ class TestSlideshowItems:
             http_client, auth_headers, slideshow_id, "Test Image URL"
         )
         assert item is not None, "Item not found via API after creation"
-        assert item.get("content_type") == "image", (
-            f"content_type not persisted correctly: {item.get('content_type')}"
-        )
+        assert (
+            item.get("content_type") == "image"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_url") == test_url, (
             f"content_url not persisted correctly: expected '{test_url}', "
             f"got '{item.get('content_url')}'"
@@ -211,10 +205,9 @@ class TestSlideshowItems:
         vite_url = servers["vite_url"]
         slideshow_id = test_slideshow["id"]
 
-        # Get original file size for verification
+        # Get the video path for upload
         video_path = ASSETS_DIR / "crash_into_pole.mpeg"
         assert video_path.exists(), f"Test asset not found: {video_path}"
-        original_file_size = video_path.stat().st_size
 
         # Login and navigate to slideshow detail page
         self._login(page, vite_url, test_database)
@@ -257,12 +250,10 @@ class TestSlideshowItems:
             http_client, auth_headers, slideshow_id, "Test Video Upload"
         )
         assert item is not None, "Item not found via API after creation"
-        assert item.get("content_type") == "video", (
-            f"content_type not persisted correctly: {item.get('content_type')}"
-        )
-        assert item.get("content_file_path"), (
-            f"content_file_path not persisted: {item}"
-        )
+        assert (
+            item.get("content_type") == "video"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
+        assert item.get("content_file_path"), f"content_file_path not persisted: {item}"
 
         # Verify file path is set and non-empty
         file_path = item.get("content_file_path")
@@ -320,9 +311,9 @@ class TestSlideshowItems:
             http_client, auth_headers, slideshow_id, "Test Video URL"
         )
         assert item is not None, "Item not found via API after creation"
-        assert item.get("content_type") == "video", (
-            f"content_type not persisted correctly: {item.get('content_type')}"
-        )
+        assert (
+            item.get("content_type") == "video"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_url") == test_url, (
             f"content_url not persisted correctly: expected '{test_url}', "
             f"got '{item.get('content_url')}'"
@@ -384,9 +375,9 @@ class TestSlideshowItems:
             http_client, auth_headers, slideshow_id, "Test Web Page"
         )
         assert item is not None, "Item not found via API after creation"
-        assert item.get("content_type") == "url", (
-            f"content_type not persisted correctly: {item.get('content_type')}"
-        )
+        assert (
+            item.get("content_type") == "url"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_url") == test_url, (
             f"content_url not persisted correctly: expected '{test_url}', "
             f"got '{item.get('content_url')}'"
@@ -448,9 +439,9 @@ class TestSlideshowItems:
             http_client, auth_headers, slideshow_id, "Test Text Slide"
         )
         assert item is not None, "Item not found via API after creation"
-        assert item.get("content_type") == "text", (
-            f"content_type not persisted correctly: {item.get('content_type')}"
-        )
+        assert (
+            item.get("content_type") == "text"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_text") == test_text, (
             f"content_text not persisted correctly: expected '{test_text}', "
             f"got '{item.get('content_text')}'"
@@ -547,17 +538,15 @@ class TestSlideshowItems:
             headers=auth_headers,
         )
         assert response.status_code in [200, 201]
-        created_item = response.json().get("data", response.json())
-        item_id = created_item.get("id")
 
         # Verify item was created with correct content
         item = get_item_by_title(
             http_client, auth_headers, slideshow_id, "Item To Edit"
         )
         assert item is not None, "Created item not found via API"
-        assert item.get("content_text") == original_text, (
-            f"Original content_text not set correctly: {item.get('content_text')}"
-        )
+        assert (
+            item.get("content_text") == original_text
+        ), f"Original content_text not set correctly: {item.get('content_text')}"
 
         # Login and navigate to slideshow detail page
         self._login(page, vite_url, test_database)
