@@ -126,6 +126,7 @@ def test(session):
         "--cov=" + PACKAGE_DIR,
         "--cov-report=term-missing",
         "--cov-report=html:htmlcov",
+        "--cov-report=xml:reports/coverage.xml",  # XML coverage report for CI
         "--cov-fail-under=30",
         "--durations=25",  # Show slowest 25 tests
         "--junitxml=reports/test_results.xml",  # JUnit XML report for CI

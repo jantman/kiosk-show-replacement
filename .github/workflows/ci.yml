@@ -1,0 +1,238 @@
+# CI Workflow for kiosk-show-replacement
+#
+# Runs on pull requests and manual dispatch.
+# Tests Python backend, TypeScript frontend, and browser-based integration/e2e tests.
+
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  # Python linting with flake8 and pycodestyle
+  lint:
+    name: Lint (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install tools
+        run: |
+          pip install --constraint=.github/workflows/constraints.txt pip
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+
+      - name: Run linting
+        run: nox -s lint
+
+  # Type checking with mypy
+  type-check:
+    name: Type Check (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install tools
+        run: |
+          pip install --constraint=.github/workflows/constraints.txt pip
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+
+      - name: Run type checking
+        run: nox -s type_check
+
+  # Python unit tests with coverage
+  test-unit:
+    name: Unit Tests (Python)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install tools
+        run: |
+          pip install --constraint=.github/workflows/constraints.txt pip
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+
+      - name: Run unit tests
+        run: nox -s test-3.14
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-unit
+          path: |
+            reports/
+            htmlcov/
+            .coverage
+
+  # Frontend tests (Vitest, ESLint, TypeScript)
+  test-frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 25
+        uses: actions/setup-node@v4
+        with:
+          node-version: "25"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend CI tests
+        working-directory: frontend
+        run: npm run test:ci
+
+  # Integration tests (React + Flask through browser)
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up Node.js 25
+        uses: actions/setup-node@v4
+        with:
+          node-version: "25"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install tools
+        run: |
+          pip install --constraint=.github/workflows/constraints.txt pip
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Playwright browsers
+        run: |
+          pip install playwright
+          playwright install chromium --with-deps
+
+      - name: Run integration tests
+        run: nox -s test-integration
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-integration
+          path: |
+            reports/
+            test-results/
+
+  # E2E tests (Flask server-rendered pages through browser)
+  test-e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Set up Node.js 25
+        uses: actions/setup-node@v4
+        with:
+          node-version: "25"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install tools
+        run: |
+          pip install --constraint=.github/workflows/constraints.txt pip
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt nox
+          pipx inject --pip-args=--constraint=.github/workflows/constraints.txt nox nox-poetry
+          pipx install --pip-args=--constraint=.github/workflows/constraints.txt poetry
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install Playwright browsers
+        run: |
+          pip install playwright
+          playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: nox -s test-e2e
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-e2e
+          path: |
+            reports/
+            test-results/
+
+  # Coverage comment on PRs
+  coverage:
+    name: Coverage Report
+    runs-on: ubuntu-latest
+    needs: test-unit
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download test artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results-unit
+
+      - name: Post coverage comment
+        uses: MishaKav/pytest-coverage-comment@v1.1.52
+        with:
+          pytest-xml-coverage-path: reports/coverage.xml
+          junitxml-path: reports/test_results.xml

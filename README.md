@@ -1,5 +1,8 @@
 # Kiosk Show Replacement
 
+[![CI](https://github.com/jantman/kiosk-show-replacement/actions/workflows/ci.yml/badge.svg)](https://github.com/jantman/kiosk-show-replacement/actions/workflows/ci.yml)
+[![Release](https://github.com/jantman/kiosk-show-replacement/actions/workflows/release.yml/badge.svg)](https://github.com/jantman/kiosk-show-replacement/actions/workflows/release.yml)
+
 A self-hosted digital signage solution built with Flask, serving as a replacement for the defunct kiosk.show service.
 
 ## Features
