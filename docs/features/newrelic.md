@@ -97,17 +97,17 @@ You must read, understand, and follow all instructions in `./README.md` when pla
 
 ## Progress
 
-- [ ] Milestone 1: NewRelic Integration
-  - [ ] Task 1.1: Add NewRelic Dependency
-  - [ ] Task 1.2: Update Docker Configuration
-  - [ ] Task 1.3: Update Docker Compose Files
-  - [ ] Task 1.4: Document NewRelic Configuration
-- [ ] Milestone 2: Documentation Updates
-  - [ ] Task 2.1: Update docs/deployment.rst
-  - [ ] Task 2.2: Update docs/installation.rst
-  - [ ] Task 2.3: Update README.md
-  - [ ] Task 2.4: Update docs/development.rst
-  - [ ] Task 2.5: Update CLAUDE.md
+- [x] Milestone 1: NewRelic Integration
+  - [x] Task 1.1: Add NewRelic Dependency
+  - [x] Task 1.2: Update Docker Configuration
+  - [x] Task 1.3: Update Docker Compose Files
+  - [x] Task 1.4: Document NewRelic Configuration
+- [x] Milestone 2: Documentation Updates
+  - [x] Task 2.1: Update docs/deployment.rst
+  - [x] Task 2.2: Update docs/installation.rst
+  - [x] Task 2.3: Update README.md
+  - [x] Task 2.4: Update docs/development.rst
+  - [x] Task 2.5: Update CLAUDE.md
 - [ ] Milestone 3: Acceptance Criteria
   - [ ] Task 3.1: Verify Tests Pass
   - [ ] Task 3.2: Verify Documentation Consistency
