@@ -1,75 +1,72 @@
-# Slideshow Item Failures
+# Fix Slideshow Item Creation and Editing
 
 You must read, understand, and follow all instructions in `./README.md` when planning and implementing this feature.
 
 ## Overview
 
-This document tracks issues with slideshow item creation and editing where data appears to save successfully but is not actually persisted.
+Slideshow item creation and editing in the admin frontend is fundamentally broken. When creating or editing slideshow items, values appear to save successfully (API returns 200/201, no errors logged) but the data is not actually persisted. This affects all item types: text, image, and video.
 
-## Issues
+## Problem Description
 
-### 1. Slideshow Item Values Not Persisting
+The Create/Edit Slideshow Item modal on the slideshow edit page (`/admin/slideshows/{id}`) does not properly save item data:
 
-**Location:** Slideshow edit page - Create/Edit Slideshow Item modal
+1. **On Create:** Item is created but field values are not saved
+2. **On Edit:** Existing values are not populated in the form, and saving does not persist changes
+3. **Affects all content types:** Text, image, and video items all exhibit this behavior
 
-**Description:** When creating or editing slideshow items, certain values are not being persisted:
-- Created a slide with text content type and duration override of 3
-- Neither value was persisted after creation
-- Values do not appear in the Slideshow Items list
-- Values do not appear in the Edit Slideshow Item modal
-- Filling in values on the edit modal and saving still does not persist them
+### Symptoms
 
-**Steps to Reproduce:**
-1. Go to a slideshow's edit page
-2. Add a new slideshow item
-3. Set content type to "text" and duration override to 3
-4. Save the item
-5. Observe that the values are not shown in the items list
-6. Open the edit modal for that item
-7. Observe that the values are not populated
-8. Fill in the values again and save
-9. Observe that they still do not persist
+- Content type selection is not persisted
+- Duration override values are not persisted
+- Uploaded images are not associated with items (upload succeeds, but item has no image)
+- Video items similarly fail to retain their content
+- The items list does not display the configured values
+- Opening the edit modal shows empty/default values instead of saved data
 
-**Expected:** All slideshow item values should be properly saved and displayed.
+## Log Analysis
 
-**Log Analysis:**
-- Flask backend logs show no errors
-- `PUT /api/v1/slideshow-items/2` returns 200 OK
-- Log message: "User admin updated item helloAgain3s"
-- Vite dev server logs show no frontend errors
+Despite the failures, all API calls return success responses with no errors:
 
-**Likely Causes:**
-1. Frontend may not be sending `content_type` and `duration_override` in the PUT request body
-2. Backend may be accepting the request but not persisting those specific fields
-3. GET response may not be returning those fields to populate the UI
+**Item Update (PUT):**
+```
+PUT /api/v1/slideshow-items/2 -> 200 OK
+Log: "User admin updated item helloAgain3s"
+```
 
-**Status:** Open
+**Image Upload:**
+```
+POST /api/v1/uploads/image -> 201
+Log: "User admin uploaded image smallPhoto.jpg to slideshow test1"
+```
 
-### 2. Uploaded Images Not Associated with Slideshow Items
+**Item Creation:**
+```
+POST /api/v1/slideshows/1/items -> 201
+Log: "User admin created item in slideshow test1"
+```
 
-**Location:** Slideshow edit page - Create Slideshow Item modal
+No errors appear in Flask backend or Vite dev server logs.
 
-**Description:** When creating a slideshow item with an uploaded image:
-- The image upload appears to succeed
-- The item creation appears to succeed
-- However, when editing the item, no image is associated with it
+## Likely Root Causes
 
-**Steps to Reproduce:**
-1. Go to a slideshow's edit page
-2. Add a new slideshow item
-3. Upload an image file
-4. Save the item
-5. Open the edit modal for that item
-6. Observe that no image is associated
+1. **Frontend not sending field values:** The form may not be including all fields in the POST/PUT request body
+2. **Backend not persisting fields:** The API may accept the request but ignore certain fields during save
+3. **Field name mismatch:** Frontend and backend may use different field names (e.g., `content_type` vs `contentType`)
+4. **Upload-to-item linking broken:** Uploaded files may not be properly linked to items when the item is created/updated
 
-**Log Analysis:**
-- `POST /api/v1/uploads/image` returns 201: "User admin uploaded image smallPhoto.jpg to slideshow test1"
-- `POST /api/v1/slideshows/1/items` returns 201: "User admin created item in slideshow test1"
-- No errors in Flask or Vite logs
+## Investigation Approach
 
-**Likely Causes:**
-1. The uploaded image ID/path may not be sent when creating the slideshow item
-2. The image association may not be persisted in the database
-3. Similar root cause to issue #1 - frontend/backend field handling mismatch
+1. Inspect browser DevTools Network tab to see actual request payloads being sent
+2. Compare request payload field names with backend API expectations
+3. Check backend API endpoint handlers for field processing logic
+4. Verify database schema matches expected fields
+5. Trace the data flow from form submission through API to database
 
-**Status:** Open
+## Acceptance Criteria
+
+- [ ] Creating a text item with content and duration override persists all values
+- [ ] Creating an image item with uploaded file persists the image association
+- [ ] Creating a video item persists the video content
+- [ ] Editing any item type shows current values in the form
+- [ ] Saving edits persists all changed values
+- [ ] Items list displays correct values for all fields
