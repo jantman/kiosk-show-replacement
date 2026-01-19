@@ -7,39 +7,28 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 
 ## Features
 
-- 🖥️ **Web-based Management**: Create and manage slideshows through an intuitive web interface
-- 🎛️ **Modern Admin Interface**: React-based admin panel with real-time updates and responsive design
-- 📺 **Kiosk Display Mode**: Full-screen slideshow display optimized for kiosk devices
-- 🎯 **Multiple Content Types**: Support for images, web pages, and text slides
-- ⏱️ **Flexible Timing**: Customizable display duration for each slide
-- 🔄 **Real-time Updates**: Dynamic slideshow management without restarts
-- 📱 **Responsive Design**: Works on desktop, tablet, and mobile devices
-- 🛠️ **RESTful API**: Full API for programmatic management
-- 🐍 **Modern Python**: Built with Flask, SQLAlchemy, and modern Python practices
-- ⚡ **Modern Frontend**: React 18 with TypeScript, Bootstrap 5, and Vite build system
+- **Web-based Management**: Create and manage slideshows through an intuitive web interface
+- **Modern Admin Interface**: React-based admin panel with real-time updates and responsive design
+- **Kiosk Display Mode**: Full-screen slideshow display optimized for kiosk devices
+- **Multiple Content Types**: Support for images, web pages, and text slides
+- **Flexible Timing**: Customizable display duration for each slide
+- **Real-time Updates**: Dynamic slideshow management without restarts
+- **Responsive Design**: Works on desktop, tablet, and mobile devices
+- **RESTful API**: Full API for programmatic management
+- **Modern Python**: Built with Flask, SQLAlchemy, and modern Python practices
+- **Modern Frontend**: React 18 with TypeScript, Bootstrap 5, and Vite build system
 
 ## Quick Start
 
-> **Note:** This Quick Start section is for **development** setup. For production deployment,
-> see the [Deployment](#deployment) section below, which uses Docker.
+Docker is the only supported deployment method for production. The application supports
+both x86_64 and ARM64 architectures (including Raspberry Pi).
 
-### Prerequisites (Development)
+### Prerequisites
 
-- Python 3.14 or higher
-- Poetry (for dependency management)
-- Node.js 25.0 or higher and npm (for the React admin interface)
+- Docker Engine 20.10 or higher
+- Docker Compose 2.0 or higher
 
-### Important: Environment Activation
-
-**Before starting work with this project in any new terminal session, you MUST run:**
-
-```bash
-eval $(poetry env activate)
-```
-
-This activates the Poetry virtual environment **once per terminal session** and allows you to run all subsequent commands without the `poetry run` prefix. All examples in this documentation assume you have already activated the environment in your current terminal session.
-
-### Development Installation
+### Installation
 
 1. **Clone the repository:**
    ```bash
@@ -47,105 +36,37 @@ This activates the Poetry virtual environment **once per terminal session** and 
    cd kiosk-show-replacement
    ```
 
-2. **Install dependencies and activate environment:**
+2. **Configure environment:**
    ```bash
-   # Install Python dependencies
-   poetry install
-   eval $(poetry env activate)
-   
-   # Install Node.js dependencies for React admin interface
-   cd frontend
-   npm install
-   cd ..
+   cp .env.docker.example .env
+
+   # Generate a secure secret key
+   python -c "import secrets; print(secrets.token_hex(32))"
+
+   # Edit .env and set required values:
+   # - SECRET_KEY (use generated key)
+   # - MYSQL_ROOT_PASSWORD
+   # - MYSQL_PASSWORD
+   # - KIOSK_ADMIN_PASSWORD
    ```
 
-3. **Initialize the database:**
-   
-   **Option A: Using Poetry script shortcut (Recommended)**
+3. **Start the application:**
    ```bash
-   # Basic database setup
-   kiosk-init-db
-   
-   # Or with sample data for testing
-   kiosk-init-db --sample-data
-   ```
-   
-   **Option B: Using the script directly**
-   ```bash
-   # Basic database setup
-   python scripts/init_db.py
-   
-   # Or with sample data for testing
-   python scripts/init_db.py --sample-data
+   docker-compose -f docker-compose.prod.yml up -d
    ```
 
-4. **Build the React admin interface:**
-   ```bash
-   cd frontend
-   npm run build
-   cd ..
-   ```
-
-5. **Start the development server:**
-   ```bash
-   python run.py
-   ```
-
-6. **Open your browser:**
-   - **Admin Interface**: http://localhost:5000/admin (login: admin/admin)  
-   - **Legacy Interface**: http://localhost:5000
+4. **Access the application:**
+   - **Admin Interface**: http://localhost:5000/admin
    - **API**: http://localhost:5000/api/v1/
 
-### Development Mode (Frontend Hot Reload)
+Default admin credentials are `admin`/`admin` unless you set `KIOSK_ADMIN_PASSWORD` in your environment.
 
-For frontend development with hot reload:
-
-1. **Start the Flask backend:**
-   ```bash
-   eval $(poetry env activate)
-   python run.py
-   ```
-
-2. **In a separate terminal, start the React dev server:**
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-
-This provides:
-- **Flask Backend**: http://localhost:5000 (API and display endpoints)
-- **React Frontend**: http://localhost:3000 (Admin interface with hot reload)
-
-### Database Initialization Details
-
-The database initialization script (`scripts/init_db.py`) provides several options:
-
-- `--sample-data` / `-s`: Creates demonstration slideshows with sample content
-- `--database-url` / `-d`: Override the database URL from environment
-- `--force` / `-f`: Force initialization even if tables already exist
-
-**Examples:**
-```bash
-# First, activate the environment
-eval $(poetry env activate)
-
-# Initialize with custom database URL
-python scripts/init_db.py -d "sqlite:///custom.db"
-
-# Initialize with sample data for testing
-python scripts/init_db.py --sample-data
-
-# Force reinitialize (preserves existing data)
-python scripts/init_db.py --force --sample-data
-```
-
-The sample data includes:
-- **Welcome Demo**: A comprehensive slideshow showcasing different content types
-- **Simple Announcements**: Basic text-only slides for announcements
+For detailed deployment instructions, environment variables, NewRelic APM setup,
+production checklist, and troubleshooting, see the [Deployment Guide](docs/deployment.rst).
 
 ## Usage
 
-### Admin Interface (Recommended)
+### Admin Interface
 
 The modern React admin interface provides the best user experience:
 
@@ -156,13 +77,9 @@ The modern React admin interface provides the best user experience:
 5. **Manage Displays**: Monitor display devices and assign slideshows
 6. **View History**: Track slideshow assignment changes
 
-### Legacy Interface
-
-The original Flask-based interface is still available at the root URL.
-
 ### Creating a Slideshow
 
-1. Navigate to the home page
+1. Navigate to the admin interface
 2. Click "Create New Slideshow"
 3. Enter a name and optional description
 4. Click "Create Slideshow"
@@ -177,7 +94,7 @@ The original Flask-based interface is still available at the root URL.
 
 ### Displaying a Slideshow
 
-1. From the home page or manage page, click "Display" on any slideshow
+1. From the admin interface, click "Display" on any slideshow
 2. The slideshow will open in full-screen kiosk mode
 3. Press `Escape` to exit kiosk mode
 
@@ -196,6 +113,8 @@ The original Flask-based interface is still available at the root URL.
 - `DELETE /api/slides/{id}` - Delete a slide
 
 ## Development
+
+For local development setup using Python and Poetry, see [docs/development.rst](docs/development.rst).
 
 ### Project Structure
 
@@ -229,164 +148,6 @@ kiosk-show-replacement/
 ├── pyproject.toml                   # Poetry configuration
 └── run.py                           # Development server
 ```
-
-### Running Tests
-
-The project includes comprehensive testing for both backend and frontend:
-
-**Backend Tests:**
-
-```bash
-# First, activate the environment
-eval $(poetry env activate)
-
-# Run unit tests
-nox -s test
-
-# Run integration tests
-nox -s test-integration
-
-# Run end-to-end tests (requires Chrome/Chromium)
-nox -s test-e2e
-
-# Run all tests with coverage
-nox -s test-all
-```
-
-**Frontend Tests:**
-
-```bash
-# Navigate to frontend directory
-cd frontend
-
-# Run tests
-npm test
-
-# Run tests with coverage
-npm run test:run
-
-# Run tests with UI
-npm run test:ui
-```
-
-**Test Types:**
-- **Backend Unit Tests**: Test individual components in isolation
-- **Backend Integration Tests**: Test component interactions using Flask test client
-- **Backend E2E Tests**: Test complete user workflows using browser automation
-- **Frontend Tests**: Test React components with Vitest and React Testing Library
-
-**E2E Test Requirements:**
-E2E tests require Chrome or Chromium browser installed:
-
-```bash
-# ArchLinux
-sudo pacman -S google-chrome
-# or chromium
-
-# Ubuntu/Debian  
-sudo apt install google-chrome-stable
-# or chromium-browser
-
-# Fedora
-sudo dnf install google-chrome-stable
-# or chromium
-```
-
-### Test Database Setup
-
-For testing, you may want to set up a separate test database:
-
-```bash
-# First, activate the environment
-eval $(poetry env activate)
-
-# Set up test database with sample data
-DATABASE_URL="sqlite:///test.db" python scripts/init_db.py --sample-data
-
-# Run tests against test database
-DATABASE_URL="sqlite:///test.db" nox -s test
-```
-
-### Code Quality
-
-**Backend Quality Checks:**
-
-```bash
-# First, activate the environment
-eval $(poetry env activate)
-
-# Format code
-nox -s format
-
-# Check code style
-nox -s lint
-
-# Type checking
-nox -s type_check
-
-# Run all quality checks
-nox  # Runs format, lint, and test by default
-```
-
-**Frontend Quality Checks:**
-
-```bash
-cd frontend
-
-# Type checking
-npm run type-check
-
-# Build check
-npm run build
-
-# Development server
-npm run dev
-```
-
-### Environment Variables
-
-Create a `.env` file based on `.env.example`:
-
-```bash
-cp .env.example .env
-```
-
-Key configuration options:
-
-- `FLASK_ENV`: Environment mode (development/production)
-- `SECRET_KEY`: Flask secret key for sessions
-- `DATABASE_URL`: Database connection string
-- `UPLOAD_FOLDER`: Directory for uploaded files
-
-## Deployment
-
-> **Docker is the only supported deployment method for production.**
-> For local development setup, see the [Quick Start](#quick-start) section above.
-
-Docker provides the easiest and most reproducible deployment method with support for
-both x86_64 and ARM64 architectures (including Raspberry Pi).
-
-**Quick Start (Production with MariaDB):**
-
-```bash
-# Clone the repository
-git clone https://github.com/jantman/kiosk-show-replacement.git
-cd kiosk-show-replacement
-
-# Copy and configure environment
-cp .env.docker.example .env
-# Edit .env with your passwords and secret key
-
-# Start production stack
-docker-compose -f docker-compose.prod.yml up -d
-
-# Access at http://localhost:5000/admin
-```
-
-For detailed deployment instructions, environment variables, NewRelic APM setup,
-production checklist, and troubleshooting, see the [Deployment Guide](docs/deployment.rst).
-
-For local development setup (Python/Poetry), see [docs/development.rst](docs/development.rst).
 
 ## Contributing
 
