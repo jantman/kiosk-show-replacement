@@ -68,6 +68,133 @@ No errors appear in Flask backend or Vite dev server logs.
 4. Verify database schema matches expected fields
 5. Trace the data flow from form submission through API to database
 
+## Investigation Results
+
+### Integration Test Analysis
+
+The existing integration tests in `tests/integration/test_slideshow_items.py` pass because they only verify:
+1. Item **title** appears correctly in the table (title field works fine)
+2. Content type **badge** displays correctly (content_type works in create)
+
+The tests do **NOT** verify:
+- Text content (`text_content`) is actually persisted
+- URLs (`url`) are persisted
+- File paths (`file_path`) are persisted
+- Duration overrides (`duration`) are persisted
+- That editing populates the form with saved values for these fields
+
+### Root Cause: Field Name Mismatches
+
+There is a systematic mismatch between field names used by the frontend and backend:
+
+| Frontend Uses | Backend Expects | Model Column |
+|--------------|-----------------|--------------|
+| `url` | `content_url` | `content_url` |
+| `file_path` | `content_file_path` | `content_file_path` |
+| `text_content` | `content_text` | `content_text` |
+| `duration` | `display_duration` | `display_duration` |
+
+**Frontend sends** (from `SlideshowItemForm.tsx` lines 106-115):
+```javascript
+{
+  title: "...",
+  content_type: "...",
+  url: "...",           // Backend expects content_url
+  text_content: "...",  // Backend expects content_text
+  file_path: "...",     // Backend expects content_file_path
+  duration: 30,         // Backend expects display_duration
+  is_active: true
+}
+```
+
+**Backend expects** (from `api/v1.py` `create_slideshow_item` lines 352-363):
+```python
+SlideshowItem(
+  title=data.get("title", ""),
+  content_type=content_type,
+  content_url=data.get("content_url"),      # Frontend sends url
+  content_text=data.get("content_text"),    # Frontend sends text_content
+  display_duration=data.get("display_duration", 30),  # Frontend sends duration
+)
+```
+
+Additionally, the `update_slideshow_item` function is missing handlers for:
+- `content_type` updates
+- `content_file_path` / `file_path`
+- `is_active`
+
+### API Response Mismatch
+
+The model's `to_dict()` method returns database column names:
+```python
+{
+  "content_url": "...",
+  "content_text": "...",
+  "content_file_path": "...",
+  "display_duration": 30
+}
+```
+
+But the frontend TypeScript types expect:
+```typescript
+interface SlideshowItem {
+  url?: string;
+  file_path?: string;
+  text_content?: string;
+  duration?: number;
+}
+```
+
+This causes the edit form to not populate with saved values (it looks for `url` but receives `content_url`).
+
+## Implementation Plan
+
+### Milestone 1: Fix Field Name Mapping
+**Prefix:** `SIF-1`
+
+Update the backend to accept frontend field names and map them to model columns, and update the model's `to_dict()` to include frontend-friendly aliases.
+
+**Tasks:**
+1. **SIF-1.1** Update `SlideshowItem.to_dict()` to include both database column names and frontend aliases for backward compatibility
+2. **SIF-1.2** Update `create_slideshow_item` API handler to accept both naming conventions
+3. **SIF-1.3** Update `update_slideshow_item` API handler to:
+   - Accept both naming conventions
+   - Handle `content_type` updates
+   - Handle `file_path`/`content_file_path` updates
+   - Handle `is_active` updates
+4. **SIF-1.4** Run existing tests to ensure no regressions
+
+### Milestone 2: Enhance Integration Tests
+**Prefix:** `SIF-2`
+
+Update integration tests to properly verify data persistence.
+
+**Tasks:**
+1. **SIF-2.1** Update `test_add_text_item` to verify text content is persisted (reload page and check)
+2. **SIF-2.2** Update `test_edit_existing_item` to verify:
+   - Form is pre-populated with all saved values (not just title)
+   - All field changes are persisted after save
+3. **SIF-2.3** Add test to verify duration override is persisted
+4. **SIF-2.4** Run full test suite to ensure all tests pass
+
+### Milestone 3: Acceptance Criteria
+**Prefix:** `SIF-3`
+
+Final validation and documentation.
+
+**Tasks:**
+1. **SIF-3.1** Manual testing of all acceptance criteria
+2. **SIF-3.2** Ensure all nox sessions pass
+3. **SIF-3.3** Move feature file to `docs/features/completed/`
+
+## Progress Tracking
+
+| Milestone | Status | Notes |
+|-----------|--------|-------|
+| M1: Fix Field Name Mapping | Not Started | |
+| M2: Enhance Integration Tests | Not Started | |
+| M3: Acceptance Criteria | Not Started | |
+
 ## Acceptance Criteria
 
 - [ ] Creating a text item with content and duration override persists all values
