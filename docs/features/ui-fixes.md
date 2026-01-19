@@ -75,3 +75,6 @@ Users would not intuitively know that "View Details" is where to go to manage sl
 
 **Status:** Open
 
+### 5. Video Item Duration
+
+Right now, when a video is uploaded to the slideshow the item retains the default item duration or overridden item duration. Video items should always be set to the actual duration of the uploaded video, whatever that is; there should not be UI fields for duration on a video upload (or they should be inactive) and the duration should be calculated and set once the video file is uploaded.
