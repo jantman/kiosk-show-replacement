@@ -168,8 +168,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         # Decode the URL-encoded filename
         decoded_filename = unquote_plus(filename)
 
+        # Use absolute path for send_from_directory to avoid path resolution issues
+        # Flask's send_from_directory can have issues with relative paths depending
+        # on the working directory state when the request is handled
+        upload_folder = os.path.abspath(app.config["UPLOAD_FOLDER"])
+
         try:
-            return send_from_directory(app.config["UPLOAD_FOLDER"], decoded_filename)
+            return send_from_directory(upload_folder, decoded_filename)
         except FileNotFoundError:
             abort(404)
 

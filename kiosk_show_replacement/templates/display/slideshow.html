@@ -457,14 +457,14 @@
             
             startSlideshow() {
                 if (this.slides.length <= 1) return;
-                
+
                 const showNextSlide = () => {
                     this.nextSlide();
-                    const duration = this.slides[this.currentSlideIndex].display_duration * 1000;
+                    const duration = this.slides[this.currentSlideIndex].effective_duration * 1000;
                     this.slideInterval = setTimeout(showNextSlide, duration);
                 };
-                
-                const initialDuration = this.slides[0].display_duration * 1000;
+
+                const initialDuration = this.slides[0].effective_duration * 1000;
                 this.slideInterval = setTimeout(showNextSlide, initialDuration);
             }
             
