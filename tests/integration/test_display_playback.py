@@ -8,6 +8,7 @@ Tests verify that slideshows play correctly on display views:
 - Uploaded images load successfully
 - SSE events trigger display reload on assignment change
 - Text slides only show content, not title
+- Text slides preserve line breaks
 
 Run with: nox -s test-integration
 """
@@ -17,7 +18,7 @@ import time
 from pathlib import Path
 
 import pytest
-from playwright.sync_api import Page
+from playwright.sync_api import Page, expect
 
 # Path to test assets
 ASSETS_DIR = Path(__file__).parent.parent / "assets"
@@ -673,6 +674,145 @@ class TestDisplayPlayback:
 
         finally:
             # Cleanup slideshow (test_text_slide_shows_only_content_not_title)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_text_slide_preserves_line_breaks(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that text slides preserve line breaks/newlines.
+
+        This test:
+        1. Creates a slideshow with a text slide that has multiple lines
+        2. Assigns the slideshow to a display
+        3. Navigates to the display view
+        4. Verifies the line breaks are preserved (text appears on separate lines)
+
+        This tests the bug where text slides collapsed all line breaks.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Text Formatting Test Slideshow",
+                "description": "Test slideshow for text formatting",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide with multiple lines
+            # Each line has distinctive content so we can verify they're on separate lines
+            line1 = "LINE_ONE_CONTENT"
+            line2 = "LINE_TWO_CONTENT"
+            line3 = "LINE_THREE_CONTENT"
+            multiline_content = f"{line1}\n{line2}\n{line3}"
+
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Multiline Test",
+                    "content_type": "text",
+                    "content_text": multiline_content,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-text-format-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for text formatting testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Verify all three lines are visible
+                for line in [line1, line2, line3]:
+                    assert page.locator(f"text={line}").is_visible(), (
+                        f"Line '{line}' should be visible in the text slide"
+                    )
+
+                # Verify lines are on separate lines by checking that the content element
+                # has line breaks preserved (via CSS white-space or <br> tags)
+                content_element = page.locator(".text-content .content")
+                expect(content_element).to_be_visible()
+
+                # Get the computed style to verify white-space is set to preserve line breaks
+                # or check that text appears on multiple lines by examining bounding boxes
+                html_content = content_element.inner_html()
+
+                # Check if line breaks are preserved either by <br> tags or by CSS
+                # The content should either have <br> tags between lines, or the
+                # white-space CSS property should be 'pre-wrap' or 'pre-line'
+                has_br_tags = "<br" in html_content.lower()
+
+                # Get computed style
+                computed_style = page.evaluate(
+                    """(el) => window.getComputedStyle(el).whiteSpace""",
+                    content_element.element_handle(),
+                )
+                has_whitespace_css = computed_style in ["pre-wrap", "pre-line", "pre"]
+
+                assert has_br_tags or has_whitespace_css, (
+                    f"Text content should preserve line breaks. "
+                    f"HTML content: '{html_content}', "
+                    f"computed white-space: '{computed_style}'. "
+                    f"Expected <br> tags or white-space: pre-wrap/pre-line/pre."
+                )
+
+            finally:
+                # Cleanup display (test_text_slide_preserves_line_breaks)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_text_slide_preserves_line_breaks)
             http_client.delete(
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
