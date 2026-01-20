@@ -70,6 +70,11 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
       - name: Install tools
         run: |
           pip install --upgrade pip
@@ -130,6 +135,11 @@ jobs:
           node-version: "25"
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
 
       - name: Install tools
         run: |
