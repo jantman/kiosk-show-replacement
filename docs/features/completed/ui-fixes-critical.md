@@ -18,7 +18,7 @@ This document tracks critical UI issues that break core system functionality. Fo
 
 **Expected:** All slides should display in order, each for their configured duration.
 
-**Status:** Open
+**Status:** ✅ Fixed
 
 **Root Cause Analysis:**
 The JavaScript in `kiosk_show_replacement/templates/display/slideshow.html` lines 463 and 467 uses `this.slides[...].display_duration * 1000` directly. The `display_duration` field is the *optional* per-item override duration, which is `null` when no override is set. When JavaScript evaluates `null * 1000`, it returns `0` (zero milliseconds), causing slides without a duration override to be immediately skipped.
@@ -38,7 +38,7 @@ The model provides an `effective_duration` field (computed property) that correc
 
 **Expected:** Uploaded images should display correctly on the display.
 
-**Status:** Open
+**Status:** ✅ Fixed
 
 **Root Cause Analysis:**
 This requires further investigation through integration testing. The suspected issue areas are:
@@ -54,6 +54,9 @@ The investigation will begin by writing a failing integration test that uploads 
 - `kiosk_show_replacement/app.py` (upload file serving route)
 - `kiosk_show_replacement/storage.py` (file path handling)
 
+**Fix Applied:**
+The issue was in `kiosk_show_replacement/app.py`. The `send_from_directory()` call was using a relative path from `app.config["UPLOAD_FOLDER"]`, which Flask's path resolution struggled with depending on the working directory state. Fixed by converting the upload folder to an absolute path with `os.path.abspath()` before passing to `send_from_directory()`.
+
 ---
 
 ### 3. Slideshows Not Changing
@@ -64,7 +67,7 @@ The investigation will begin by writing a failing integration test that uploads 
 
 **Expected:** When a display's slideshow assignment changes, the display should automatically switch to the new slideshow via SSE.
 
-**Status:** Open
+**Status:** ✅ Fixed
 
 **Root Cause Analysis:**
 The `broadcast_display_update()` function in `kiosk_show_replacement/api/v1.py` (line 1796) only broadcasts display update events to `connection_type="admin"`, not to display connections. This means when a slideshow assignment changes:
