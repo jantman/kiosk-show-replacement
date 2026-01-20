@@ -110,6 +110,13 @@ def create_slideshow() -> Tuple[Response, int]:
         raise ValidationError("A slideshow with this name already exists", field="name")
 
     try:
+        # Check if this slideshow should be set as default
+        is_default = data.get("is_default", False)
+
+        # If setting as default, clear any existing default first
+        if is_default:
+            Slideshow.query.filter_by(is_default=True).update({"is_default": False})
+
         slideshow = Slideshow(
             name=name,
             description=data.get("description", ""),
@@ -120,7 +127,7 @@ def create_slideshow() -> Tuple[Response, int]:
             created_by_id=current_user.id,
             updated_by_id=current_user.id,
             is_active=True,
-            is_default=False,
+            is_default=is_default,
         )
 
         db.session.add(slideshow)

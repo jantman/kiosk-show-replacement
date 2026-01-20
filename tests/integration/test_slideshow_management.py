@@ -279,6 +279,88 @@ class TestSlideshowManagement:
         )
         assert check_response.status_code == 404
 
+    def test_create_slideshow_with_default_checked(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test creating a new slideshow with 'Set as Default' checkbox checked.
+
+        This tests that when creating a new slideshow with the is_default
+        checkbox checked, the slideshow is actually saved as the default.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Login first
+        self._login(page, vite_url, test_database)
+
+        # Navigate to create slideshow page
+        page.goto(f"{vite_url}/admin/slideshows/new")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Verify form page loaded
+        expect(page.locator("h1")).to_contain_text("Create New Slideshow")
+
+        # Generate unique name
+        slideshow_name = f"Default Test Create {int(time.time() * 1000)}"
+
+        # Fill in the form
+        page.locator("#slideshow-name").fill(slideshow_name)
+        page.locator("#description").fill("Test slideshow created as default")
+        page.locator("#default-item-duration").fill("15")
+
+        # Check the "Set as Default Slideshow" checkbox
+        default_checkbox = page.locator("#is_default")
+        expect(default_checkbox).to_be_visible()
+        default_checkbox.check()
+
+        # Verify it's checked
+        expect(default_checkbox).to_be_checked()
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for navigation to slideshow detail page
+        expect(page).to_have_url(re.compile(r".*/admin/slideshows/\d+$"), timeout=10000)
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Extract slideshow ID from URL for cleanup and verification
+        url = page.url
+        slideshow_id = url.split("/")[-1]
+
+        try:
+            # Verify the slideshow was created as default via API
+            response = http_client.get(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+            assert response.status_code == 200
+            response_data = response.json().get("data", response.json())
+            assert response_data["is_default"] is True, (
+                f"Slideshow should be default but is_default={response_data['is_default']}"
+            )
+
+            # Also verify via the slideshows list page that it shows the Default badge
+            page.goto(f"{vite_url}/admin/slideshows")
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+            # Find the row for our slideshow and verify it has the Default badge
+            row = page.locator(f"tr:has-text('{slideshow_name}')")
+            expect(row).to_be_visible(timeout=10000)
+            expect(row.locator(".badge:has-text('Default')")).to_be_visible(timeout=5000)
+
+        finally:
+            # Cleanup: delete the created slideshow
+            if slideshow_id.isdigit():
+                http_client.delete(
+                    f"/api/v1/slideshows/{slideshow_id}",
+                    headers=auth_headers,
+                )
+
     def test_set_slideshow_as_default(
         self,
         enhanced_page: Page,
