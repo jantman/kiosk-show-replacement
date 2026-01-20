@@ -1801,10 +1801,11 @@ def broadcast_display_update(
     # This allows the display to reload when its slideshow assignment changes
     display_count = 0
     if event_type == "assignment_changed":
-        for conn_id, conn in sse_manager.connections.items():
-            if hasattr(conn, "display_id") and conn.display_id == display.id:
-                conn.add_event(event)
-                display_count += 1
+        with sse_manager.connections_lock:
+            for conn_id, conn in sse_manager.connections.items():
+                if hasattr(conn, "display_id") and conn.display_id == display.id:
+                    conn.add_event(event)
+                    display_count += 1
 
     return admin_count + display_count
 
@@ -1846,10 +1847,11 @@ def broadcast_slideshow_update(
                 {"slideshow": data, "change_type": event_type},
             )
             # Filter to specific display connection
-            for conn_id, conn in sse_manager.connections.items():
-                if hasattr(conn, "display_id") and conn.display_id == display.id:
-                    conn.add_event(display_event)
-                    display_count += 1
+            with sse_manager.connections_lock:
+                for conn_id, conn in sse_manager.connections.items():
+                    if hasattr(conn, "display_id") and conn.display_id == display.id:
+                        conn.add_event(display_event)
+                        display_count += 1
 
     return admin_count + display_count
 
