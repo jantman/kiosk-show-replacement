@@ -1796,8 +1796,25 @@ def broadcast_display_update(
         Number of connections that received the event
     """
     data = display.to_dict()
+
+    # Add display_name field for frontend compatibility (frontend expects display_name,
+    # but to_dict() returns 'name')
+    data["display_name"] = display.name
+
+    # For assignment changes, add slideshow_id and slideshow_name fields
+    # that the frontend expects (separate from the nested assigned_slideshow object)
     if additional_data:
         data.update(additional_data)
+        # Map new_slideshow_id to slideshow_id for frontend compatibility
+        if "new_slideshow_id" in additional_data:
+            data["slideshow_id"] = additional_data["new_slideshow_id"]
+            # Get slideshow name if assigned
+            if additional_data["new_slideshow_id"]:
+                slideshow = db.session.get(
+                    Slideshow, additional_data["new_slideshow_id"]
+                )
+                if slideshow:
+                    data["slideshow_name"] = slideshow.name
 
     event = create_display_event(event_type, display.id, data)
 

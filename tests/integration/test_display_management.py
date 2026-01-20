@@ -537,6 +537,99 @@ class TestDisplayManagement:
         )
         assert check_response.status_code == 404
 
+    def test_assignment_notification_shows_correct_display_name(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that assignment notification shows correct display name, not 'undefined'.
+
+        This tests the bug where the notification toast showed "undefined assigned
+        to slideshow" instead of the actual display name, due to SSE event data
+        using 'name' field but frontend expecting 'display_name'.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Create a display with a distinctive name
+        display_name = "NotificationTestDisplay"
+        response = http_client.post(
+            "/api/v1/displays",
+            json={"name": display_name, "location": "Test"},
+            headers=auth_headers,
+        )
+        assert response.status_code in [200, 201]
+        display_data = response.json().get("data", response.json())
+
+        try:
+            # Login and navigate to displays page
+            self._login(page, vite_url, test_database)
+            page.goto(f"{vite_url}/admin/displays")
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+            # Wait for SSE connection to establish
+            page.wait_for_timeout(1000)
+
+            # Wait for table to load
+            expect(page.locator("table")).to_be_visible(timeout=10000)
+
+            # Find the row for our display
+            row = page.locator(f"tr:has-text('{display_name}')")
+            expect(row).to_be_visible(timeout=10000)
+
+            # Click the assign button
+            assign_button = row.locator("button[title*='Assign']")
+            if not assign_button.is_visible():
+                row.locator("button.dropdown-toggle").click()
+                assign_button = page.locator("text=Assign Slideshow")
+            assign_button.click()
+
+            # Wait for modal to appear
+            modal = page.locator(".modal")
+            expect(modal).to_be_visible(timeout=5000)
+
+            # Select the slideshow
+            slideshow_select = page.locator("#slideshow-select")
+            expect(slideshow_select).to_be_visible()
+            slideshow_select.select_option(str(test_slideshow["id"]))
+
+            # Submit the assignment
+            page.locator("button:has-text('Assign')").click()
+
+            # Wait for modal to close
+            expect(modal).to_be_hidden(timeout=10000)
+
+            # Wait for the notification toast to appear
+            # The toast should show the display name, NOT "undefined"
+            toast = page.locator(".toast")
+            expect(toast).to_be_visible(timeout=5000)
+
+            # Get the toast message text
+            toast_body = toast.locator(".toast-body")
+            toast_text = toast_body.text_content()
+
+            # Verify the toast does NOT contain "undefined"
+            assert "undefined" not in toast_text.lower(), (
+                f"Toast notification should show display name, not 'undefined'. "
+                f"Toast text: '{toast_text}'"
+            )
+
+            # Verify the toast DOES contain the display name
+            assert display_name in toast_text, (
+                f"Toast notification should contain display name '{display_name}'. "
+                f"Toast text: '{toast_text}'"
+            )
+
+        finally:
+            # Cleanup
+            http_client.delete(
+                f"/api/v1/displays/{display_data['id']}", headers=auth_headers
+            )
+
     def _login(self, page: Page, vite_url: str, test_database: dict):
         """Helper method to log in to the admin interface."""
         page.goto(f"{vite_url}/admin/login")
