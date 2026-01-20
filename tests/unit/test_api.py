@@ -195,6 +195,66 @@ class TestSlideshowAPI:
         slideshow = db.session.get(Slideshow, sample_slideshow.id)
         assert slideshow.is_default is True
 
+    def test_create_slideshow_with_is_default(self, client, authenticated_user):
+        """Test creating a slideshow with is_default=True."""
+        slideshow_data = {
+            "name": "Default Slideshow",
+            "description": "A slideshow created as default",
+            "is_default": True,
+        }
+
+        response = client.post(
+            "/api/v1/slideshows",
+            data=json.dumps(slideshow_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["name"] == "Default Slideshow"
+        assert data["data"]["is_default"] is True
+
+        # Verify in database
+        slideshow_id = data["data"]["id"]
+        slideshow = db.session.get(Slideshow, slideshow_id)
+        assert slideshow.is_default is True
+
+    def test_create_slideshow_with_is_default_clears_existing_default(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating a new default slideshow clears existing default."""
+        # First, set the sample_slideshow as default
+        sample_slideshow.is_default = True
+        db.session.commit()
+
+        # Now create a new slideshow with is_default=True
+        slideshow_data = {
+            "name": "New Default Slideshow",
+            "description": "A new default slideshow",
+            "is_default": True,
+        }
+
+        response = client.post(
+            "/api/v1/slideshows",
+            data=json.dumps(slideshow_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["is_default"] is True
+
+        # Verify the old default is no longer default
+        db.session.refresh(sample_slideshow)
+        assert sample_slideshow.is_default is False
+
+        # Verify the new slideshow is the only default
+        new_slideshow_id = data["data"]["id"]
+        new_slideshow = db.session.get(Slideshow, new_slideshow_id)
+        assert new_slideshow.is_default is True
+
 
 class TestSlideshowItemAPI:
     """Test slideshow item management API endpoints."""

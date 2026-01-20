@@ -140,6 +140,7 @@
             font-size: 2.5rem;
             font-weight: 300;
             color: #f0f0f0;
+            white-space: pre-wrap;  /* Preserve line breaks and wrap text */
         }
         
         .slide-info {
@@ -358,9 +359,9 @@
                                              onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load webpage</div></div>'"></iframe>`;
                             break;
                         case 'text':
+                            // Text slides only show content_text, not the title
                             content = `
                                 <div class="text-content">
-                                    ${slide.title ? `<div class="title">${this.escapeHtml(slide.title)}</div>` : ''}
                                     <div class="content">${this.escapeHtml(slide.content_text || '')}</div>
                                 </div>
                             `;

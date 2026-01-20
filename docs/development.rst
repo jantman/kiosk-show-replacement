@@ -9,6 +9,39 @@ Development
    For production deployments, Docker is the only supported method.
    See :doc:`deployment` for production setup instructions.
 
+System Requirements
+-------------------
+
+Before setting up the development environment, ensure you have the following
+system dependencies installed:
+
+* **Python 3.13+**: Required for the Flask backend
+* **Node.js 18+ and npm**: Required for frontend development
+* **ffmpeg/ffprobe**: Required for automatic video duration detection
+
+**Installing ffmpeg:**
+
+.. code-block:: bash
+
+   # ArchLinux
+   sudo pacman -S ffmpeg
+
+   # Ubuntu/Debian
+   sudo apt install ffmpeg
+
+   # Fedora
+   sudo dnf install ffmpeg
+
+   # macOS (with Homebrew)
+   brew install ffmpeg
+
+**Verifying ffprobe installation:**
+
+.. code-block:: bash
+
+   ffprobe -version
+   # Should output version information
+
 Setting up Development Environment
 ----------------------------------
 

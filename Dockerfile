@@ -35,10 +35,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # - libmagic1: Required by python-magic for file type detection
 # - curl: For health checks
 # - netcat-openbsd: For database connectivity check in entrypoint
+# - ffmpeg: Required for video duration detection (provides ffprobe)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libmagic1 \
     curl \
     netcat-openbsd \
+    ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user for security

@@ -110,6 +110,13 @@ def create_slideshow() -> Tuple[Response, int]:
         raise ValidationError("A slideshow with this name already exists", field="name")
 
     try:
+        # Check if this slideshow should be set as default
+        is_default = data.get("is_default", False)
+
+        # If setting as default, clear any existing default first
+        if is_default:
+            Slideshow.query.filter_by(is_default=True).update({"is_default": False})
+
         slideshow = Slideshow(
             name=name,
             description=data.get("description", ""),
@@ -120,7 +127,7 @@ def create_slideshow() -> Tuple[Response, int]:
             created_by_id=current_user.id,
             updated_by_id=current_user.id,
             is_active=True,
-            is_default=False,
+            is_default=is_default,
         )
 
         db.session.add(slideshow)
@@ -1789,8 +1796,25 @@ def broadcast_display_update(
         Number of connections that received the event
     """
     data = display.to_dict()
+
+    # Add display_name field for frontend compatibility (frontend expects display_name,
+    # but to_dict() returns 'name')
+    data["display_name"] = display.name
+
+    # For assignment changes, add slideshow_id and slideshow_name fields
+    # that the frontend expects (separate from the nested assigned_slideshow object)
     if additional_data:
         data.update(additional_data)
+        # Map new_slideshow_id to slideshow_id for frontend compatibility
+        if "new_slideshow_id" in additional_data:
+            data["slideshow_id"] = additional_data["new_slideshow_id"]
+            # Get slideshow name if assigned
+            if additional_data["new_slideshow_id"]:
+                slideshow = db.session.get(
+                    Slideshow, additional_data["new_slideshow_id"]
+                )
+                if slideshow:
+                    data["slideshow_name"] = slideshow.name
 
     event = create_display_event(event_type, display.id, data)
 
