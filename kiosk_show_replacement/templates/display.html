@@ -160,9 +160,9 @@
                             content = `<iframe src="${slide.content_url}"></iframe>`;
                             break;
                         case 'text':
+                            // Text slides only show content_text, not the title
                             content = `
                                 <div class="text-content">
-                                    ${slide.title ? `<div class="title">${slide.title}</div>` : ''}
                                     <div>${slide.content_text || ''}</div>
                                 </div>
                             `;

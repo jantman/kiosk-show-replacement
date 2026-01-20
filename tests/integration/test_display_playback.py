@@ -7,6 +7,7 @@ Tests verify that slideshows play correctly on display views:
 - Different content types render properly
 - Uploaded images load successfully
 - SSE events trigger display reload on assignment change
+- Text slides only show content, not title
 
 Run with: nox -s test-integration
 """
@@ -552,5 +553,127 @@ class TestDisplayPlayback:
             )
             http_client.delete(
                 f"/api/v1/slideshows/{slideshow2_id}",
+                headers=auth_headers,
+            )
+
+    def test_text_slide_shows_only_content_not_title(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that text slides only display content_text, not the title.
+
+        This test:
+        1. Creates a slideshow with a text slide that has both title and content_text
+        2. Assigns the slideshow to a display
+        3. Navigates to the display view
+        4. Verifies the content_text is shown
+        5. Verifies the title is NOT shown
+
+        This tests the bug where text slides were incorrectly displaying both
+        the title and the text content, when they should only show content_text.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Text Title Test Slideshow",
+                "description": "Test slideshow for text title display",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide with BOTH title AND content_text
+            # The title should NOT be displayed on the display view
+            distinctive_title = "TITLE_SHOULD_NOT_BE_DISPLAYED_XYZ123"
+            distinctive_content = "CONTENT_SHOULD_BE_DISPLAYED_ABC789"
+
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": distinctive_title,
+                    "content_type": "text",
+                    "content_text": distinctive_content,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-text-title-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for text title testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Verify the content_text IS displayed
+                content_visible = page.locator(
+                    f"text={distinctive_content}"
+                ).is_visible()
+                assert content_visible, (
+                    f"Text content '{distinctive_content}' should be displayed on "
+                    "the display view"
+                )
+
+                # Verify the title is NOT displayed
+                title_visible = page.locator(f"text={distinctive_title}").is_visible()
+                assert not title_visible, (
+                    f"Title '{distinctive_title}' should NOT be displayed on "
+                    "the display view for text slides. Only content_text should "
+                    "be shown."
+                )
+
+            finally:
+                # Cleanup display (test_text_slide_shows_only_content_not_title)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_text_slide_shows_only_content_not_title)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
             )
