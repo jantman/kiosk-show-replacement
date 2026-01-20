@@ -381,9 +381,8 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                 handleInputChange('content_url', '');
                 handleInputChange('content_text', '');
                 handleInputChange('content_file_path', '');
-                // Reset video duration detection flag
+                // Reset video duration detection flag (but keep user-entered duration)
                 setVideoDurationDetected(false);
-                handleInputChange('display_duration', null);
               }}
             >
               <option value="image">Image</option>
