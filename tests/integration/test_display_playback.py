@@ -772,9 +772,9 @@ class TestDisplayPlayback:
 
                 # Verify all three lines are visible
                 for line in [line1, line2, line3]:
-                    assert page.locator(f"text={line}").is_visible(), (
-                        f"Line '{line}' should be visible in the text slide"
-                    )
+                    assert page.locator(
+                        f"text={line}"
+                    ).is_visible(), f"Line '{line}' should be visible in the text slide"
 
                 # Verify lines are on separate lines by checking that the content element
                 # has line breaks preserved (via CSS white-space or <br> tags)

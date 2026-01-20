@@ -6,8 +6,10 @@ with proper security and organization.
 """
 
 import hashlib
+import json
 import logging
 import mimetypes
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
@@ -146,6 +148,65 @@ class StorageManager:
 
         return True, ""
 
+    def get_video_duration(self, file_path: Path) -> Optional[float]:
+        """
+        Extract video duration using ffprobe.
+
+        Args:
+            file_path: Path to the video file
+
+        Returns:
+            Duration in seconds as a float, or None if extraction fails
+        """
+        try:
+            # Run ffprobe to get video duration
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_format",
+                    str(file_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+            )
+
+            if result.returncode != 0:
+                logger.warning(f"ffprobe failed for {file_path}: {result.stderr}")
+                return None
+
+            # Parse JSON output
+            data = json.loads(result.stdout)
+            duration_str = data.get("format", {}).get("duration")
+
+            if duration_str:
+                duration = float(duration_str)
+                logger.debug(f"Video duration for {file_path}: {duration} seconds")
+                return duration
+
+            logger.warning(f"No duration found in ffprobe output for {file_path}")
+            return None
+
+        except FileNotFoundError:
+            logger.error(
+                "ffprobe not found. Please install ffmpeg to enable "
+                "automatic video duration detection."
+            )
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error(f"ffprobe timed out for {file_path}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse ffprobe output for {file_path}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting video duration for {file_path}: {e}")
+            return None
+
     def generate_secure_filename(
         self, original_filename: str, user_id: int, slideshow_id: int
     ) -> str:
@@ -235,6 +296,18 @@ class StorageManager:
                 "slideshow_id": slideshow_id,
                 "upload_date": datetime.now(timezone.utc).isoformat(),
             }
+
+            # For videos, extract duration using ffprobe
+            if content_type == "video":
+                duration = self.get_video_duration(file_path)
+                if duration is not None:
+                    # Round to nearest integer for display_duration
+                    file_info["duration"] = duration
+                    file_info["duration_seconds"] = int(round(duration))
+                    logger.info(
+                        f"Detected video duration: {duration:.2f}s "
+                        f"(rounded to {file_info['duration_seconds']}s)"
+                    )
 
             logger.info(
                 f"Successfully saved file: {secure_name} for user {user_id}, "

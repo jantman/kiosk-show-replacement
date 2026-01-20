@@ -44,6 +44,8 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [uploadingFile, setUploadingFile] = useState(false);
+  // Track if duration was auto-detected from video (makes field read-only)
+  const [videoDurationDetected, setVideoDurationDetected] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -185,12 +187,27 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       });
 
       if (response.success) {
-        const uploadData = response.data as { file_path: string };
+        const uploadData = response.data as {
+          file_path: string;
+          duration_seconds?: number;
+        };
+        const isVideo = file.type.startsWith('video/');
+
         setFormData(prev => ({
           ...prev,
           content_file_path: uploadData.file_path,
-          content_type: file.type.startsWith('image/') ? 'image' : 'video',
+          content_type: isVideo ? 'video' : 'image',
+          // For videos, set duration from ffprobe detection
+          display_duration: isVideo && uploadData.duration_seconds
+            ? uploadData.duration_seconds
+            : prev.display_duration,
         }));
+
+        // Track if video duration was auto-detected
+        if (isVideo && uploadData.duration_seconds) {
+          setVideoDurationDetected(true);
+        }
+
         // Clear any URL when file is uploaded
         if (formData.content_url) {
           setFormData(prev => ({ ...prev, content_url: '' }));
@@ -364,6 +381,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                 handleInputChange('content_url', '');
                 handleInputChange('content_text', '');
                 handleInputChange('content_file_path', '');
+                // Reset video duration detection flag
+                setVideoDurationDetected(false);
+                handleInputChange('display_duration', null);
               }}
             >
               <option value="image">Image</option>
@@ -380,22 +400,30 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       <Row>
         <Col md={6}>
           <Form.Group className="mb-3">
-            <Form.Label htmlFor="duration">Duration Override (seconds)</Form.Label>
+            <Form.Label htmlFor="duration">
+              {formData.content_type === 'video' && videoDurationDetected
+                ? 'Video Duration (auto-detected)'
+                : 'Duration Override (seconds)'}
+            </Form.Label>
             <Form.Control
               id="duration"
               type="number"
               min="1"
-              max="300"
+              max="3600"
               value={formData.display_duration || ''}
               onChange={(e) => handleInputChange('display_duration', e.target.value ? parseInt(e.target.value) : null)}
               isInvalid={!!validationErrors.display_duration}
               placeholder="Use slideshow default"
+              readOnly={formData.content_type === 'video' && videoDurationDetected}
+              disabled={formData.content_type === 'video' && videoDurationDetected}
             />
             <Form.Control.Feedback type="invalid">
               {validationErrors.display_duration}
             </Form.Control.Feedback>
             <Form.Text className="text-muted">
-              Leave empty to use the slideshow's default duration
+              {formData.content_type === 'video' && videoDurationDetected
+                ? 'Duration is automatically set from the uploaded video'
+                : 'Leave empty to use the slideshow\'s default duration'}
             </Form.Text>
           </Form.Group>
         </Col>

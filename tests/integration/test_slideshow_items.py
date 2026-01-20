@@ -251,6 +251,97 @@ class TestSlideshowItems:
         ), f"content_type not persisted correctly: {item.get('content_type')}"
         assert item.get("content_file_path"), f"content_file_path not persisted: {item}"
 
+    def test_video_upload_auto_detects_duration(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that video upload automatically detects and sets duration.
+
+        When a video file is uploaded, the backend should use ffprobe to detect
+        the video duration. This duration should be:
+        1. Returned in the upload response
+        2. Auto-populated in the duration field (which becomes read-only)
+        3. Persisted as display_duration when the item is saved
+
+        Uses test_video_5s.mp4 which is a 5-second test video.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Get the test video with known duration (5 seconds)
+        video_path = ASSETS_DIR / "test_video_5s.mp4"
+        assert video_path.exists(), f"Test asset not found: {video_path}"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Fill in the form
+        page.locator("#title").fill("Video With Auto Duration")
+        page.locator("#content_type").select_option("video")
+
+        # Upload the video file
+        page.locator("#file_video").set_input_files(str(video_path))
+
+        # Wait for upload to complete
+        expect(
+            page.locator(".badge.bg-success:has-text('File uploaded')")
+        ).to_be_visible(timeout=30000)
+
+        # Verify the duration field is auto-populated (should show ~5 seconds)
+        duration_field = page.locator("#duration")
+        # The field should have a value now (auto-detected duration)
+        expect(duration_field).to_have_value("5", timeout=5000)
+
+        # Verify the duration field is read-only for auto-detected video duration
+        expect(duration_field).to_be_disabled()
+
+        # Verify the label indicates auto-detection
+        expect(
+            page.locator("label:has-text('Video Duration (auto-detected)')")
+        ).to_be_visible()
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for modal to close
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # Verify item appears in the table
+        expect(page.locator("text=Video With Auto Duration")).to_be_visible(
+            timeout=5000
+        )
+
+        # CRITICAL: Verify via API that display_duration was automatically set
+        item = get_item_by_title(
+            http_client, auth_headers, slideshow_id, "Video With Auto Duration"
+        )
+        assert item is not None, "Item not found via API after creation"
+        assert (
+            item.get("content_type") == "video"
+        ), f"content_type not persisted correctly: {item.get('content_type')}"
+        assert item.get("content_file_path"), f"content_file_path not persisted: {item}"
+
+        # The display_duration should be set to 5 seconds (auto-detected from video)
+        assert item.get("display_duration") == 5, (
+            f"display_duration should be auto-set to 5 seconds from video, "
+            f"got: {item.get('display_duration')}"
+        )
+
     def test_add_video_item_via_url(
         self,
         enhanced_page: Page,

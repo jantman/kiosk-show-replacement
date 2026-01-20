@@ -229,6 +229,75 @@ class TestStorageManager:
             assert stats["slideshows_with_files"] >= 2
 
 
+class TestVideoDurationExtraction:
+    """Test video duration extraction using ffprobe."""
+
+    @pytest.fixture
+    def temp_storage_dir(self):
+        """Create a temporary directory for testing."""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        shutil.rmtree(temp_dir)
+
+    @pytest.fixture
+    def storage_manager(self, temp_storage_dir):
+        """Create a StorageManager instance with temporary directory."""
+        return StorageManager(temp_storage_dir)
+
+    @pytest.fixture
+    def test_video_path(self):
+        """Get the path to the test video file."""
+        video_path = Path(__file__).parent.parent / "assets" / "test_video_5s.mp4"
+        if not video_path.exists():
+            pytest.skip("Test video not found. Run ffmpeg to create it.")
+        return video_path
+
+    def test_get_video_duration_success(self, storage_manager, test_video_path):
+        """Test successful video duration extraction."""
+        duration = storage_manager.get_video_duration(test_video_path)
+
+        # The test video is 5 seconds
+        assert duration is not None
+        assert abs(duration - 5.0) < 0.1  # Allow small tolerance
+
+    def test_get_video_duration_nonexistent_file(
+        self, storage_manager, temp_storage_dir
+    ):
+        """Test duration extraction for non-existent file."""
+        fake_path = Path(temp_storage_dir) / "nonexistent.mp4"
+        duration = storage_manager.get_video_duration(fake_path)
+
+        assert duration is None
+
+    def test_get_video_duration_invalid_file(
+        self, storage_manager, temp_storage_dir, app
+    ):
+        """Test duration extraction for invalid video file."""
+        # Create a fake "video" file that's not actually a video
+        fake_video = Path(temp_storage_dir) / "fake.mp4"
+        fake_video.write_text("This is not a video file")
+
+        with app.app_context():
+            duration = storage_manager.get_video_duration(fake_video)
+
+        # Should return None for invalid video
+        assert duration is None
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_ffprobe_not_found(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe is not installed."""
+        mock_run.side_effect = FileNotFoundError("ffprobe not found")
+
+        fake_path = Path(temp_storage_dir) / "video.mp4"
+        fake_path.write_bytes(b"fake video data")
+
+        duration = storage_manager.get_video_duration(fake_path)
+
+        assert duration is None
+
+
 class TestFileUploadAPI:
     """Test file upload API endpoints."""
 
