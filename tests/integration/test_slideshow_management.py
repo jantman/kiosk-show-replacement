@@ -340,9 +340,9 @@ class TestSlideshowManagement:
             )
             assert response.status_code == 200
             response_data = response.json().get("data", response.json())
-            assert response_data["is_default"] is True, (
-                f"Slideshow should be default but is_default={response_data['is_default']}"
-            )
+            assert (
+                response_data["is_default"] is True
+            ), f"Slideshow should be default but is_default={response_data['is_default']}"
 
             # Also verify via the slideshows list page that it shows the Default badge
             page.goto(f"{vite_url}/admin/slideshows")
@@ -351,7 +351,9 @@ class TestSlideshowManagement:
             # Find the row for our slideshow and verify it has the Default badge
             row = page.locator(f"tr:has-text('{slideshow_name}')")
             expect(row).to_be_visible(timeout=10000)
-            expect(row.locator(".badge:has-text('Default')")).to_be_visible(timeout=5000)
+            expect(row.locator(".badge:has-text('Default')")).to_be_visible(
+                timeout=5000
+            )
 
         finally:
             # Cleanup: delete the created slideshow

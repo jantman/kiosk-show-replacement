@@ -92,7 +92,9 @@ The fix is to remove the title rendering for text slides, showing only `content_
 
 **Expected:** The default slideshow checkbox should be saved when creating a new slideshow.
 
-**Status:** Open
+**Status:** Completed
+
+**Resolution:** Fixed the `POST /api/v1/slideshows` endpoint to read and apply the `is_default` field from the request. If `is_default=True`, existing defaults are cleared before creating the new slideshow.
 
 ---
 
@@ -104,4 +106,6 @@ The fix is to remove the title rendering for text slides, showing only `content_
 
 **Expected:** Text slides should only show the text content, not the title.
 
-**Status:** Open
+**Status:** Completed
+
+**Resolution:** Removed the title rendering from the text slide case in both `display.html` and `display/slideshow.html` templates. Text slides now only show `content_text`.
