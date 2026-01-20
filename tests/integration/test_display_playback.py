@@ -5,15 +5,20 @@ Tests verify that slideshows play correctly on display views:
 - All slides display in correct order
 - Slide durations are respected (both default and overridden)
 - Different content types render properly
+- Uploaded images load successfully
 
 Run with: nox -s test-integration
 """
 
 import os
 import time
+from pathlib import Path
 
 import pytest
 from playwright.sync_api import Page
+
+# Path to test assets
+ASSETS_DIR = Path(__file__).parent.parent / "assets"
 
 
 @pytest.mark.integration
@@ -178,6 +183,189 @@ class TestDisplayPlayback:
                     f"Slide Three (default duration) was never shown. "
                     f"Slides seen: {slides_seen}"
                 )
+
+            finally:
+                # Cleanup display
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_uploaded_image_displays_on_display_view(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that uploaded images display correctly on the display view.
+
+        This test:
+        1. Creates a slideshow
+        2. Uploads an image file via the API
+        3. Creates a slideshow item with the uploaded image
+        4. Assigns the slideshow to a display
+        5. Navigates to the display view
+        6. Verifies the image loads successfully (no error shown)
+
+        This tests the bug where uploaded images showed "Failed to load image"
+        even though the files existed on the server.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Verify test asset exists
+        image_path = ASSETS_DIR / "smallPhoto.jpg"
+        assert image_path.exists(), f"Test asset not found: {image_path}"
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Image Display Test Slideshow",
+                "description": "Test slideshow for image display",
+                "default_item_duration": 10,
+                "transition_type": "fade",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Upload an image
+            with open(image_path, "rb") as f:
+                files = {"file": ("smallPhoto.jpg", f, "image/jpeg")}
+                data = {"slideshow_id": str(slideshow_id)}
+                # Need to remove Content-Type from headers for multipart
+                upload_headers = {
+                    k: v for k, v in auth_headers.items() if k != "Content-Type"
+                }
+                upload_response = http_client.post(
+                    "/api/v1/uploads/image",
+                    files=files,
+                    data=data,
+                    headers=upload_headers,
+                )
+
+            assert upload_response.status_code in [
+                200,
+                201,
+            ], f"Failed to upload image: {upload_response.text}"
+            upload_data = upload_response.json().get("data", upload_response.json())
+            file_path = upload_data.get("file_path")
+            assert file_path, f"No file_path in upload response: {upload_data}"
+
+            # Create a slideshow item with the uploaded image
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Test Uploaded Image",
+                    "content_type": "image",
+                    "content_file_path": file_path,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Verify the item was created with the file path
+            item_data = item_response.json().get("data", item_response.json())
+            assert item_data.get("content_file_path") == file_path
+            assert item_data.get(
+                "display_url"
+            ), f"display_url should be set for uploaded image: {item_data}"
+
+            # Create a display
+            display_name = f"test-image-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for image display testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Track network requests to detect image loading
+                image_requests = []
+                failed_requests = []
+
+                def track_request(request):
+                    if "/uploads/" in request.url:
+                        image_requests.append(request.url)
+
+                def track_failed(request):
+                    if "/uploads/" in request.url:
+                        failed_requests.append(
+                            {"url": request.url, "failure": request.failure}
+                        )
+
+                def track_response(response):
+                    if "/uploads/" in response.url and response.status >= 400:
+                        failed_requests.append(
+                            {"url": response.url, "status": response.status}
+                        )
+
+                page.on("request", track_request)
+                page.on("requestfailed", track_failed)
+                page.on("response", track_response)
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for image to load
+                time.sleep(2)
+
+                # Check that the image element exists and doesn't show error
+                img_element = page.locator("img").first
+                assert img_element.is_visible(), "Image element should be visible"
+
+                # Check that we don't see the error message
+                error_visible = page.locator("text=Failed to load image").is_visible()
+                assert not error_visible, (
+                    f"Image failed to load. "
+                    f"Image requests: {image_requests}, "
+                    f"Failed requests: {failed_requests}"
+                )
+
+                # Verify an image request was made to /uploads/
+                assert (
+                    len(image_requests) > 0
+                ), "No image requests were made to /uploads/ endpoint"
+
+                # Verify no requests failed
+                assert (
+                    len(failed_requests) == 0
+                ), f"Image request(s) failed: {failed_requests}"
 
             finally:
                 # Cleanup display
