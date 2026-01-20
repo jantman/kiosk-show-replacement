@@ -6,6 +6,7 @@ Tests verify that slideshows play correctly on display views:
 - Slide durations are respected (both default and overridden)
 - Different content types render properly
 - Uploaded images load successfully
+- SSE events trigger display reload on assignment change
 
 Run with: nox -s test-integration
 """
@@ -185,14 +186,14 @@ class TestDisplayPlayback:
                 )
 
             finally:
-                # Cleanup display
+                # Cleanup display (test_all_slides_display_with_mixed_durations)
                 http_client.delete(
                     f"/api/v1/displays/{display_id}",
                     headers=auth_headers,
                 )
 
         finally:
-            # Cleanup slideshow
+            # Cleanup slideshow (test_all_slides_display_with_mixed_durations)
             http_client.delete(
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
@@ -368,15 +369,188 @@ class TestDisplayPlayback:
                 ), f"Image request(s) failed: {failed_requests}"
 
             finally:
-                # Cleanup display
+                # Cleanup display (test_uploaded_image_displays_on_display_view)
                 http_client.delete(
                     f"/api/v1/displays/{display_id}",
                     headers=auth_headers,
                 )
 
         finally:
-            # Cleanup slideshow
+            # Cleanup slideshow (test_uploaded_image_displays_on_display_view)
             http_client.delete(
                 f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_display_reloads_on_slideshow_assignment_change(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that display automatically reloads when slideshow assignment changes.
+
+        This test:
+        1. Creates two slideshows with different content
+        2. Creates a display and assigns the first slideshow
+        3. Navigates to the display view
+        4. Changes the slideshow assignment via API
+        5. Verifies the display view automatically updates to show new slideshow content
+
+        This tests the bug where slideshow assignment changes didn't reach displays
+        via SSE, requiring manual page refresh.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create first slideshow
+        slideshow1_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "SSE Test Slideshow 1",
+                "description": "First slideshow for SSE test",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow1_response.status_code in [200, 201]
+        slideshow1_data = slideshow1_response.json().get(
+            "data", slideshow1_response.json()
+        )
+        slideshow1_id = slideshow1_data["id"]
+
+        # Create second slideshow
+        slideshow2_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "SSE Test Slideshow 2",
+                "description": "Second slideshow for SSE test",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow2_response.status_code in [200, 201]
+        slideshow2_data = slideshow2_response.json().get(
+            "data", slideshow2_response.json()
+        )
+        slideshow2_id = slideshow2_data["id"]
+
+        try:
+            # Add a text slide to first slideshow with distinctive content
+            http_client.post(
+                f"/api/v1/slideshows/{slideshow1_id}/items",
+                json={
+                    "title": "First Slideshow Unique Content",
+                    "content_type": "text",
+                    "content_text": "THIS IS SLIDESHOW ONE - ORIGINAL ASSIGNMENT",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+
+            # Add a text slide to second slideshow with different distinctive content
+            http_client.post(
+                f"/api/v1/slideshows/{slideshow2_id}/items",
+                json={
+                    "title": "Second Slideshow Unique Content",
+                    "content_type": "text",
+                    "content_text": "THIS IS SLIDESHOW TWO - NEW ASSIGNMENT",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+
+            # Create a display
+            display_name = f"test-sse-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for SSE assignment change",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign first slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow1_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Verify first slideshow content is visible
+                first_content_visible = page.locator(
+                    "text=THIS IS SLIDESHOW ONE"
+                ).is_visible()
+                assert (
+                    first_content_visible
+                ), "First slideshow content should be visible"
+
+                # Wait for SSE connection to establish
+                time.sleep(1)
+
+                # Now change the slideshow assignment via API
+                reassign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow2_id},
+                    headers=auth_headers,
+                )
+                assert reassign_response.status_code == 200
+
+                # Wait for SSE event to trigger page reload
+                # The display should receive the assignment_changed event and reload
+                max_wait = 10  # 10 seconds should be plenty for SSE
+                start_time = time.time()
+                second_content_visible = False
+
+                while (
+                    time.time() - start_time < max_wait and not second_content_visible
+                ):
+                    # Check if second slideshow content becomes visible
+                    try:
+                        second_content_visible = page.locator(
+                            "text=THIS IS SLIDESHOW TWO"
+                        ).is_visible()
+                    except Exception:
+                        # Page might be reloading
+                        pass
+                    time.sleep(0.5)
+
+                # Verify the display now shows the second slideshow
+                assert second_content_visible, (
+                    "Display should have automatically switched to second slideshow "
+                    "via SSE after assignment change. "
+                    "If this fails, SSE events are not reaching the display."
+                )
+
+            finally:
+                # Cleanup display (test_display_reloads_on_slideshow_assignment_change)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshows (test_display_reloads_on_slideshow_assignment_change)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow1_id}",
+                headers=auth_headers,
+            )
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow2_id}",
                 headers=auth_headers,
             )
