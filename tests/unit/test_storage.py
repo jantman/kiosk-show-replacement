@@ -230,7 +230,10 @@ class TestStorageManager:
 
 
 class TestVideoDurationExtraction:
-    """Test video duration extraction using ffprobe."""
+    """Test video duration extraction using ffprobe.
+
+    All tests mock subprocess.run to avoid requiring ffprobe to be installed.
+    """
 
     @pytest.fixture
     def temp_storage_dir(self):
@@ -244,43 +247,97 @@ class TestVideoDurationExtraction:
         """Create a StorageManager instance with temporary directory."""
         return StorageManager(temp_storage_dir)
 
-    @pytest.fixture
-    def test_video_path(self):
-        """Get the path to the test video file."""
-        video_path = Path(__file__).parent.parent / "assets" / "test_video_5s.mp4"
-        if not video_path.exists():
-            pytest.skip("Test video not found. Run ffmpeg to create it.")
-        return video_path
-
-    def test_get_video_duration_success(self, storage_manager, test_video_path):
-        """Test successful video duration extraction."""
-        duration = storage_manager.get_video_duration(test_video_path)
-
-        # The test video is 5 seconds
-        assert duration is not None
-        assert abs(duration - 5.0) < 0.1  # Allow small tolerance
-
-    def test_get_video_duration_nonexistent_file(
-        self, storage_manager, temp_storage_dir
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_success(
+        self, mock_run, storage_manager, temp_storage_dir
     ):
-        """Test duration extraction for non-existent file."""
-        fake_path = Path(temp_storage_dir) / "nonexistent.mp4"
-        duration = storage_manager.get_video_duration(fake_path)
+        """Test successful video duration extraction."""
+        # Mock ffprobe returning valid JSON with duration
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"format": {"duration": "5.023000"}}',
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test_video.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        duration = storage_manager.get_video_duration(video_path)
+
+        assert duration is not None
+        assert abs(duration - 5.023) < 0.001
+        mock_run.assert_called_once()
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_integer_duration(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test duration extraction with integer duration value."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"format": {"duration": "10"}}',
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test_video.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        duration = storage_manager.get_video_duration(video_path)
+
+        assert duration == 10.0
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_ffprobe_failure(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe returns non-zero exit code."""
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="ffprobe: Invalid data found",
+        )
+
+        video_path = Path(temp_storage_dir) / "invalid.mp4"
+        video_path.write_bytes(b"not a video")
+
+        duration = storage_manager.get_video_duration(video_path)
 
         assert duration is None
 
-    def test_get_video_duration_invalid_file(
-        self, storage_manager, temp_storage_dir, app
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_no_duration_in_output(
+        self, mock_run, storage_manager, temp_storage_dir
     ):
-        """Test duration extraction for invalid video file."""
-        # Create a fake "video" file that's not actually a video
-        fake_video = Path(temp_storage_dir) / "fake.mp4"
-        fake_video.write_text("This is not a video file")
+        """Test handling when ffprobe output has no duration field."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"format": {"filename": "test.mp4"}}',
+            stderr="",
+        )
 
-        with app.app_context():
-            duration = storage_manager.get_video_duration(fake_video)
+        video_path = Path(temp_storage_dir) / "test_video.mp4"
+        video_path.write_bytes(b"fake video data")
 
-        # Should return None for invalid video
+        duration = storage_manager.get_video_duration(video_path)
+
+        assert duration is None
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_invalid_json(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe returns invalid JSON."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="not valid json",
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test_video.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        duration = storage_manager.get_video_duration(video_path)
+
         assert duration is None
 
     @patch("kiosk_show_replacement.storage.subprocess.run")
@@ -290,10 +347,26 @@ class TestVideoDurationExtraction:
         """Test handling when ffprobe is not installed."""
         mock_run.side_effect = FileNotFoundError("ffprobe not found")
 
-        fake_path = Path(temp_storage_dir) / "video.mp4"
-        fake_path.write_bytes(b"fake video data")
+        video_path = Path(temp_storage_dir) / "video.mp4"
+        video_path.write_bytes(b"fake video data")
 
-        duration = storage_manager.get_video_duration(fake_path)
+        duration = storage_manager.get_video_duration(video_path)
+
+        assert duration is None
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_timeout(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe times out."""
+        import subprocess
+
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="ffprobe", timeout=30)
+
+        video_path = Path(temp_storage_dir) / "video.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        duration = storage_manager.get_video_duration(video_path)
 
         assert duration is None
 
