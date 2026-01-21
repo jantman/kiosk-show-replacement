@@ -1113,8 +1113,8 @@ class TestSlideshowItems:
         """Test that title is auto-populated from URL.
 
         When a URL is entered and the title field is empty, the title should
-        be auto-populated with either the filename from the URL path (if present)
-        or the URL itself.
+        be auto-populated with the filename from the URL path (if present),
+        excluding the file extension.
         """
         page = enhanced_page
         vite_url = servers["vite_url"]
