@@ -425,8 +425,10 @@
                     }
                 }
                 
-                // Update counter
-                this.slideCounter.textContent = `${index + 1} / ${this.slides.length}`;
+                // Update counter (only if info overlay is shown)
+                if (this.slideCounter) {
+                    this.slideCounter.textContent = `${index + 1} / ${this.slides.length}`;
+                }
                 
                 // Start progress bar animation with proper duration
                 const slide = this.slides[index];
