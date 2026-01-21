@@ -153,6 +153,7 @@ class TestDisplayConfiguration:
                 rotation=90,
                 location="Office A",
                 heartbeat_interval=30,
+                show_info_overlay=True,
                 owner_id=admin_user.id,
                 created_by_id=admin_user.id,
             )
@@ -167,6 +168,7 @@ class TestDisplayConfiguration:
                 "rotation": 90,
                 "location": "Office A",
                 "heartbeat_interval": 30,
+                "show_info_overlay": True,
             }
 
             assert config == expected_config

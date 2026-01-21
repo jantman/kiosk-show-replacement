@@ -7,6 +7,7 @@ Tests the slideshow CRUD operations through a real browser:
 - Editing existing slideshows
 - Deleting slideshows
 - Setting default slideshow
+- Action link titles and destinations
 
 Run with: nox -s test-integration
 """
@@ -456,3 +457,85 @@ class TestSlideshowManagement:
 
         # Wait for login to complete (dashboard loads)
         page.wait_for_selector("h1:has-text('Dashboard')", timeout=10000)
+
+    def test_slideshow_action_link_titles_and_destinations(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+    ):
+        """Test that slideshow action links have correct titles and destinations.
+
+        This test verifies that:
+        - "Edit Slides" link (eye icon) navigates to /admin/slideshows/{id}
+        - "Edit Slideshow" link (pencil icon) navigates to /admin/slideshows/{id}/edit
+
+        The links were previously named "View Details" and "Edit" which was confusing
+        because "View Details" actually goes to the slide management page, not a
+        read-only view.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login first
+        self._login(page, vite_url, test_database)
+
+        # Navigate to slideshows page
+        page.goto(f"{vite_url}/admin/slideshows")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Find the row for our test slideshow
+        row = page.locator(f"tr:has-text('{test_slideshow['name']}')")
+        expect(row).to_be_visible(timeout=10000)
+
+        # Verify "Edit Slides" link exists with correct title and destination
+        edit_slides_link = row.locator("a[title='Edit Slides']")
+        expect(edit_slides_link).to_be_visible(timeout=5000)
+
+        # Verify it has the eye icon
+        expect(edit_slides_link.locator("i.bi-eye")).to_be_visible()
+
+        # Verify the href points to the detail page (not /edit)
+        href = edit_slides_link.get_attribute("href")
+        assert href == f"/admin/slideshows/{slideshow_id}", (
+            f"Edit Slides link should go to /admin/slideshows/{slideshow_id}, "
+            f"got {href}"
+        )
+
+        # Verify "Edit Slideshow" link exists with correct title and destination
+        edit_slideshow_link = row.locator("a[title='Edit Slideshow']")
+        expect(edit_slideshow_link).to_be_visible(timeout=5000)
+
+        # Verify it has the pencil icon
+        expect(edit_slideshow_link.locator("i.bi-pencil")).to_be_visible()
+
+        # Verify the href points to the edit page
+        href = edit_slideshow_link.get_attribute("href")
+        assert href == f"/admin/slideshows/{slideshow_id}/edit", (
+            f"Edit Slideshow link should go to /admin/slideshows/{slideshow_id}/edit, "
+            f"got {href}"
+        )
+
+        # Click "Edit Slides" and verify we go to the correct page
+        edit_slides_link.click()
+        page.wait_for_url(f"**/admin/slideshows/{slideshow_id}", timeout=10000)
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # The detail page shows "Slideshow Items" header
+        expect(page.locator("text=Slideshow Items")).to_be_visible(timeout=5000)
+
+        # Go back to slideshows list
+        page.goto(f"{vite_url}/admin/slideshows")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Find the row again and click "Edit Slideshow"
+        row = page.locator(f"tr:has-text('{test_slideshow['name']}')")
+        edit_slideshow_link = row.locator("a[title='Edit Slideshow']")
+        edit_slideshow_link.click()
+        page.wait_for_url(f"**/admin/slideshows/{slideshow_id}/edit", timeout=10000)
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # The edit page shows "Edit Slideshow" header
+        expect(page.locator("h1")).to_contain_text("Edit Slideshow")

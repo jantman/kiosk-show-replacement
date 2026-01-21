@@ -265,16 +265,18 @@
     <!-- Progress bar -->
     <div class="progress-bar" id="progressBar"></div>
     
-    <!-- Slide info -->
+    <!-- Slide info (shown only if display.show_info_overlay is enabled) -->
+    {% if display.show_info_overlay %}
     <div class="slide-info" id="slideInfo">
         <div>
-            <span id="slideCounter">1 / 1</span> | 
+            <span id="slideCounter">1 / 1</span> |
             <span id="slideshowName">{{ slideshow.name }}</span>
         </div>
         <div style="font-size: 0.8rem; margin-top: 4px; opacity: 0.8;">
             Display: {{ display.name }}
         </div>
     </div>
+    {% endif %}
     
     <!-- Performance indicators -->
     <div class="preload-indicator" id="preloadIndicator">

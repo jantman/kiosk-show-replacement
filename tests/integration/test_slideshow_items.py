@@ -11,6 +11,8 @@ Tests adding, editing, deleting, and reordering slideshow items:
 - Edit existing item
 - Delete item with confirmation
 - Reorder items (move up/down)
+- Icon visibility (Bootstrap Icons CSS import)
+- Auto-title from filename/URL
 
 These tests verify that data is actually persisted by checking via API calls,
 not just verifying UI display.
@@ -953,3 +955,283 @@ class TestSlideshowItems:
         page.locator("button[type='submit']").click()
 
         page.wait_for_selector("h1:has-text('Dashboard')", timeout=10000)
+
+    def test_slideshow_item_action_icons_are_visible(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that Bootstrap Icons are properly displayed on action buttons.
+
+        This test verifies that the Bootstrap Icons CSS is properly imported,
+        making icons visible on action buttons (Move Up, Move Down, Edit, Delete).
+
+        Without the CSS import, the <i class="bi bi-xxx"> elements exist but
+        render as invisible/empty, making the buttons appear blank.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Create at least one item so we can see the action buttons
+        response = http_client.post(
+            f"/api/v1/slideshows/{slideshow_id}/items",
+            json={
+                "title": "Icon Test Item",
+                "content_type": "text",
+                "content_text": "Testing icon visibility",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code in [200, 201]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Verify the item row is visible
+        row = page.locator("tr:has-text('Icon Test Item')")
+        expect(row).to_be_visible(timeout=10000)
+
+        # Verify the edit button icon is visible and has non-zero dimensions
+        # The edit button uses class="bi bi-pencil"
+        edit_icon = row.locator("button[title='Edit'] i.bi-pencil")
+        expect(edit_icon).to_be_visible(timeout=5000)
+
+        # Get the bounding box of the icon to verify it has dimensions
+        # (without Bootstrap Icons CSS, the icon would be 0x0)
+        edit_icon_box = edit_icon.bounding_box()
+        assert edit_icon_box is not None, "Edit icon should have a bounding box"
+        assert edit_icon_box["width"] > 0, (
+            f"Edit icon width should be > 0 (got {edit_icon_box['width']}). "
+            "This usually means Bootstrap Icons CSS is not imported."
+        )
+        assert edit_icon_box["height"] > 0, (
+            f"Edit icon height should be > 0 (got {edit_icon_box['height']}). "
+            "This usually means Bootstrap Icons CSS is not imported."
+        )
+
+        # Verify the delete button icon is also visible
+        delete_icon = row.locator("button[title='Delete'] i.bi-trash")
+        expect(delete_icon).to_be_visible(timeout=5000)
+        delete_icon_box = delete_icon.bounding_box()
+        assert delete_icon_box is not None, "Delete icon should have a bounding box"
+        assert (
+            delete_icon_box["width"] > 0
+        ), f"Delete icon width should be > 0 (got {delete_icon_box['width']})"
+        assert (
+            delete_icon_box["height"] > 0
+        ), f"Delete icon height should be > 0 (got {delete_icon_box['height']})"
+
+    def test_auto_title_from_file_upload(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that title is auto-populated from uploaded filename.
+
+        When a file is uploaded and the title field is empty, the title should
+        be auto-populated with the filename (without extension).
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Get the image path for upload
+        image_path = ASSETS_DIR / "smallPhoto.jpg"
+        assert image_path.exists(), f"Test asset not found: {image_path}"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        add_button = page.locator("button:has-text('Add Item')")
+        expect(add_button).to_be_visible(timeout=10000)
+        add_button.click()
+
+        # Wait for modal to appear
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Ensure content type is image
+        page.locator("#content_type").select_option("image")
+
+        # Verify title is empty
+        title_field = page.locator("#title")
+        expect(title_field).to_have_value("")
+
+        # Upload the image file
+        page.locator("#file_image").set_input_files(str(image_path))
+
+        # Wait for upload to complete
+        expect(
+            page.locator(".badge.bg-success:has-text('File uploaded')")
+        ).to_be_visible(timeout=10000)
+
+        # Verify title was auto-populated with filename (without extension)
+        expect(title_field).to_have_value("smallPhoto", timeout=5000)
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for modal to close
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # Verify item appears in the table with auto-generated title
+        # Use specific locator to find the row by title (in fw-bold div)
+        row = page.locator("tr").filter(
+            has=page.locator("div.fw-bold", has_text="smallPhoto")
+        )
+        expect(row).to_be_visible(timeout=5000)
+
+        # CRITICAL: Verify via API that data was actually persisted
+        item = get_item_by_title(http_client, auth_headers, slideshow_id, "smallPhoto")
+        assert item is not None, "Item with auto-generated title not found via API"
+        assert item.get("content_type") == "image"
+
+    def test_auto_title_from_url(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that title is auto-populated from URL.
+
+        When a URL is entered and the title field is empty, the title should
+        be auto-populated with either the filename from the URL path (if present)
+        or the URL itself.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+        test_url = "https://example.com/path/to/my-awesome-image.jpg"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select image type
+        page.locator("#content_type").select_option("image")
+
+        # Verify title is empty
+        title_field = page.locator("#title")
+        expect(title_field).to_have_value("")
+
+        # Enter the URL
+        page.locator("#url_alternative").fill(test_url)
+
+        # Blur the URL field to trigger auto-title
+        page.locator("#url_alternative").blur()
+
+        # Verify title was auto-populated with filename from URL (without extension)
+        expect(title_field).to_have_value("my-awesome-image", timeout=5000)
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for modal to close
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # Verify item appears in the table
+        # Use specific locator to find the row by title (in fw-bold div)
+        row = page.locator("tr").filter(
+            has=page.locator("div.fw-bold", has_text="my-awesome-image")
+        )
+        expect(row).to_be_visible(timeout=5000)
+
+        # CRITICAL: Verify via API that data was actually persisted
+        item = get_item_by_title(
+            http_client, auth_headers, slideshow_id, "my-awesome-image"
+        )
+        assert item is not None, "Item with auto-generated title from URL not found"
+        assert item.get("content_url") == test_url
+
+    def test_auto_title_does_not_overwrite_existing_title(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that auto-title does not overwrite an existing title.
+
+        If the user has already entered a title, uploading a file or entering
+        a URL should not change it.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Get the image path for upload
+        image_path = ASSETS_DIR / "smallPhoto.jpg"
+        assert image_path.exists(), f"Test asset not found: {image_path}"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select image type
+        page.locator("#content_type").select_option("image")
+
+        # Enter a custom title FIRST
+        title_field = page.locator("#title")
+        custom_title = "My Custom Title"
+        title_field.fill(custom_title)
+
+        # Upload the image file
+        page.locator("#file_image").set_input_files(str(image_path))
+
+        # Wait for upload to complete
+        expect(
+            page.locator(".badge.bg-success:has-text('File uploaded')")
+        ).to_be_visible(timeout=10000)
+
+        # Verify title was NOT changed (should still be the custom title)
+        expect(title_field).to_have_value(custom_title, timeout=2000)
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for modal to close
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # Verify item appears with the custom title, not the filename
+        expect(page.locator(f"text={custom_title}")).to_be_visible(timeout=5000)
+
+        # CRITICAL: Verify via API
+        item = get_item_by_title(http_client, auth_headers, slideshow_id, custom_title)
+        assert item is not None, "Item with custom title not found"
+        assert item.get("content_file_path"), "File was not uploaded"

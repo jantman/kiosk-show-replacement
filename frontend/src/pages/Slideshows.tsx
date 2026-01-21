@@ -198,17 +198,17 @@ const Slideshows: React.FC = () => {
                         </td>
                         <td>
                           <div className="btn-group" role="group">
-                            <Link 
+                            <Link
                               to={`/admin/slideshows/${slideshow.id}`}
                               className="btn btn-outline-primary btn-sm"
-                              title="View Details"
+                              title="Edit Slides"
                             >
                               <i className="bi bi-eye"></i>
                             </Link>
-                            <Link 
+                            <Link
                               to={`/admin/slideshows/${slideshow.id}/edit`}
                               className="btn btn-outline-secondary btn-sm"
-                              title="Edit"
+                              title="Edit Slideshow"
                             >
                               <i className="bi bi-pencil"></i>
                             </Link>

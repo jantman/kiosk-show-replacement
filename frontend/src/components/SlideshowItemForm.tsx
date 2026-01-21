@@ -21,6 +21,46 @@ interface SlideshowItemFormState {
   is_active: boolean;
 }
 
+/**
+ * Extract a title from a filename by removing the extension.
+ * @param filename - The filename (e.g., "my-image.jpg")
+ * @returns The filename without extension (e.g., "my-image")
+ */
+const extractTitleFromFilename = (filename: string): string => {
+  // Remove the extension
+  const lastDotIndex = filename.lastIndexOf('.');
+  if (lastDotIndex > 0) {
+    return filename.substring(0, lastDotIndex);
+  }
+  return filename;
+};
+
+/**
+ * Extract a title from a URL.
+ * If the URL has a filename in the path, use that (without extension).
+ * Otherwise, return an empty string (don't use the full URL as title).
+ * @param url - The URL (e.g., "https://example.com/path/to/image.jpg")
+ * @returns The extracted title or empty string
+ */
+const extractTitleFromUrl = (url: string): string => {
+  try {
+    const parsedUrl = new URL(url);
+    const pathname = parsedUrl.pathname;
+    // Get the last segment of the path
+    const segments = pathname.split('/').filter(s => s.length > 0);
+    if (segments.length > 0) {
+      const lastSegment = segments[segments.length - 1];
+      // Only use it if it looks like a filename (has an extension)
+      if (lastSegment.includes('.')) {
+        return extractTitleFromFilename(lastSegment);
+      }
+    }
+  } catch {
+    // Invalid URL, return empty string
+  }
+  return '';
+};
+
 const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   slideshowId,
   item,
@@ -177,8 +217,8 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       uploadFormData.append('file', file);
       uploadFormData.append('slideshow_id', slideshowId.toString());
 
-      const endpoint = file.type.startsWith('image/') ? 
-        '/api/v1/uploads/image' : 
+      const endpoint = file.type.startsWith('image/') ?
+        '/api/v1/uploads/image' :
         '/api/v1/uploads/video';
 
       const response = await apiCall(endpoint, {
@@ -193,24 +233,29 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         };
         const isVideo = file.type.startsWith('video/');
 
-        setFormData(prev => ({
-          ...prev,
-          content_file_path: uploadData.file_path,
-          content_type: isVideo ? 'video' : 'image',
-          // For videos, set duration from ffprobe detection
-          display_duration: isVideo && uploadData.duration_seconds
-            ? uploadData.duration_seconds
-            : prev.display_duration,
-        }));
+        setFormData(prev => {
+          // Auto-populate title from filename if title is empty
+          const autoTitle = prev.title.trim() === ''
+            ? extractTitleFromFilename(file.name)
+            : prev.title;
+
+          return {
+            ...prev,
+            title: autoTitle,
+            content_file_path: uploadData.file_path,
+            content_type: isVideo ? 'video' : 'image',
+            // For videos, set duration from ffprobe detection
+            display_duration: isVideo && uploadData.duration_seconds
+              ? uploadData.duration_seconds
+              : prev.display_duration,
+            // Clear any URL when file is uploaded
+            content_url: '',
+          };
+        });
 
         // Track if video duration was auto-detected
         if (isVideo && uploadData.duration_seconds) {
           setVideoDurationDetected(true);
-        }
-
-        // Clear any URL when file is uploaded
-        if (formData.content_url) {
-          setFormData(prev => ({ ...prev, content_url: '' }));
         }
       } else {
         setError(response.error || 'Failed to upload file');
@@ -231,6 +276,18 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     }
   };
 
+  /**
+   * Handle URL field blur - auto-populate title from URL if title is empty
+   */
+  const handleUrlBlur = (url: string) => {
+    if (formData.title.trim() === '' && url.trim() !== '') {
+      const autoTitle = extractTitleFromUrl(url);
+      if (autoTitle) {
+        setFormData(prev => ({ ...prev, title: autoTitle }));
+      }
+    }
+  };
+
   const renderContentFields = () => {
     switch (formData.content_type) {
       case 'url':
@@ -242,6 +299,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
               type="url"
               value={formData.content_url}
               onChange={(e) => handleInputChange('content_url', e.target.value)}
+              onBlur={(e) => handleUrlBlur(e.target.value)}
               isInvalid={!!validationErrors.content_url}
               placeholder="https://example.com"
             />
@@ -329,6 +387,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                     handleInputChange('content_file_path', '');
                   }
                 }}
+                onBlur={(e) => handleUrlBlur(e.target.value)}
                 placeholder={`https://example.com/${formData.content_type}.jpg`}
                 disabled={uploadingFile}
               />

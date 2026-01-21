@@ -596,6 +596,7 @@ def create_display() -> Tuple[Response, int]:
             resolution_width=data.get("resolution_width"),
             resolution_height=data.get("resolution_height"),
             rotation=data.get("rotation", 0),
+            show_info_overlay=data.get("show_info_overlay", False),
             owner_id=current_user.id,
             created_by_id=current_user.id,
             current_slideshow_id=data.get("current_slideshow_id"),
@@ -677,6 +678,8 @@ def update_display(display_id: int) -> Tuple[Response, int]:
             display.location = data["location"]
         if "description" in data:
             display.description = data["description"]
+        if "show_info_overlay" in data:
+            display.show_info_overlay = data["show_info_overlay"]
 
         # Handle slideshow assignment
         slideshow_assignment_changed = False

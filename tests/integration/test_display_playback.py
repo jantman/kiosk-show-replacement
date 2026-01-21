@@ -9,6 +9,7 @@ Tests verify that slideshows play correctly on display views:
 - SSE events trigger display reload on assignment change
 - Text slides only show content, not title
 - Text slides preserve line breaks
+- Info overlay visibility based on display settings
 
 Run with: nox -s test-integration
 """
@@ -813,6 +814,136 @@ class TestDisplayPlayback:
 
         finally:
             # Cleanup slideshow (test_text_slide_preserves_line_breaks)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_info_overlay_respects_display_setting(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that info overlay visibility respects the display's show_info_overlay setting.
+
+        This test:
+        1. Creates a display with show_info_overlay=False
+        2. Creates a slideshow and assigns it to the display
+        3. Navigates to the display view
+        4. Verifies the info overlay is NOT visible
+        5. Updates the display to show_info_overlay=True
+        6. Reloads and verifies the info overlay IS visible
+
+        The info overlay shows slideshow name, slide counter, and display name.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Info Overlay Test Slideshow",
+                "description": "Test slideshow for info overlay",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Test Slide",
+                    "content_type": "text",
+                    "content_text": "Test content for info overlay test",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display with show_info_overlay=False (default)
+            display_name = f"test-overlay-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for info overlay testing",
+                    "show_info_overlay": False,  # Explicitly disable
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+                time.sleep(1)
+
+                # Verify the info overlay is NOT visible when show_info_overlay=False
+                slide_info = page.locator("#slideInfo")
+                overlay_visible = slide_info.is_visible()
+                assert (
+                    not overlay_visible
+                ), "Info overlay should NOT be visible when show_info_overlay=False"
+
+                # Update the display to show_info_overlay=True
+                update_response = http_client.put(
+                    f"/api/v1/displays/{display_id}",
+                    json={"show_info_overlay": True},
+                    headers=auth_headers,
+                )
+                assert update_response.status_code == 200
+
+                # Reload the page to pick up the change
+                page.reload()
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+                time.sleep(1)
+
+                # Verify the info overlay IS visible when show_info_overlay=True
+                slide_info = page.locator("#slideInfo")
+                overlay_visible = slide_info.is_visible()
+                assert (
+                    overlay_visible
+                ), "Info overlay should be visible when show_info_overlay=True"
+
+                # Verify the overlay contains expected information
+                expect(slide_info).to_contain_text(display_name)
+                expect(slide_info).to_contain_text("Info Overlay Test Slideshow")
+
+            finally:
+                # Cleanup display (test_info_overlay_respects_display_setting)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_info_overlay_respects_display_setting)
             http_client.delete(
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
