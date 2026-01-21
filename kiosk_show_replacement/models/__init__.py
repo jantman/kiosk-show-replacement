@@ -162,6 +162,9 @@ class Display(db.Model):
     location: Mapped[Optional[str]] = mapped_column(String(200))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
+    show_info_overlay: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     archived_by_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id")
@@ -279,6 +282,7 @@ class Display(db.Model):
             "location": self.location,
             "is_active": self.is_active,
             "is_archived": self.is_archived,
+            "show_info_overlay": self.show_info_overlay,
             "archived_at": (self.archived_at.isoformat() if self.archived_at else None),
             "archived_by_id": self.archived_by_id,
             "is_online": self.is_online,
@@ -320,6 +324,13 @@ class Display(db.Model):
             )
         return rotation
 
+    @validates("show_info_overlay")
+    def validate_show_info_overlay(self, key: str, value: bool) -> bool:
+        """Validate show_info_overlay is a boolean."""
+        if not isinstance(value, bool):
+            raise ValueError("show_info_overlay must be a boolean")
+        return value
+
     def archive(self, archived_by_user: "User") -> None:
         """Archive this display."""
         self.is_archived = True
@@ -351,6 +362,7 @@ class Display(db.Model):
             "rotation": self.rotation,
             "location": self.location,
             "heartbeat_interval": self.heartbeat_interval,
+            "show_info_overlay": self.show_info_overlay,
         }
 
     def apply_configuration(self, config: dict, updated_by_user: "User") -> None:
@@ -364,6 +376,7 @@ class Display(db.Model):
         self.heartbeat_interval = config.get(
             "heartbeat_interval", self.heartbeat_interval
         )
+        self.show_info_overlay = config.get("show_info_overlay", self.show_info_overlay)
         self.updated_by_id = updated_by_user.id
         self.updated_at = datetime.now(timezone.utc)
 

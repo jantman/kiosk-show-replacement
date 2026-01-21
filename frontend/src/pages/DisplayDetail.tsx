@@ -22,6 +22,7 @@ const DisplayDetail: React.FC = () => {
     location: '',
     description: '',
     current_slideshow_id: null as number | null,
+    show_info_overlay: false,
   });
 
   useEffect(() => {
@@ -54,6 +55,7 @@ const DisplayDetail: React.FC = () => {
             location: displayResponse.data.location || '',
             description: displayResponse.data.description || '',
             current_slideshow_id: displayResponse.data.current_slideshow_id ?? null,
+            show_info_overlay: displayResponse.data.show_info_overlay ?? false,
           });
         } else {
           setError('Failed to fetch display details');
@@ -79,6 +81,7 @@ const DisplayDetail: React.FC = () => {
           location: updatedDisplay.location || '',
           description: updatedDisplay.description || '',
           current_slideshow_id: updatedDisplay.current_slideshow_id ?? null,
+          show_info_overlay: updatedDisplay.show_info_overlay ?? false,
         });
       }
     }
@@ -98,6 +101,7 @@ const DisplayDetail: React.FC = () => {
         location: display.location || '',
         description: display.description || '',
         current_slideshow_id: display.current_slideshow_id ?? null,
+        show_info_overlay: display.show_info_overlay ?? false,
       });
     }
     setIsEditing(false);
@@ -402,7 +406,7 @@ const DisplayDetail: React.FC = () => {
                             <td className="fw-bold">Current Slideshow:</td>
                             <td>
                               {currentSlideshow ? (
-                                <Link 
+                                <Link
                                   to={`/admin/slideshows/${currentSlideshow.id}`}
                                   className="text-decoration-none"
                                 >
@@ -411,6 +415,14 @@ const DisplayDetail: React.FC = () => {
                               ) : (
                                 <span className="text-muted">None</span>
                               )}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="fw-bold">Show Info Overlay:</td>
+                            <td>
+                              <span className={`badge ${display.show_info_overlay ? 'bg-success' : 'bg-secondary'}`}>
+                                {display.show_info_overlay ? 'Enabled' : 'Disabled'}
+                              </span>
                             </td>
                           </tr>
                           <tr>
@@ -471,9 +483,9 @@ const DisplayDetail: React.FC = () => {
                           className="form-select"
                           id="slideshow"
                           value={formData.current_slideshow_id || ''}
-                          onChange={(e) => setFormData({ 
-                            ...formData, 
-                            current_slideshow_id: e.target.value ? parseInt(e.target.value) : null 
+                          onChange={(e) => setFormData({
+                            ...formData,
+                            current_slideshow_id: e.target.value ? parseInt(e.target.value) : null
                           })}
                         >
                           <option value="">No slideshow assigned</option>
@@ -483,6 +495,27 @@ const DisplayDetail: React.FC = () => {
                             </option>
                           ))}
                         </select>
+                      </div>
+
+                      <div className="mb-3">
+                        <div className="form-check">
+                          <input
+                            type="checkbox"
+                            className="form-check-input"
+                            id="show_info_overlay"
+                            checked={formData.show_info_overlay}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              show_info_overlay: e.target.checked
+                            })}
+                          />
+                          <label htmlFor="show_info_overlay" className="form-check-label">
+                            Show Info Overlay
+                          </label>
+                          <div className="form-text">
+                            When enabled, displays slideshow name, slide counter, and display name on the playback screen.
+                          </div>
+                        </div>
                       </div>
                     </form>
                   )}

@@ -588,6 +588,11 @@ def create_display() -> Tuple[Response, int]:
         if existing_display:
             return api_error(f"Display with name '{name}' already exists", 409)
 
+        # Validate show_info_overlay if provided
+        show_info_overlay = data.get("show_info_overlay", False)
+        if not isinstance(show_info_overlay, bool):
+            return api_error("show_info_overlay must be a boolean", 400)
+
         # Create new display
         display = Display(
             name=name,
@@ -596,6 +601,7 @@ def create_display() -> Tuple[Response, int]:
             resolution_width=data.get("resolution_width"),
             resolution_height=data.get("resolution_height"),
             rotation=data.get("rotation", 0),
+            show_info_overlay=show_info_overlay,
             owner_id=current_user.id,
             created_by_id=current_user.id,
             current_slideshow_id=data.get("current_slideshow_id"),
@@ -677,6 +683,11 @@ def update_display(display_id: int) -> Tuple[Response, int]:
             display.location = data["location"]
         if "description" in data:
             display.description = data["description"]
+        if "show_info_overlay" in data:
+            show_info_overlay_value = data["show_info_overlay"]
+            if not isinstance(show_info_overlay_value, bool):
+                return api_error("show_info_overlay must be a boolean", 400)
+            display.show_info_overlay = show_info_overlay_value
 
         # Handle slideshow assignment
         slideshow_assignment_changed = False

@@ -41,6 +41,7 @@ const mockDisplay = {
   heartbeat_interval: 30,
   rotation: 0,
   is_default: false,
+  show_info_overlay: false,
   created_at: '2025-06-01T12:00:00Z',
   updated_at: '2025-06-17T12:00:00Z',
 };
@@ -205,6 +206,7 @@ describe('DisplayDetail', () => {
         location: 'Main Lobby',
         description: 'Primary display in main lobby',
         current_slideshow_id: 456,
+        show_info_overlay: false,
       });
     });
 

@@ -17,8 +17,9 @@ import DisplayDetail from './pages/DisplayDetail';
 import AssignmentHistory from './pages/AssignmentHistory';
 import SystemMonitoring from './pages/SystemMonitoring';
 
-// Import Bootstrap CSS
+// Import Bootstrap CSS and Bootstrap Icons
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 const App: React.FC = () => {
   return (
