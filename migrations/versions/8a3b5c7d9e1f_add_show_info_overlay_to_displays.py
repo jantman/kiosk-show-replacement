@@ -23,7 +23,7 @@ def upgrade():
     # Add show_info_overlay column with default False
     with op.batch_alter_table('displays', schema=None) as batch_op:
         batch_op.add_column(
-            sa.Column('show_info_overlay', sa.Boolean(), nullable=False, server_default='0')
+            sa.Column('show_info_overlay', sa.Boolean(), nullable=False, server_default=sa.false())
         )
 
 
