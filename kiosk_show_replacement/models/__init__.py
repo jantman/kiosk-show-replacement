@@ -162,7 +162,9 @@ class Display(db.Model):
     location: Mapped[Optional[str]] = mapped_column(String(200))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False)
-    show_info_overlay: Mapped[bool] = mapped_column(Boolean, default=False)
+    show_info_overlay: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
     archived_by_id: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id")
@@ -321,6 +323,13 @@ class Display(db.Model):
                 f"Rotation must be one of: {', '.join(map(str, allowed_rotations))}"
             )
         return rotation
+
+    @validates("show_info_overlay")
+    def validate_show_info_overlay(self, key: str, value: bool) -> bool:
+        """Validate show_info_overlay is a boolean."""
+        if not isinstance(value, bool):
+            raise ValueError("show_info_overlay must be a boolean")
+        return value
 
     def archive(self, archived_by_user: "User") -> None:
         """Archive this display."""
