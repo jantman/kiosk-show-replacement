@@ -10,9 +10,7 @@ Run with: poetry run -- nox -s test-3.14 -- tests/unit/test_sse_broadcast.py
 """
 
 import json
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from kiosk_show_replacement.app import db
 from kiosk_show_replacement.models import Display, Slideshow
@@ -199,9 +197,9 @@ class TestBroadcastDisplayUpdateSendsToDisplay:
 
                 # The display connection should have received the event
                 # Check that the event was added to the connection's queue
-                assert count > 0, (
-                    "configuration_changed should be sent to display connections"
-                )
+                assert (
+                    count > 0
+                ), "configuration_changed should be sent to display connections"
 
                 # Verify the event is in the queue
                 events_in_queue = []
@@ -210,12 +208,13 @@ class TestBroadcastDisplayUpdateSendsToDisplay:
 
                 # Should have at least one event (besides any ping events)
                 config_events = [
-                    e for e in events_in_queue
+                    e
+                    for e in events_in_queue
                     if "configuration_changed" in e.event_type
                 ]
-                assert len(config_events) > 0, (
-                    "Display connection should receive configuration_changed event"
-                )
+                assert (
+                    len(config_events) > 0
+                ), "Display connection should receive configuration_changed event"
 
             finally:
                 sse_manager.remove_connection(connection.connection_id)
@@ -266,9 +265,7 @@ class TestSlideshowUpdateBroadcastToDisplays:
 
             try:
                 # Broadcast a slideshow update
-                broadcast_slideshow_update(
-                    slideshow, "updated", {"test": "data"}
-                )
+                broadcast_slideshow_update(slideshow, "updated", {"test": "data"})
 
                 # Check what events the display received
                 events_in_queue = []
@@ -279,17 +276,13 @@ class TestSlideshowUpdateBroadcastToDisplays:
                 event_types = [e.event_type for e in events_in_queue]
 
                 # Should have slideshow.updated event
-                assert any(
-                    "slideshow.updated" in et for et in event_types
-                ), (
+                assert any("slideshow.updated" in et for et in event_types), (
                     f"Display should receive 'slideshow.updated' event, "
                     f"got: {event_types}"
                 )
 
                 # Should NOT have display.slideshow_changed event
-                assert not any(
-                    "slideshow_changed" in et for et in event_types
-                ), (
+                assert not any("slideshow_changed" in et for et in event_types), (
                     f"Display should NOT receive 'display.slideshow_changed' event, "
                     f"got: {event_types}"
                 )
@@ -340,8 +333,7 @@ class TestSlideshowUpdateBroadcastToDisplays:
                     events_in_queue.append(connection.event_queue.get_nowait())
 
                 slideshow_events = [
-                    e for e in events_in_queue
-                    if "slideshow" in e.event_type.lower()
+                    e for e in events_in_queue if "slideshow" in e.event_type.lower()
                 ]
 
                 assert len(slideshow_events) > 0, "Should have slideshow event"
@@ -351,9 +343,9 @@ class TestSlideshowUpdateBroadcastToDisplays:
                 data = event.data
 
                 # The event should include the slideshow_id for display-side matching
-                assert "id" in data or "slideshow_id" in data, (
-                    f"Event data should include slideshow id for matching, got: {data}"
-                )
+                assert (
+                    "id" in data or "slideshow_id" in data
+                ), f"Event data should include slideshow id for matching, got: {data}"
 
             finally:
                 sse_manager.remove_connection(connection.connection_id)

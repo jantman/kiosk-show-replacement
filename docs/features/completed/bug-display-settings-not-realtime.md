@@ -116,16 +116,16 @@ Move this feature markdown file from `docs/features/` to `docs/features/complete
 
 ## Progress
 
-- [ ] Milestone 1: Regression Tests
-  - [ ] M1.1 - Test display settings SSE broadcast
-  - [ ] M1.2 - Test slideshow update SSE broadcast to displays
-- [ ] Milestone 2: Fix Display Settings SSE Broadcast
-  - [ ] M2.1 - Update broadcast_display_update() to send to displays for configuration changes
-  - [ ] M2.2 - Add SSE broadcast call in update_display()
-- [ ] Milestone 3: Fix Slideshow Update SSE Broadcast
-  - [ ] M3.1 - Fix event type in broadcast_slideshow_update()
-- [ ] Milestone 4: Acceptance Criteria
-  - [ ] M4.1 - Verify all regression tests pass
-  - [ ] M4.2 - Run all nox tests
-  - [ ] M4.3 - Documentation review
-  - [ ] M4.4 - Move feature file to completed
+- [x] Milestone 1: Regression Tests
+  - [x] M1.1 - Test display settings SSE broadcast
+  - [x] M1.2 - Test slideshow update SSE broadcast to displays
+- [x] Milestone 2: Fix Display Settings SSE Broadcast
+  - [x] M2.1 - Update broadcast_display_update() to send to displays for configuration changes
+  - [x] M2.2 - Add SSE broadcast call in update_display()
+- [x] Milestone 3: Fix Slideshow Update SSE Broadcast
+  - [x] M3.1 - Fix event type in broadcast_slideshow_update()
+- [x] Milestone 4: Acceptance Criteria
+  - [x] M4.1 - Verify all regression tests pass
+  - [x] M4.2 - Run all nox tests
+  - [x] M4.3 - Documentation review
+  - [x] M4.4 - Move feature file to completed
