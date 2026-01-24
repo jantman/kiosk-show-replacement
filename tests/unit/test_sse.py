@@ -9,8 +9,6 @@ Tests verify:
 Run with: poetry run -- nox -s test-3.14 -- tests/unit/test_sse.py
 """
 
-from kiosk_show_replacement.models import db
-
 
 class TestSSEStatsEndpoint:
     """Test /api/v1/events/stats endpoint response format.
@@ -32,9 +30,7 @@ class TestSSEStatsEndpoint:
         response = client.get("/api/v1/events/stats")
         assert response.status_code == 401
 
-    def test_sse_stats_returns_events_sent_last_hour(
-        self, client, authenticated_user
-    ):
+    def test_sse_stats_returns_events_sent_last_hour(self, client, authenticated_user):
         """Test that SSE stats includes events_sent_last_hour field."""
         response = client.get("/api/v1/events/stats")
         assert response.status_code == 200
@@ -42,17 +38,15 @@ class TestSSEStatsEndpoint:
         data = response.get_json()
         assert data["success"] is True
         assert "data" in data
-        assert "events_sent_last_hour" in data["data"], (
-            "Response should include 'events_sent_last_hour' field"
-        )
+        assert (
+            "events_sent_last_hour" in data["data"]
+        ), "Response should include 'events_sent_last_hour' field"
         # Should be a number (int)
         assert isinstance(data["data"]["events_sent_last_hour"], int)
 
-    def test_sse_stats_connection_has_id_field(
-        self, client, authenticated_user, app
-    ):
+    def test_sse_stats_connection_has_id_field(self, client, authenticated_user, app):
         """Test that connections array items have 'id' field (not 'connection_id')."""
-        from kiosk_show_replacement.sse import sse_manager, SSEConnection
+        from kiosk_show_replacement.sse import sse_manager
 
         # Create a real SSE connection
         with app.app_context():
@@ -69,18 +63,16 @@ class TestSSEStatsEndpoint:
                 assert len(data["data"]["connections"]) > 0
 
                 conn = data["data"]["connections"][0]
-                assert "id" in conn, (
-                    "Connection should have 'id' field, not 'connection_id'"
-                )
-                assert "connection_id" not in conn, (
-                    "Connection should not have 'connection_id' field"
-                )
+                assert (
+                    "id" in conn
+                ), "Connection should have 'id' field, not 'connection_id'"
+                assert (
+                    "connection_id" not in conn
+                ), "Connection should not have 'connection_id' field"
             finally:
                 sse_manager.remove_connection(connection.connection_id)
 
-    def test_sse_stats_connection_has_type_field(
-        self, client, authenticated_user, app
-    ):
+    def test_sse_stats_connection_has_type_field(self, client, authenticated_user, app):
         """Test that connections have 'type' field (not 'connection_type')."""
         from kiosk_show_replacement.sse import sse_manager
 
@@ -96,12 +88,12 @@ class TestSSEStatsEndpoint:
                 assert len(data["data"]["connections"]) > 0
 
                 conn = data["data"]["connections"][0]
-                assert "type" in conn, (
-                    "Connection should have 'type' field, not 'connection_type'"
-                )
-                assert "connection_type" not in conn, (
-                    "Connection should not have 'connection_type' field"
-                )
+                assert (
+                    "type" in conn
+                ), "Connection should have 'type' field, not 'connection_type'"
+                assert (
+                    "connection_type" not in conn
+                ), "Connection should not have 'connection_type' field"
             finally:
                 sse_manager.remove_connection(connection.connection_id)
 
@@ -123,17 +115,17 @@ class TestSSEStatsEndpoint:
                 assert len(data["data"]["connections"]) > 0
 
                 conn = data["data"]["connections"][0]
-                assert "user" in conn, (
-                    "Connection should have 'user' field with username"
-                )
-                assert "user_id" not in conn, (
-                    "Connection should not have 'user_id' field"
-                )
+                assert (
+                    "user" in conn
+                ), "Connection should have 'user' field with username"
+                assert (
+                    "user_id" not in conn
+                ), "Connection should not have 'user_id' field"
                 # User should be a string (username), not an integer
                 if conn["user"] is not None:
-                    assert isinstance(conn["user"], str), (
-                        "'user' field should be a string (username)"
-                    )
+                    assert isinstance(
+                        conn["user"], str
+                    ), "'user' field should be a string (username)"
                     assert conn["user"] == authenticated_user.username
             finally:
                 sse_manager.remove_connection(connection.connection_id)
@@ -156,12 +148,10 @@ class TestSSEStatsEndpoint:
                 assert len(data["data"]["connections"]) > 0
 
                 conn = data["data"]["connections"][0]
-                assert "last_ping" in conn, (
-                    "Connection should have 'last_ping' field"
-                )
-                assert "last_activity" not in conn, (
-                    "Connection should not have 'last_activity' field"
-                )
+                assert "last_ping" in conn, "Connection should have 'last_ping' field"
+                assert (
+                    "last_activity" not in conn
+                ), "Connection should not have 'last_activity' field"
             finally:
                 sse_manager.remove_connection(connection.connection_id)
 
@@ -169,8 +159,8 @@ class TestSSEStatsEndpoint:
         self, client, authenticated_user, app
     ):
         """Test that display connections have 'display' field (not 'display_name')."""
-        from kiosk_show_replacement.sse import sse_manager
         from kiosk_show_replacement.models import Display, db
+        from kiosk_show_replacement.sse import sse_manager
 
         with app.app_context():
             # Create a test display
@@ -198,17 +188,20 @@ class TestSSEStatsEndpoint:
                 # Find the display connection
                 display_conn = None
                 for conn in data["data"]["connections"]:
-                    if conn.get("type") == "display" or conn.get("connection_type") == "display":
+                    if (
+                        conn.get("type") == "display"
+                        or conn.get("connection_type") == "display"
+                    ):
                         display_conn = conn
                         break
 
                 assert display_conn is not None, "Should have a display connection"
-                assert "display" in display_conn, (
-                    "Display connection should have 'display' field"
-                )
-                assert "display_name" not in display_conn, (
-                    "Connection should not have 'display_name' field"
-                )
+                assert (
+                    "display" in display_conn
+                ), "Display connection should have 'display' field"
+                assert (
+                    "display_name" not in display_conn
+                ), "Connection should not have 'display_name' field"
             finally:
                 sse_manager.remove_connection(connection.connection_id)
 

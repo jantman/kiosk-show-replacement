@@ -56,7 +56,9 @@ export const EnhancedDisplayStatus: React.FC<EnhancedDisplayStatusProps> = ({
         throw new Error(`Failed to fetch display status: ${response.statusText}`);
       }
 
-      const data = await response.json();
+      const result = await response.json();
+      // API returns {success: true, data: [...]} format
+      const data = result.data;
       setDisplays(Array.isArray(data) ? data : [data]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

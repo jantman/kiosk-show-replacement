@@ -285,9 +285,7 @@ class TestSystemMonitoring:
         page.wait_for_timeout(1000)
 
         # Should see the display name in the tab content
-        expect(page.locator("text=test-monitoring-display")).to_be_visible(
-            timeout=5000
-        )
+        expect(page.locator("text=test-monitoring-display")).to_be_visible(timeout=5000)
 
     def _login(self, page: Page, vite_url: str, test_database: dict):
         """Helper method to log in to the admin interface."""

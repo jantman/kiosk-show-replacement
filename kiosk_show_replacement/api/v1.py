@@ -607,7 +607,9 @@ def list_displays_status() -> Tuple[Response, int]:
         displays = Display.query.all()
         display_status_data = [display.to_status_dict() for display in displays]
 
-        return api_response(display_status_data, "Display status retrieved successfully")
+        return api_response(
+            display_status_data, "Display status retrieved successfully"
+        )
 
     except Exception as e:
         current_app.logger.error(f"Error getting display status: {e}")
@@ -1835,7 +1837,7 @@ def sse_stats() -> Tuple[Response, int]:
         stats["events_sent_last_hour"] = sse_manager.get_events_sent_last_hour()
 
         # Build user lookup for converting user_id to username
-        user_lookup: Dict[int, str] = {}
+        user_lookup: Dict[int, Optional[str]] = {}
 
         # Add detailed connection information with frontend-expected field names
         detailed_connections = []
@@ -1863,7 +1865,9 @@ def sse_stats() -> Tuple[Response, int]:
 
                 # Add display field for display connections
                 if hasattr(conn, "display_name") and conn.display_name:
-                    conn_info["display"] = conn.display_name  # Frontend expects "display"
+                    conn_info["display"] = (
+                        conn.display_name
+                    )  # Frontend expects "display"
 
                 detailed_connections.append(conn_info)
 

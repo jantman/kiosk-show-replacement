@@ -86,9 +86,9 @@ class TestDisplayStatusEndpoint:
             assert len(data["data"]) > 0
             status = data["data"][0]
 
-            assert "connection_quality" in status, (
-                "Display status should include 'connection_quality' field"
-            )
+            assert (
+                "connection_quality" in status
+            ), "Display status should include 'connection_quality' field"
             assert status["connection_quality"] in [
                 "excellent",
                 "good",
@@ -115,9 +115,9 @@ class TestDisplayStatusEndpoint:
             assert len(data["data"]) > 0
             status = data["data"][0]
 
-            assert "sse_connected" in status, (
-                "Display status should include 'sse_connected' field"
-            )
+            assert (
+                "sse_connected" in status
+            ), "Display status should include 'sse_connected' field"
             assert isinstance(status["sse_connected"], bool)
 
     def test_displays_status_includes_missed_heartbeats(
@@ -139,9 +139,9 @@ class TestDisplayStatusEndpoint:
             assert len(data["data"]) > 0
             status = data["data"][0]
 
-            assert "missed_heartbeats" in status, (
-                "Display status should include 'missed_heartbeats' field"
-            )
+            assert (
+                "missed_heartbeats" in status
+            ), "Display status should include 'missed_heartbeats' field"
             assert isinstance(status["missed_heartbeats"], int)
 
     def test_displays_status_includes_basic_display_info(
@@ -355,9 +355,7 @@ class TestDisplayConnectionQualityCalculation:
 
             assert status["connection_quality"] == "excellent"
 
-    def test_connection_quality_good_one_missed(
-        self, client, authenticated_user, app
-    ):
+    def test_connection_quality_good_one_missed(self, client, authenticated_user, app):
         """Test good quality when 1 heartbeat missed."""
         with app.app_context():
             display = Display(
@@ -377,9 +375,7 @@ class TestDisplayConnectionQualityCalculation:
             assert status["connection_quality"] == "good"
             assert status["missed_heartbeats"] == 1
 
-    def test_connection_quality_poor_two_missed(
-        self, client, authenticated_user, app
-    ):
+    def test_connection_quality_poor_two_missed(self, client, authenticated_user, app):
         """Test poor quality when 2 heartbeats missed."""
         with app.app_context():
             display = Display(
