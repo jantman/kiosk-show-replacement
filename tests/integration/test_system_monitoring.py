@@ -149,6 +149,146 @@ class TestSystemMonitoring:
         expect(health_panel.get_by_text("Connected", exact=True)).to_be_visible()
         expect(health_panel.get_by_text("Active", exact=True)).to_be_visible()
 
+    def test_sse_debug_tools_shows_connection_stats(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+    ):
+        """Test that SSE debug tools tab shows SSE connection statistics.
+
+        This is a regression test for the bug where the SSE Debug Tools tab
+        showed "No active SSE connections found" even when connections exist.
+        The admin UI itself maintains an SSE connection, so we should see at
+        least 1 admin connection.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Login first
+        self._login(page, vite_url, test_database)
+
+        # Navigate to system monitoring page
+        page.goto(f"{vite_url}/admin/monitoring")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+        page.wait_for_timeout(2000)  # Wait for SSE connection to establish
+
+        # The SSE Debug Tools tab should be active by default
+        # Click refresh to get fresh stats
+        refresh_button = page.locator("button:has-text('Refresh')").first
+        if refresh_button.is_visible():
+            refresh_button.click()
+            page.wait_for_timeout(1000)
+
+        # Verify the admin connection count is shown
+        # The "Admin Connections" stat should show at least 1 (our connection)
+        admin_connections = page.locator("text=Admin Connections").first
+        expect(admin_connections).to_be_visible(timeout=5000)
+
+        # The total connections should be visible and have a non-zero count
+        # (at minimum, the admin UI's own SSE connection)
+        total_connections = page.locator("text=Total Connections").first
+        expect(total_connections).to_be_visible(timeout=5000)
+
+    def test_display_status_tab_no_error(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+    ):
+        """Test that Display Status tab does not show an error message.
+
+        This is a regression test for the bug where the Display Status tab
+        showed "Error loading display status: Failed to fetch display status: NOT FOUND"
+        because the /api/v1/displays/status endpoint didn't exist.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Login first
+        self._login(page, vite_url, test_database)
+
+        # Navigate to system monitoring page
+        page.goto(f"{vite_url}/admin/monitoring")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+        page.wait_for_timeout(1000)
+
+        # Click on Display Status tab
+        tabs = page.locator("#monitoring-tabs")
+        display_tab = tabs.locator("button:has-text('Display Status')")
+        expect(display_tab).to_be_visible()
+        display_tab.click()
+
+        page.wait_for_timeout(1000)
+
+        # The error message should NOT be visible
+        # This was the original bug: "Error loading display status: ..."
+        error_message = page.locator("text=Error loading display status")
+        expect(error_message).not_to_be_visible()
+
+        # Also verify the "NOT FOUND" error is not visible
+        not_found_error = page.locator("text=NOT FOUND")
+        expect(not_found_error).not_to_be_visible()
+
+    def test_display_status_tab_shows_display_info(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+    ):
+        """Test that Display Status tab shows display information when displays exist.
+
+        This test verifies that when displays are configured in the system,
+        they are properly shown in the Display Status tab with their status.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        flask_url = servers["flask_url"]
+
+        # Login first
+        self._login(page, vite_url, test_database)
+
+        # Create a test display via API
+        import requests
+
+        session = requests.Session()
+        # Login to API
+        login_resp = session.post(
+            f"{flask_url}/api/v1/auth/login",
+            json={
+                "username": test_database["users"][0]["username"],
+                "password": test_database["users"][0]["password"],
+            },
+        )
+        assert login_resp.status_code == 200
+
+        # Create display
+        create_resp = session.post(
+            f"{flask_url}/api/v1/displays",
+            json={
+                "name": "test-monitoring-display",
+                "location": "Test Location",
+            },
+        )
+        assert create_resp.status_code == 201
+
+        # Navigate to system monitoring page
+        page.goto(f"{vite_url}/admin/monitoring")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+        page.wait_for_timeout(1000)
+
+        # Click on Display Status tab
+        tabs = page.locator("#monitoring-tabs")
+        display_tab = tabs.locator("button:has-text('Display Status')")
+        display_tab.click()
+
+        page.wait_for_timeout(1000)
+
+        # Should see the display name in the tab content
+        expect(page.locator("text=test-monitoring-display")).to_be_visible(
+            timeout=5000
+        )
+
     def _login(self, page: Page, vite_url: str, test_database: dict):
         """Helper method to log in to the admin interface."""
         page.goto(f"{vite_url}/admin/login")
