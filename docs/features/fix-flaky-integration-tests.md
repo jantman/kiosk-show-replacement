@@ -43,19 +43,63 @@ Call log:
 - The page reload is happening while another navigation or operation is in progress
 - Race condition between SSE-triggered reload and test-initiated operations
 
-## Investigation Needed
+## Investigation Results
 
-Before implementing fixes, investigate:
+### 1. `test_dashboard_shows_recent_slideshows` Analysis
 
-1. **test_dashboard_shows_recent_slideshows:**
-   - Is the slideshow actually being created before the assertion?
-   - Is there an SSE event that should trigger a dashboard refresh?
-   - Should the test wait for a specific SSE event or API response before checking?
+**Root Cause Identified:**
+- The `test_slideshow` fixture creates a slideshow via API before the test runs
+- The test then logs in, which navigates to the dashboard
+- The Dashboard React component fetches slideshows in `useEffect()` when it mounts
+- The "Recent Slideshows" section only shows slideshows where `is_active=true` (line 146: `activeSlideShows.length === 0`)
+- The test uses a 5000ms timeout which should be sufficient, but the locator may be matching before data is loaded
 
-2. **test_info_overlay_respects_display_setting:**
-   - What triggers the page reload in this test?
-   - Is the SSE connection causing an unexpected reload?
-   - Should the test disable SSE or handle the reload more gracefully?
+**Fix Strategy:**
+- Wait for dashboard to finish loading (ensure loading spinner is gone) before checking for slideshow
+- Increase timeout to 10000ms for more reliability
+- The slideshow should appear since it's created with `is_active: True` by the fixture
+
+### 2. `test_info_overlay_respects_display_setting` Analysis
+
+**Root Cause Identified:**
+- The display page has an SSE client (`DisplaySSEClient` in `slideshow.html`)
+- The SSE client listens for `display.configuration_changed` events
+- When this event fires, it automatically calls `window.location.reload()`
+- The test updates the display via API at line 914: `http_client.put(f"/api/v1/displays/{display_id}", json={"show_info_overlay": True})`
+- This triggers a `display.configuration_changed` SSE event
+- The SSE event causes the page to reload automatically
+- The test then calls `page.reload()` at line 922
+- **Race condition**: Two concurrent reloads cause "net::ERR_ABORTED; maybe frame was detached?"
+
+**Fix Strategy:**
+- After updating the display via API, wait for the SSE-triggered reload to complete naturally
+- Use `page.wait_for_load_state()` instead of explicit `page.reload()`
+- OR: Use `page.wait_for_url()` to detect that the page has reloaded via SSE
+
+## Implementation Plan
+
+### Milestone 1: Fix Both Tests (M1)
+
+**Task 1.1:** Fix `test_dashboard_shows_recent_slideshows`
+- Wait for loading spinner to disappear before checking for slideshow content
+- Increase timeout to 10000ms for reliability
+- Add assertion that loading is complete
+
+**Task 1.2:** Fix `test_info_overlay_respects_display_setting`
+- Remove explicit `page.reload()` call
+- Wait for SSE-triggered reload to complete using `page.wait_for_load_state("domcontentloaded")`
+- Add small delay after API update to allow SSE event to propagate
+- Use `page.wait_for_selector()` to detect when the page has reloaded with new content
+
+### Milestone 2: Acceptance Criteria (M2)
+
+**Task 2.1:** Run tests multiple times to verify stability
+- Run both specific tests 5+ times each
+- Run full integration test suite
+
+**Task 2.2:** Documentation and cleanup
+- Update this feature document with completion status
+- Move to `docs/features/completed/`
 
 ## Acceptance Criteria
 
