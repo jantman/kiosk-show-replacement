@@ -22,6 +22,7 @@ from ..exceptions import (
     ValidationError,
 )
 from ..models import (
+    AssignmentHistory,
     Display,
     DisplayConfigurationTemplate,
     Slideshow,
@@ -684,8 +685,6 @@ def get_display(display_id: int) -> Tuple[Response, int]:
 def update_display(display_id: int) -> Tuple[Response, int]:
     """Update display configuration including slideshow assignment."""
     try:
-        from ..models import AssignmentHistory
-
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -769,8 +768,6 @@ def update_display(display_id: int) -> Tuple[Response, int]:
 def assign_slideshow_to_display(display_name: str) -> Tuple[Response, int]:
     """Assign a slideshow to a display."""
     try:
-        from ..models import AssignmentHistory
-
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
@@ -952,6 +949,55 @@ def list_archived_displays() -> Tuple[Response, int]:
     except Exception as e:
         current_app.logger.error(f"Error listing archived displays: {e}")
         return api_error("Failed to retrieve archived displays", 500)
+
+
+# =============================================================================
+# Assignment History API Endpoints
+# =============================================================================
+
+
+@api_v1_bp.route("/assignment-history", methods=["GET"])
+@api_auth_required
+def list_assignment_history() -> Tuple[Response, int]:
+    """List assignment history records with optional filtering.
+
+    Query parameters:
+        limit: Maximum number of records to return (default: 50, max: 200)
+        display_id: Filter by specific display ID
+        action: Filter by action type (assign, unassign, change)
+        user_id: Filter by user who made the change
+    """
+    try:
+        # Parse query parameters
+        limit = min(int(request.args.get("limit", 50)), 200)
+        display_id = request.args.get("display_id", type=int)
+        action = request.args.get("action")
+        user_id = request.args.get("user_id", type=int)
+
+        # Build query
+        query = AssignmentHistory.query
+
+        # Apply filters
+        if display_id:
+            query = query.filter(AssignmentHistory.display_id == display_id)
+        if action and action in ["assign", "unassign", "change"]:
+            query = query.filter(AssignmentHistory.action == action)
+        if user_id:
+            query = query.filter(AssignmentHistory.created_by_id == user_id)
+
+        # Order by most recent first and apply limit
+        records = query.order_by(AssignmentHistory.created_at.desc()).limit(limit).all()
+
+        # Convert to dict for JSON response
+        history_data = [record.to_dict() for record in records]
+
+        return api_response(history_data, "Assignment history retrieved successfully")
+
+    except ValueError:
+        raise ValidationError("Invalid parameter value")
+    except Exception as e:
+        current_app.logger.error(f"Error listing assignment history: {e}")
+        return api_error("Failed to retrieve assignment history", 500)
 
 
 # =============================================================================

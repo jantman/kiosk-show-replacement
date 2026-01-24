@@ -189,7 +189,10 @@ class TestSlideshowAPI:
         data = response.get_json()
         assert data["success"] is False
         # Check that error mentions the field (in error_info.details.field)
-        assert data.get("error_info", {}).get("details", {}).get("field") == "default_item_duration"
+        assert (
+            data.get("error_info", {}).get("details", {}).get("field")
+            == "default_item_duration"
+        )
 
         # Test zero value
         response = client.put(
