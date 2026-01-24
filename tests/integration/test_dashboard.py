@@ -83,6 +83,14 @@ class TestDashboard:
         # Wait for dashboard to load
         expect(page.locator("h1:has-text('Dashboard')")).to_be_visible(timeout=10000)
 
+        # Refresh the page to ensure fresh data is fetched from the API.
+        # The test_slideshow fixture creates the slideshow before this test runs,
+        # but there can be timing issues between the fixture completing and the
+        # dashboard's initial data fetch. A refresh ensures we get the latest data.
+        page.reload()
+        page.wait_for_load_state("domcontentloaded", timeout=15000)
+        expect(page.locator("h1:has-text('Dashboard')")).to_be_visible(timeout=10000)
+
         # Verify Recent Slideshows card exists
         recent_slideshows_card = page.locator(".card").filter(
             has=page.locator(".card-header:has-text('Recent Slideshows')")
@@ -92,10 +100,18 @@ class TestDashboard:
         # Verify "View All" link exists
         expect(recent_slideshows_card.locator("a:has-text('View All')")).to_be_visible()
 
+        # Wait for the dashboard data to load by checking for list items.
+        # The test slideshow has is_active=True, so it should appear in the list.
+        page.wait_for_selector(
+            ".card:has(.card-header:has-text('Recent Slideshows')) "
+            ".card-body .list-group-item",
+            timeout=10000,
+        )
+
         # The test slideshow should appear in the list
         expect(
             recent_slideshows_card.locator(f"text={test_slideshow['name']}")
-        ).to_be_visible(timeout=5000)
+        ).to_be_visible(timeout=10000)
 
     def test_dashboard_shows_display_status(
         self,

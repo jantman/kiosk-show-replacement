@@ -910,16 +910,21 @@ class TestDisplayPlayback:
                     not overlay_visible
                 ), "Info overlay should NOT be visible when show_info_overlay=False"
 
-                # Update the display to show_info_overlay=True
-                update_response = http_client.put(
-                    f"/api/v1/displays/{display_id}",
-                    json={"show_info_overlay": True},
-                    headers=auth_headers,
-                )
-                assert update_response.status_code == 200
+                # Update the display to show_info_overlay=True.
+                # The display page has an SSE client that listens for
+                # display.configuration_changed events and automatically reloads
+                # the page when the configuration changes. We use expect_navigation
+                # to wait for this SSE-triggered reload instead of calling
+                # page.reload() explicitly, which would cause a race condition.
+                with page.expect_navigation(timeout=15000):
+                    update_response = http_client.put(
+                        f"/api/v1/displays/{display_id}",
+                        json={"show_info_overlay": True},
+                        headers=auth_headers,
+                    )
+                    assert update_response.status_code == 200
 
-                # Reload the page to pick up the change
-                page.reload()
+                # Wait for page to fully load after SSE-triggered reload
                 page.wait_for_load_state("domcontentloaded", timeout=15000)
                 page.wait_for_selector("#slideshowContainer", timeout=10000)
                 time.sleep(1)

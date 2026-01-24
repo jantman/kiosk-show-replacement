@@ -77,7 +77,13 @@ def api_auth_required(f: Callable[..., Any]) -> Callable[..., Any]:
 def list_slideshows() -> Tuple[Response, int]:
     """List all slideshows - every user can see every slideshow."""
     # Get all active slideshows - no ownership filtering
-    slideshows = Slideshow.query.filter_by(is_active=True).all()
+    # Order by updated_at DESC so most recently updated appear first
+    # (matches "Recent Slideshows" label in dashboard)
+    slideshows = (
+        Slideshow.query.filter_by(is_active=True)
+        .order_by(Slideshow.updated_at.desc())
+        .all()
+    )
 
     # Convert to dict with computed fields
     slideshow_data = []
