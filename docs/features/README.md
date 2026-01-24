@@ -5,6 +5,7 @@ This directory contains markdown files describing features that we want to imple
 The following guidelines MUST always be followed:
 
 * Features that are non-trivial in size (i.e. more than a few simple changes) should be broken down into Milestones and Tasks. Those will be given a prefix to be used in commit messages, formatted as `{Feature Name} - {Milestone number}.{Task number}`. Human approval must always be obtained to move from one Milestone to the next.
+* All features must include appropriate test additions or updates. All UI changes must have appropriate integration test coverage. All bug fixes must BEGIN with creating regression tests which should initially fail, and should pass after the bug is fixed.
 * Before beginning a feature, you must be on a git branch other than `main`. If you are not, start a new branch named after the feature.
 * At the end of every Milestone and Feature you must (in order):
   1. Update the feature markdown document to indicate what progress has been made on the relevant Milestone or Feature.
