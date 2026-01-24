@@ -755,18 +755,25 @@ def update_display(display_id: int) -> Tuple[Response, int]:
         # Store previous slideshow ID for history tracking
         previous_slideshow_id = display.current_slideshow_id
 
+        # Track which settings fields are being updated (for SSE broadcast)
+        configuration_fields_updated = []
+
         # Update display fields
         if "name" in data:
             display.name = data["name"]
+            configuration_fields_updated.append("name")
         if "location" in data:
             display.location = data["location"]
+            configuration_fields_updated.append("location")
         if "description" in data:
             display.description = data["description"]
+            configuration_fields_updated.append("description")
         if "show_info_overlay" in data:
             show_info_overlay_value = data["show_info_overlay"]
             if not isinstance(show_info_overlay_value, bool):
                 return api_error("show_info_overlay must be a boolean", 400)
             display.show_info_overlay = show_info_overlay_value
+            configuration_fields_updated.append("show_info_overlay")
 
         # Handle slideshow assignment
         slideshow_assignment_changed = False
@@ -800,6 +807,7 @@ def update_display(display_id: int) -> Tuple[Response, int]:
 
         db.session.commit()
 
+        # Broadcast SSE events for display changes
         if slideshow_assignment_changed:
             action = (
                 f"assigned slideshow {display.current_slideshow_id}"
@@ -808,6 +816,27 @@ def update_display(display_id: int) -> Tuple[Response, int]:
             )
             current_app.logger.info(
                 f"User {current_user.username} {action} for display {display_id}"
+            )
+            # Broadcast assignment_changed event to admin and display connections
+            broadcast_display_update(
+                display,
+                "assignment_changed",
+                {
+                    "previous_slideshow_id": previous_slideshow_id,
+                    "new_slideshow_id": display.current_slideshow_id,
+                    "assigned_by": current_user.username,
+                    "reason": "Updated via display configuration",
+                },
+            )
+        elif configuration_fields_updated:
+            # Broadcast configuration_changed event when settings changed (but not assignment)
+            broadcast_display_update(
+                display,
+                "configuration_changed",
+                {
+                    "updated_fields": configuration_fields_updated,
+                    "updated_by": current_user.username,
+                },
             )
 
         return api_response(display.to_dict(), "Display updated successfully")
@@ -1977,10 +2006,10 @@ def broadcast_display_update(
     # Send to admin connections
     admin_count = sse_manager.broadcast_event(event, connection_type="admin")
 
-    # Also send to the specific display connection for assignment changes
-    # This allows the display to reload when its slideshow assignment changes
+    # Also send to the specific display connection for relevant event types
+    # This allows the display to reload when its configuration or assignment changes
     display_count = 0
-    if event_type == "assignment_changed":
+    if event_type in ("assignment_changed", "configuration_changed"):
         with sse_manager.connections_lock:
             for conn_id, conn in sse_manager.connections.items():
                 if hasattr(conn, "display_id") and conn.display_id == display.id:
