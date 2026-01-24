@@ -2047,22 +2047,19 @@ def broadcast_slideshow_update(
     admin_count = sse_manager.broadcast_event(event, connection_type="admin")
 
     # Send to display connections if slideshow affects them
+    # The display page listens for 'slideshow.updated' events and reloads when the
+    # slideshow_id matches the current slideshow. We send the same event type (not a
+    # separate display.slideshow_changed event) so the display can handle it uniformly.
     display_count = 0
     if event_type in ["updated", "deleted"]:
         # Find displays using this slideshow
         displays = Display.query.filter_by(current_slideshow_id=slideshow.id).all()
         for display in displays:
-            # Send event to specific display
-            display_event = create_display_event(
-                "slideshow_changed",
-                display.id,
-                {"slideshow": data, "change_type": event_type},
-            )
-            # Filter to specific display connection
+            # Send the same slideshow event to specific display connections
             with sse_manager.connections_lock:
                 for conn_id, conn in sse_manager.connections.items():
                     if hasattr(conn, "display_id") and conn.display_id == display.id:
-                        conn.add_event(display_event)
+                        conn.add_event(event)
                         display_count += 1
 
     return admin_count + display_count
