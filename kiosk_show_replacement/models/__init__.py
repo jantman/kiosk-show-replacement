@@ -259,6 +259,103 @@ class Display(db.Model):
         """Alias for last_seen_at for backward compatibility."""
         return self.last_seen_at
 
+    @property
+    def missed_heartbeats(self) -> int:
+        """Calculate the number of missed heartbeats based on last_seen_at.
+
+        Returns:
+            Number of missed heartbeats (0 if seen recently, increases with time)
+        """
+        if not self.last_seen_at:
+            # Never seen = maximum missed
+            return 999
+
+        # Ensure both datetimes are timezone-aware for comparison
+        now = datetime.now(timezone.utc)
+        last_seen = self.last_seen_at
+
+        # If last_seen is naive, assume it's UTC
+        if last_seen.tzinfo is None:
+            last_seen = last_seen.replace(tzinfo=timezone.utc)
+
+        seconds_since_last_seen = (now - last_seen).total_seconds()
+
+        # Calculate missed heartbeats based on interval
+        if seconds_since_last_seen <= self.heartbeat_interval:
+            return 0
+
+        # Each interval without a heartbeat is a missed beat
+        return int(seconds_since_last_seen / self.heartbeat_interval)
+
+    @property
+    def connection_quality(self) -> str:
+        """Calculate connection quality based on missed heartbeats.
+
+        Returns:
+            Connection quality: 'excellent', 'good', 'poor', or 'offline'
+        """
+        missed = self.missed_heartbeats
+
+        if missed == 0:
+            return "excellent"
+        elif missed == 1:
+            return "good"
+        elif missed == 2:
+            return "poor"
+        else:
+            return "offline"
+
+    @property
+    def sse_connected(self) -> bool:
+        """Check if this display has an active SSE connection.
+
+        Returns:
+            True if the display has an active SSE connection, False otherwise
+        """
+        from kiosk_show_replacement.sse import sse_manager
+
+        with sse_manager.connections_lock:
+            for conn in sse_manager.connections.values():
+                if (
+                    conn.connection_type == "display"
+                    and hasattr(conn, "display_id")
+                    and conn.display_id == self.id
+                ):
+                    return True
+        return False
+
+    def to_status_dict(self) -> dict:
+        """Convert display to status dictionary for the status API.
+
+        This includes all standard display info plus enhanced status fields
+        like connection_quality, missed_heartbeats, and sse_connected.
+
+        Returns:
+            Dictionary with display status information
+        """
+        # Build current_slideshow object if a slideshow is assigned
+        current_slideshow = None
+        if self.current_slideshow_id and self.current_slideshow:
+            current_slideshow = {
+                "id": self.current_slideshow.id,
+                "name": self.current_slideshow.name,
+            }
+
+        return {
+            "id": self.id,
+            "name": self.name,
+            "location": self.location,
+            "is_online": self.is_online,
+            "last_seen_at": (
+                self.last_seen_at.isoformat() if self.last_seen_at else None
+            ),
+            "current_slideshow": current_slideshow,
+            "connection_quality": self.connection_quality,
+            "heartbeat_interval": self.heartbeat_interval,
+            "missed_heartbeats": self.missed_heartbeats,
+            "sse_connected": self.sse_connected,
+        }
+
     def to_dict(self) -> dict:
         """Convert display to dictionary for JSON serialization."""
         # Build assigned_slideshow object if a slideshow is assigned

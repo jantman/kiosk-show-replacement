@@ -591,6 +591,59 @@ def list_displays() -> Tuple[Response, int]:
         return api_error("Failed to retrieve displays", 500)
 
 
+@api_v1_bp.route("/displays/status", methods=["GET"])
+@api_auth_required
+def list_displays_status() -> Tuple[Response, int]:
+    """Get status of all displays.
+
+    Returns enhanced display status information including connection quality,
+    SSE connection state, and missed heartbeats - used by the monitoring page.
+    """
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        displays = Display.query.all()
+        display_status_data = [display.to_status_dict() for display in displays]
+
+        return api_response(display_status_data, "Display status retrieved successfully")
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting display status: {e}")
+        return api_error("Failed to retrieve display status", 500)
+
+
+@api_v1_bp.route("/displays/<int:display_id>/status", methods=["GET"])
+@api_auth_required
+def get_display_status(display_id: int) -> Tuple[Response, int]:
+    """Get status of a specific display.
+
+    Args:
+        display_id: The ID of the display to get status for
+
+    Returns enhanced display status information including connection quality,
+    SSE connection state, and missed heartbeats.
+    """
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        display = db.session.get(Display, display_id)
+        if not display:
+            return api_error(f"Display with ID {display_id} not found", 404)
+
+        return api_response(
+            display.to_status_dict(),
+            f"Status for display '{display.name}' retrieved successfully",
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error getting display status: {e}")
+        return api_error("Failed to retrieve display status", 500)
+
+
 @api_v1_bp.route("/displays", methods=["POST"])
 @api_auth_required
 def create_display() -> Tuple[Response, int]:
