@@ -151,23 +151,18 @@ Verify that `broadcast_slideshow_update()` includes `slideshow_name` in the even
 - Run `poetry run -- nox -s test-integration`
 - Run `poetry run -- nox -s test-e2e`
 
-#### Task 2.2: Manual verification
-- Test editing default item duration and verify it persists
-- Test success modal shows slideshow name instead of "undefined"
-
-#### Task 2.3: Move feature file to completed
+#### Task 2.2: Move feature file to completed
 - Move this file to `docs/features/completed/`
 
 ---
 
 ## Progress
 
-- [ ] Milestone 1: Bug Fixes and Tests
-  - [ ] Task 1.1: Fix `update_slideshow()` to handle all editable fields
-  - [ ] Task 1.2: Fix `broadcast_slideshow_update()` to include `slideshow_name`
-  - [ ] Task 1.3: Add unit tests for updated endpoint
-  - [ ] Task 1.4: Add unit test for SSE event
-- [ ] Milestone 2: Acceptance Criteria
-  - [ ] Task 2.1: Verify all nox sessions pass
-  - [ ] Task 2.2: Manual verification
-  - [ ] Task 2.3: Move feature file to completed
+- [x] Milestone 1: Bug Fixes and Tests
+  - [x] Task 1.1: Fix `update_slideshow()` to handle all editable fields
+  - [x] Task 1.2: Fix `broadcast_slideshow_update()` to include `slideshow_name`
+  - [x] Task 1.3: Add unit tests for updated endpoint
+  - [x] Task 1.4: Add unit test for SSE event
+- [x] Milestone 2: Acceptance Criteria
+  - [x] Task 2.1: Verify all nox sessions pass
+  - [x] Task 2.2: Move feature file to completed

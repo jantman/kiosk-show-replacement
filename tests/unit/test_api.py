@@ -11,6 +11,7 @@ Tests all REST API functionality including:
 
 import json
 from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
 
 from kiosk_show_replacement.models import (
     AssignmentHistory,
@@ -152,6 +153,166 @@ class TestSlideshowAPI:
         assert data["success"] is True
         assert data["data"]["name"] == "Updated Slideshow"
         assert data["data"]["description"] == "Updated description"
+
+    def test_update_slideshow_default_item_duration(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test updating slideshow default_item_duration."""
+        update_data = {"default_item_duration": 45}
+
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["default_item_duration"] == 45
+
+        # Verify persisted in database
+        slideshow = db.session.get(Slideshow, sample_slideshow.id)
+        assert slideshow.default_item_duration == 45
+
+    def test_update_slideshow_default_item_duration_invalid(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test updating slideshow with invalid default_item_duration."""
+        # Test negative value
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps({"default_item_duration": -5}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        # Check that error mentions the field (in error_info.details.field)
+        assert data.get("error_info", {}).get("details", {}).get("field") == "default_item_duration"
+
+        # Test zero value
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps({"default_item_duration": 0}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+        # Test non-integer value
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps({"default_item_duration": "thirty"}),
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+
+    def test_update_slideshow_transition_type(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test updating slideshow transition_type."""
+        update_data = {"transition_type": "slide"}
+
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["transition_type"] == "slide"
+
+        # Verify persisted in database
+        slideshow = db.session.get(Slideshow, sample_slideshow.id)
+        assert slideshow.transition_type == "slide"
+
+    def test_update_slideshow_is_default(
+        self, client, authenticated_user, sample_slideshow, sample_user
+    ):
+        """Test updating slideshow is_default clears other defaults."""
+        # Create another slideshow that is default
+        other_slideshow = Slideshow(
+            name="Other Slideshow",
+            owner_id=sample_user.id,
+            is_default=True,
+        )
+        db.session.add(other_slideshow)
+        db.session.commit()
+
+        # Set sample_slideshow as default
+        update_data = {"is_default": True}
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["is_default"] is True
+
+        # Verify other slideshow is no longer default
+        db.session.refresh(other_slideshow)
+        assert other_slideshow.is_default is False
+
+    def test_update_slideshow_multiple_fields(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test updating multiple slideshow fields at once."""
+        update_data = {
+            "name": "Multi-Update Test",
+            "description": "Updated desc",
+            "default_item_duration": 60,
+            "transition_type": "none",
+        }
+
+        response = client.put(
+            f"/api/v1/slideshows/{sample_slideshow.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["name"] == "Multi-Update Test"
+        assert data["data"]["description"] == "Updated desc"
+        assert data["data"]["default_item_duration"] == 60
+        assert data["data"]["transition_type"] == "none"
+
+    def test_update_slideshow_sse_event_includes_slideshow_name(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test that SSE event for slideshow update includes slideshow_name field."""
+        update_data = {"name": "SSE Test Slideshow"}
+
+        with patch(
+            "kiosk_show_replacement.api.v1.create_slideshow_event"
+        ) as mock_create_event:
+            # Return a MagicMock that behaves like an SSEEvent
+            mock_create_event.return_value = MagicMock()
+
+            response = client.put(
+                f"/api/v1/slideshows/{sample_slideshow.id}",
+                data=json.dumps(update_data),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 200
+
+            # Verify create_slideshow_event was called
+            mock_create_event.assert_called_once()
+
+            # Get the data argument passed to create_slideshow_event
+            call_args = mock_create_event.call_args
+            event_data = call_args[0][2]  # Third positional argument is data
+
+            # Verify slideshow_name is present and correct
+            assert "slideshow_name" in event_data
+            assert event_data["slideshow_name"] == "SSE Test Slideshow"
 
     def test_delete_slideshow_success(
         self, client, authenticated_user, sample_slideshow

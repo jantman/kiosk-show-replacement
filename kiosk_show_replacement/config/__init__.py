@@ -8,7 +8,9 @@ import os
 from datetime import timedelta
 
 # Get the project root directory (two levels up from this config file)
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 
 
 class Config:
@@ -60,7 +62,9 @@ class DevelopmentConfig(Config):
     DEBUG = True
     # Use DATABASE_URL if set, otherwise use development default
     # Use absolute path for SQLite to avoid path resolution issues
-    _DEFAULT_DEV_DB = f"sqlite:///{os.path.join(_PROJECT_ROOT, 'instance', 'kiosk_show_dev.db')}"
+    _DEFAULT_DEV_DB = (
+        f"sqlite:///{os.path.join(_PROJECT_ROOT, 'instance', 'kiosk_show_dev.db')}"
+    )
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL",
         os.environ.get("DEV_DATABASE_URL", _DEFAULT_DEV_DB),

@@ -199,6 +199,31 @@ def update_slideshow(slideshow_id: int) -> Tuple[Response, int]:
     if "description" in data:
         slideshow.description = data["description"]
 
+    if "default_item_duration" in data:
+        duration = data["default_item_duration"]
+        if not isinstance(duration, int) or duration < 1:
+            raise ValidationError(
+                "Default item duration must be a positive integer",
+                field="default_item_duration",
+            )
+        slideshow.default_item_duration = duration
+
+    if "transition_type" in data:
+        slideshow.transition_type = data["transition_type"]
+
+    if "is_active" in data:
+        slideshow.is_active = data["is_active"]
+
+    if "is_default" in data:
+        is_default = data["is_default"]
+        if is_default:
+            # Clear any existing default slideshow
+            Slideshow.query.filter(
+                Slideshow.is_default == True,  # noqa: E712
+                Slideshow.id != slideshow_id,
+            ).update({"is_default": False})
+        slideshow.is_default = is_default
+
     try:
         slideshow.updated_by_id = current_user.id
         db.session.commit()
@@ -1861,6 +1886,9 @@ def broadcast_slideshow_update(
         Number of connections that received the event
     """
     data = slideshow.to_dict()
+    # Add slideshow_name field for frontend compatibility (frontend expects slideshow_name,
+    # but to_dict() returns 'name')
+    data["slideshow_name"] = slideshow.name
     if additional_data:
         data.update(additional_data)
 
