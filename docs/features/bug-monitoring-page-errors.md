@@ -250,11 +250,11 @@ Move this file to `docs/features/completed/`.
 
 ## Progress Tracking
 
-- [ ] **Milestone 1: Regression Tests** - Not started
-  - [ ] Task 1.1: SSE stats API tests
-  - [ ] Task 1.2: Display status API tests
-  - [ ] Task 1.3: Integration tests
-- [ ] **Milestone 2: Fix SSE Stats API** - Not started
+- [x] **Milestone 1: Regression Tests** - Complete
+  - [x] Task 1.1: SSE stats API tests (tests/unit/test_sse.py)
+  - [x] Task 1.2: Display status API tests (tests/unit/test_display_status_api.py)
+  - [x] Task 1.3: Integration tests (tests/integration/test_system_monitoring.py)
+- [ ] **Milestone 2: Fix SSE Stats API** - In Progress
   - [ ] Task 2.1: Update response format
   - [ ] Task 2.2: Add events_sent_last_hour tracking
 - [ ] **Milestone 3: Display Status Endpoints** - Not started

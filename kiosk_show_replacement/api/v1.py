@@ -1763,7 +1763,13 @@ def display_events_stream(display_name: str) -> Response | Tuple[Response, int]:
 @api_v1_bp.route("/events/stats", methods=["GET"])
 @api_auth_required
 def sse_stats() -> Tuple[Response, int]:
-    """Get SSE connection statistics with detailed connection information."""
+    """Get SSE connection statistics with detailed connection information.
+
+    Returns data formatted for the frontend SSEDebugger component with fields:
+    - total_connections, admin_connections, display_connections
+    - events_sent_last_hour
+    - connections[]: array with id, type, user, display, connected_at, last_ping, events_sent
+    """
     try:
         current_user = get_current_user()
         if not current_user:
@@ -1772,24 +1778,39 @@ def sse_stats() -> Tuple[Response, int]:
         # Get basic stats
         stats = sse_manager.get_connection_stats()
 
-        # Add detailed connection information
+        # Add events sent in last hour
+        stats["events_sent_last_hour"] = sse_manager.get_events_sent_last_hour()
+
+        # Build user lookup for converting user_id to username
+        user_lookup: Dict[int, str] = {}
+
+        # Add detailed connection information with frontend-expected field names
         detailed_connections = []
         with sse_manager.connections_lock:
             for conn_id, conn in sse_manager.connections.items():
+                # Look up username for user_id
+                username = None
+                if conn.user_id is not None:
+                    if conn.user_id not in user_lookup:
+                        from kiosk_show_replacement.models import User
+
+                        user = db.session.get(User, conn.user_id)
+                        user_lookup[conn.user_id] = user.username if user else None
+                    username = user_lookup.get(conn.user_id)
+
+                # Build connection info with frontend-expected field names
                 conn_info = {
-                    "connection_id": conn_id,
-                    "connection_type": conn.connection_type,
-                    "user_id": conn.user_id,
+                    "id": conn_id,  # Frontend expects "id" not "connection_id"
+                    "type": conn.connection_type,  # Frontend expects "type" not "connection_type"
+                    "user": username,  # Frontend expects "user" (username string) not "user_id"
                     "connected_at": conn.connected_at.isoformat(),
+                    "last_ping": conn.last_ping.isoformat(),  # Frontend expects "last_ping"
                     "events_sent": conn.events_sent_count,
-                    "last_activity": conn.connected_at.isoformat(),  # Can be enhanced with actual last activity
                 }
 
-                # Add display-specific info if available
-                if hasattr(conn, "display_name"):
-                    conn_info["display_name"] = conn.display_name
-                if hasattr(conn, "display_id"):
-                    conn_info["display_id"] = conn.display_id
+                # Add display field for display connections
+                if hasattr(conn, "display_name") and conn.display_name:
+                    conn_info["display"] = conn.display_name  # Frontend expects "display"
 
                 detailed_connections.append(conn_info)
 
@@ -1797,12 +1818,8 @@ def sse_stats() -> Tuple[Response, int]:
         stats["connections"] = detailed_connections
         stats["connection_details"] = {
             "by_type": {
-                "admin": [
-                    c for c in detailed_connections if c["connection_type"] == "admin"
-                ],
-                "display": [
-                    c for c in detailed_connections if c["connection_type"] == "display"
-                ],
+                "admin": [c for c in detailed_connections if c["type"] == "admin"],
+                "display": [c for c in detailed_connections if c["type"] == "display"],
             }
         }
 

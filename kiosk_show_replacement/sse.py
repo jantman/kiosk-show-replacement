@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from queue import Empty, Queue
 from threading import Lock
-from typing import Any, Dict, Generator, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 from flask import Response
 from werkzeug.exceptions import Unauthorized
@@ -133,6 +133,10 @@ class SSEManager:
         """Initialize SSE manager."""
         self.connections: Dict[str, SSEConnection] = {}
         self.connections_lock = Lock()
+        # Track event timestamps for events_sent_last_hour calculation
+        # Using a list of timestamps (in seconds since epoch)
+        self._event_timestamps: List[float] = []
+        self._event_timestamps_lock = Lock()
 
     def create_connection(
         self, user_id: Optional[int] = None, connection_type: str = "admin"
@@ -209,8 +213,45 @@ class SSEManager:
                 connection.add_event(event)
                 sent_count += 1
 
+        # Track event timestamp for events_sent_last_hour calculation
+        if sent_count > 0:
+            self._record_event_sent()
+
         logger.debug(f"Broadcast event {event.event_type} to {sent_count} connections")
         return sent_count
+
+    def _record_event_sent(self) -> None:
+        """Record that an event was sent for tracking events_sent_last_hour."""
+        import time
+
+        current_time = time.time()
+        one_hour_ago = current_time - 3600
+
+        with self._event_timestamps_lock:
+            # Add current timestamp
+            self._event_timestamps.append(current_time)
+            # Clean up old timestamps (older than 1 hour)
+            self._event_timestamps = [
+                ts for ts in self._event_timestamps if ts > one_hour_ago
+            ]
+
+    def get_events_sent_last_hour(self) -> int:
+        """Get the count of events sent in the last hour.
+
+        Returns:
+            Number of events sent in the last hour
+        """
+        import time
+
+        current_time = time.time()
+        one_hour_ago = current_time - 3600
+
+        with self._event_timestamps_lock:
+            # Clean up and count
+            self._event_timestamps = [
+                ts for ts in self._event_timestamps if ts > one_hour_ago
+            ]
+            return len(self._event_timestamps)
 
     def get_connection_stats(self) -> Dict[str, Any]:
         """Get connection statistics.
