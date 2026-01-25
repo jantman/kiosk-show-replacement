@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ slideshow.name }} - {{ display.name }}</title>
     
+    <!-- DOMPurify for safe HTML sanitization in text slides -->
+    <script src="{{ url_for('static', filename='js/purify.min.js') }}"></script>
+
     <style>
         body, html {
             margin: 0;
@@ -361,9 +364,10 @@
                             break;
                         case 'text':
                             // Text slides only show content_text, not the title
+                            // Use sanitizeHtml to safely render allowed HTML tags
                             content = `
                                 <div class="text-content">
-                                    <div class="content">${this.escapeHtml(slide.content_text || '')}</div>
+                                    <div class="content">${this.sanitizeHtml(slide.content_text || '')}</div>
                                 </div>
                             `;
                             break;
@@ -384,7 +388,41 @@
                 div.textContent = text;
                 return div.innerHTML;
             }
-            
+
+            /**
+             * Sanitize HTML content allowing only safe formatting tags.
+             * Uses DOMPurify to prevent XSS attacks while allowing basic text formatting.
+             *
+             * Allowed tags: <b>, <strong>, <i>, <em>, <u>, <br>, <p>
+             * All attributes are stripped to prevent XSS.
+             *
+             * For plain text without HTML tags, newlines are converted to <br> tags.
+             *
+             * @param {string} text - The text content, possibly containing HTML
+             * @returns {string} - Sanitized HTML safe for rendering
+             */
+            sanitizeHtml(text) {
+                if (!text) return '';
+
+                // Check if text contains any HTML tags
+                const hasHtmlTags = /<[^>]+>/.test(text);
+
+                if (!hasHtmlTags) {
+                    // Plain text: escape HTML entities and convert newlines to <br>
+                    const escaped = this.escapeHtml(text);
+                    return escaped.replace(/\n/g, '<br>');
+                }
+
+                // Text contains HTML: sanitize with DOMPurify
+                // Only allow safe formatting tags, strip all attributes
+                const sanitized = DOMPurify.sanitize(text, {
+                    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'br', 'p'],
+                    ALLOWED_ATTR: []  // No attributes allowed
+                });
+
+                return sanitized;
+            }
+
             showSlide(index) {
                 // Hide all slides
                 document.querySelectorAll('.slide').forEach(slide => {

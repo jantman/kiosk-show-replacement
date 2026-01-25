@@ -1159,3 +1159,434 @@ class TestDisplayPlayback:
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
             )
+
+    def test_text_slide_renders_basic_html_tags(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that text slides render basic HTML formatting tags.
+
+        This test:
+        1. Creates a slideshow with a text slide containing HTML tags
+        2. Assigns the slideshow to a display
+        3. Navigates to the display view
+        4. Verifies the HTML tags are rendered (not displayed literally)
+
+        Allowed tags: <b>, <strong>, <i>, <em>, <u>, <br>, <p>
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "HTML Rendering Test Slideshow",
+                "description": "Test slideshow for HTML rendering",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide with HTML formatting tags
+            # Include all supported tags to verify they render
+            html_content = (
+                "This is <b>bold</b> and <strong>strong</strong> text. "
+                "This is <i>italic</i> and <em>emphasized</em> text. "
+                "This is <u>underlined</u> text."
+            )
+
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "HTML Test Slide",
+                    "content_type": "text",
+                    "content_text": html_content,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-html-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for HTML rendering testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Get the content element
+                content_element = page.locator(".text-content .content")
+                expect(content_element).to_be_visible()
+
+                # Get the inner HTML to check rendered tags
+                inner_html = content_element.inner_html()
+
+                # Verify HTML tags are rendered (present in innerHTML)
+                # not displayed as literal text
+                assert "<b>" in inner_html, (
+                    f"<b> tag should be rendered in HTML. "
+                    f"Got innerHTML: {inner_html}"
+                )
+                assert "<strong>" in inner_html, (
+                    f"<strong> tag should be rendered in HTML. "
+                    f"Got innerHTML: {inner_html}"
+                )
+                assert "<i>" in inner_html, (
+                    f"<i> tag should be rendered in HTML. "
+                    f"Got innerHTML: {inner_html}"
+                )
+                assert "<em>" in inner_html, (
+                    f"<em> tag should be rendered in HTML. "
+                    f"Got innerHTML: {inner_html}"
+                )
+                assert "<u>" in inner_html, (
+                    f"<u> tag should be rendered in HTML. "
+                    f"Got innerHTML: {inner_html}"
+                )
+
+                # Verify the literal tag text is NOT visible to the user
+                # (i.e., user doesn't see "<b>" as text)
+                visible_text = content_element.inner_text()
+                assert "&lt;b&gt;" not in visible_text, (
+                    f"Escaped <b> tag should not be visible as text. "
+                    f"Got visible text: {visible_text}"
+                )
+                assert "<b>" not in visible_text, (
+                    f"Literal <b> tag should not be visible as text. "
+                    f"Got visible text: {visible_text}"
+                )
+
+            finally:
+                # Cleanup display (test_text_slide_renders_basic_html_tags)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_text_slide_renders_basic_html_tags)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_text_slide_strips_unsafe_html(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that text slides strip unsafe HTML tags and attributes.
+
+        This test:
+        1. Creates a slideshow with a text slide containing unsafe HTML
+        2. Assigns the slideshow to a display
+        3. Navigates to the display view
+        4. Verifies unsafe tags (<script>) are stripped
+        5. Verifies unsafe attributes (onclick, style) are stripped
+
+        This prevents XSS attacks.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "XSS Test Slideshow",
+                "description": "Test slideshow for XSS prevention",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide with unsafe HTML
+            # Include script tags, event handlers, and style attributes
+            unsafe_content = (
+                '<script>alert("XSS")</script>'
+                "<b onclick=\"alert('XSS')\">Click me</b> "
+                '<i style="color:red">Styled text</i> '
+                '<img src="x" onerror="alert(\'XSS\')">'
+                "Safe text here"
+            )
+
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "XSS Test Slide",
+                    "content_type": "text",
+                    "content_text": unsafe_content,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-xss-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for XSS testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Get the content element
+                content_element = page.locator(".text-content .content")
+                expect(content_element).to_be_visible()
+
+                # Get the inner HTML
+                inner_html = content_element.inner_html()
+
+                # Verify unsafe tags are stripped
+                assert "<script>" not in inner_html.lower(), (
+                    f"<script> tag should be stripped. " f"Got innerHTML: {inner_html}"
+                )
+                assert "alert(" not in inner_html, (
+                    f"JavaScript alert should be stripped. "
+                    f"Got innerHTML: {inner_html}"
+                )
+
+                # Verify unsafe attributes are stripped
+                assert "onclick" not in inner_html.lower(), (
+                    f"onclick attribute should be stripped. "
+                    f"Got innerHTML: {inner_html}"
+                )
+                assert "onerror" not in inner_html.lower(), (
+                    f"onerror attribute should be stripped. "
+                    f"Got innerHTML: {inner_html}"
+                )
+                assert 'style="' not in inner_html.lower(), (
+                    f"style attribute should be stripped. "
+                    f"Got innerHTML: {inner_html}"
+                )
+
+                # Verify <img> tag is stripped (not in allowed list)
+                assert "<img" not in inner_html.lower(), (
+                    f"<img> tag should be stripped. " f"Got innerHTML: {inner_html}"
+                )
+
+                # Verify safe text is still present
+                visible_text = content_element.inner_text()
+                assert "Safe text here" in visible_text, (
+                    f"Safe text should still be visible. "
+                    f"Got visible text: {visible_text}"
+                )
+
+                # Verify the safe <b> and <i> tags are preserved (just without attributes)
+                assert "<b>" in inner_html, (
+                    f"Safe <b> tag should be preserved. " f"Got innerHTML: {inner_html}"
+                )
+                assert "<i>" in inner_html, (
+                    f"Safe <i> tag should be preserved. " f"Got innerHTML: {inner_html}"
+                )
+
+            finally:
+                # Cleanup display (test_text_slide_strips_unsafe_html)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_text_slide_strips_unsafe_html)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_text_slide_plain_text_still_works(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that plain text without HTML tags still works correctly.
+
+        This test verifies backwards compatibility - text without any HTML
+        tags should continue to work as before, with line breaks preserved.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Plain Text Test Slideshow",
+                "description": "Test slideshow for plain text",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide with plain text and line breaks
+            plain_content = "Line one\nLine two\nLine three"
+
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Plain Text Slide",
+                    "content_type": "text",
+                    "content_text": plain_content,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-plain-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for plain text testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Verify all three lines are visible
+                for line in ["Line one", "Line two", "Line three"]:
+                    assert page.locator(
+                        f"text={line}"
+                    ).is_visible(), f"Line '{line}' should be visible in the text slide"
+
+                # Verify line breaks are preserved
+                content_element = page.locator(".text-content .content")
+                expect(content_element).to_be_visible()
+
+                # Check if line breaks are preserved either by <br> tags or by CSS
+                html_content = content_element.inner_html()
+                has_br_tags = "<br" in html_content.lower()
+
+                # Get computed style
+                computed_style = page.evaluate(
+                    """(el) => window.getComputedStyle(el).whiteSpace""",
+                    content_element.element_handle(),
+                )
+                has_whitespace_css = computed_style in ["pre-wrap", "pre-line", "pre"]
+
+                assert has_br_tags or has_whitespace_css, (
+                    f"Text content should preserve line breaks. "
+                    f"HTML content: '{html_content}', "
+                    f"computed white-space: '{computed_style}'. "
+                    f"Expected <br> tags or white-space: pre-wrap/pre-line/pre."
+                )
+
+            finally:
+                # Cleanup display (test_text_slide_plain_text_still_works)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_text_slide_plain_text_still_works)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )

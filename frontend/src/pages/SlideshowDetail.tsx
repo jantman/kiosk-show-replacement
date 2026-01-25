@@ -4,6 +4,7 @@ import { Container, Row, Col, Card, Button, Badge, Alert, Spinner, Table, Modal 
 import { useApi } from '../hooks/useApi';
 import { Slideshow, SlideshowItem } from '../types';
 import SlideshowItemForm from '../components/SlideshowItemForm';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 const SlideshowDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -358,7 +359,15 @@ const SlideshowDetail: React.FC = () => {
                             )}
                             <div className="text-muted small">
                               {item.content_type === 'text' ? (
-                                item.content_text?.substring(0, 50) + (item.content_text && item.content_text.length > 50 ? '...' : '')
+                                // Render sanitized HTML for text slides (allows <b>, <i>, etc.)
+                                <span
+                                  dangerouslySetInnerHTML={{
+                                    __html: sanitizeHtml(
+                                      item.content_text?.substring(0, 50) +
+                                        (item.content_text && item.content_text.length > 50 ? '...' : '')
+                                    ),
+                                  }}
+                                />
                               ) : item.content_type === 'url' ? (
                                 item.content_url
                               ) : (

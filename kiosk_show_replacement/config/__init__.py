@@ -52,6 +52,11 @@ class Config:
     # Session settings
     PERMANENT_SESSION_LIFETIME = timedelta(hours=24)
 
+    # Session cookie settings - configure for development/testing compatibility
+    # SameSite=Lax is the default but can cause issues with proxy setups
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_HTTPONLY = True
+
     # CORS settings
     CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
 

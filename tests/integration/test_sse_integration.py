@@ -399,7 +399,9 @@ class TestSSEConnectionCleanup:
 
         # Navigate to the monitoring page (which establishes an SSE connection)
         authenticated_page.goto(f"{vite_url}/admin/monitoring", timeout=15000)
-        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        # Use domcontentloaded instead of networkidle because SSE connections
+        # keep the network active, preventing networkidle from ever being reached
+        authenticated_page.wait_for_load_state("domcontentloaded", timeout=10000)
         logger.info("Navigated to monitoring page")
 
         # Wait for SSE connection to be established
@@ -422,7 +424,7 @@ class TestSSEConnectionCleanup:
 
         # Refresh the page
         authenticated_page.reload()
-        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        authenticated_page.wait_for_load_state("domcontentloaded", timeout=10000)
         logger.info("Page refreshed")
 
         # Wait for the new SSE connection to establish and old one to be cleaned up
@@ -465,7 +467,9 @@ class TestSSEConnectionCleanup:
 
         # Navigate to the monitoring page
         authenticated_page.goto(f"{vite_url}/admin/monitoring", timeout=15000)
-        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        # Use domcontentloaded instead of networkidle because SSE connections
+        # keep the network active, preventing networkidle from ever being reached
+        authenticated_page.wait_for_load_state("domcontentloaded", timeout=10000)
         time.sleep(2)
 
         # Check initial count
@@ -475,13 +479,13 @@ class TestSSEConnectionCleanup:
 
         # Navigate to a different page (dashboard)
         authenticated_page.goto(f"{vite_url}/admin/", timeout=15000)
-        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        authenticated_page.wait_for_load_state("domcontentloaded", timeout=10000)
         logger.info("Navigated to dashboard")
         time.sleep(2)
 
         # Navigate back to monitoring
         authenticated_page.goto(f"{vite_url}/admin/monitoring", timeout=15000)
-        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        authenticated_page.wait_for_load_state("domcontentloaded", timeout=10000)
         time.sleep(3)
 
         # Check final count

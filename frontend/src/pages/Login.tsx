@@ -30,35 +30,43 @@ const Login: React.FC = () => {
     const checkSystemHealth = async () => {
       try {
         const response = await apiClient.getHealthReady();
-        if (response.success) {
+
+        // Handle the health endpoint's non-standard response format
+        // The health endpoint returns {"status": "ready", ...} for success
+        // or {"success": false, "error": ...} for HTTP errors
+        const healthData = response as unknown as {
+          success?: boolean;
+          status?: string;
+          reason?: string;
+          message?: string;
+          database_initialized?: boolean;
+          error?: string;
+        };
+
+        // Check for successful health response (status: "ready")
+        // or standard API success response (success: true)
+        if (healthData.status === 'ready' || healthData.success === true) {
           setSystemStatus({
             isReady: true,
             isInitialized: true,
             message: null,
           });
+        } else if (healthData.reason === 'database_not_initialized' ||
+                   healthData.database_initialized === false) {
+          // Database not initialized
+          setSystemStatus({
+            isReady: false,
+            isInitialized: false,
+            message: healthData.message ||
+              "Database not initialized. Run 'flask cli init-db' to set up the system.",
+          });
         } else {
-          // Parse error response for initialization status
-          const errorData = response as unknown as {
-            reason?: string;
-            message?: string;
-            database_initialized?: boolean;
-          };
-
-          if (errorData.reason === 'database_not_initialized' ||
-              errorData.database_initialized === false) {
-            setSystemStatus({
-              isReady: false,
-              isInitialized: false,
-              message: errorData.message ||
-                "Database not initialized. Run 'flask cli init-db' to set up the system.",
-            });
-          } else {
-            setSystemStatus({
-              isReady: false,
-              isInitialized: true,
-              message: errorData.message || 'System is temporarily unavailable.',
-            });
-          }
+          // System unavailable or other error
+          setSystemStatus({
+            isReady: false,
+            isInitialized: true,
+            message: healthData.message || healthData.error || 'System is temporarily unavailable.',
+          });
         }
       } catch {
         // Network error - system might be down
