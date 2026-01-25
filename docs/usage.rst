@@ -58,6 +58,31 @@ For each slideshow, you can:
 * Remove slides
 * Preview the slideshow
 
+Text Slide Formatting
+~~~~~~~~~~~~~~~~~~~~~
+
+Text slides support basic HTML formatting for enhanced presentation:
+
+**Supported Tags:**
+
+* ``<b>``, ``<strong>`` - Bold text
+* ``<i>``, ``<em>`` - Italic text
+* ``<u>`` - Underlined text
+* ``<br>`` - Line break
+* ``<p>`` - Paragraph
+
+**Examples:**
+
+.. code-block:: html
+
+   This is <b>bold</b> and <i>italic</i> text.
+   <p>This is a paragraph.</p>
+   Line one<br>Line two
+
+**Security:** All other HTML tags and attributes are automatically stripped
+to prevent XSS attacks. Plain text without HTML tags will have newlines
+preserved as line breaks.
+
 Kiosk Display Mode
 ~~~~~~~~~~~~~~~~~~
 

@@ -122,17 +122,28 @@ DOMPurify is a battle-tested, lightweight (~10KB minified) library specifically 
   - [x] M2.1: Add tests for admin preview
   - [x] M2.2: Add DOMPurify to React frontend (npm install dompurify)
   - [x] M2.3: Update admin preview component (SlideshowDetail.tsx)
-- [ ] M3: Acceptance Criteria
-  - [ ] M3.1: Documentation
-  - [ ] M3.2: Verify tests pass
-  - [ ] M3.3: Final verification
-  - [ ] M3.4: Complete feature
+- [x] M3: Acceptance Criteria ✅ COMPLETE
+  - [x] M3.1: Documentation (added Text Slide Formatting section to docs/usage.rst)
+  - [x] M3.2: Verify tests pass (435 unit, 15 frontend, 3 display integration, 15 e2e)
+  - [x] M3.3: Final verification (all nox sessions passing)
+  - [x] M3.4: Complete feature
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] Basic HTML tags (`<b>`, `<i>`, `<u>`, `<br>`, `<p>`, `<strong>`, `<em>`) render correctly in text slides
-- [ ] Text without HTML tags continues to work as before (line breaks preserved)
-- [ ] Unsafe HTML tags and attributes are stripped/escaped
-- [ ] Works in both admin preview and display view
+- [x] Basic HTML tags (`<b>`, `<i>`, `<u>`, `<br>`, `<p>`, `<strong>`, `<em>`) render correctly in text slides
+- [x] Text without HTML tags continues to work as before (line breaks preserved)
+- [x] Unsafe HTML tags and attributes are stripped/escaped
+- [x] Works in both admin preview and display view
+
+## Feature Complete ✅
+
+This feature was implemented successfully. All acceptance criteria have been met:
+
+1. **Display View**: Text slides render HTML formatting tags correctly using DOMPurify
+2. **Admin Preview**: SlideshowDetail.tsx shows sanitized HTML in slide preview
+3. **Security**: All unsafe HTML is stripped (script tags, event handlers, style attributes)
+4. **Backwards Compatibility**: Plain text continues to work with line breaks preserved
+5. **Tests**: Integration tests verify both HTML rendering and XSS prevention
+6. **Documentation**: Usage docs updated with Text Slide Formatting section

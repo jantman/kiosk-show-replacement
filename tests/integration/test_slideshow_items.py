@@ -1293,12 +1293,10 @@ class TestSlideshowItems:
 
         # Verify HTML tags are present (rendered, not escaped)
         assert "<b>" in inner_html, (
-            f"<b> tag should be rendered in preview. "
-            f"Got innerHTML: {inner_html}"
+            f"<b> tag should be rendered in preview. " f"Got innerHTML: {inner_html}"
         )
         assert "<i>" in inner_html, (
-            f"<i> tag should be rendered in preview. "
-            f"Got innerHTML: {inner_html}"
+            f"<i> tag should be rendered in preview. " f"Got innerHTML: {inner_html}"
         )
 
         # Verify the user sees the formatted text, not literal tags

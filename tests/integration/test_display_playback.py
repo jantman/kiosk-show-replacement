@@ -1352,7 +1352,7 @@ class TestDisplayPlayback:
             # Include script tags, event handlers, and style attributes
             unsafe_content = (
                 '<script>alert("XSS")</script>'
-                '<b onclick="alert(\'XSS\')">Click me</b> '
+                "<b onclick=\"alert('XSS')\">Click me</b> "
                 '<i style="color:red">Styled text</i> '
                 '<img src="x" onerror="alert(\'XSS\')">'
                 "Safe text here"
@@ -1412,8 +1412,7 @@ class TestDisplayPlayback:
 
                 # Verify unsafe tags are stripped
                 assert "<script>" not in inner_html.lower(), (
-                    f"<script> tag should be stripped. "
-                    f"Got innerHTML: {inner_html}"
+                    f"<script> tag should be stripped. " f"Got innerHTML: {inner_html}"
                 )
                 assert "alert(" not in inner_html, (
                     f"JavaScript alert should be stripped. "
@@ -1436,8 +1435,7 @@ class TestDisplayPlayback:
 
                 # Verify <img> tag is stripped (not in allowed list)
                 assert "<img" not in inner_html.lower(), (
-                    f"<img> tag should be stripped. "
-                    f"Got innerHTML: {inner_html}"
+                    f"<img> tag should be stripped. " f"Got innerHTML: {inner_html}"
                 )
 
                 # Verify safe text is still present
@@ -1449,12 +1447,10 @@ class TestDisplayPlayback:
 
                 # Verify the safe <b> and <i> tags are preserved (just without attributes)
                 assert "<b>" in inner_html, (
-                    f"Safe <b> tag should be preserved. "
-                    f"Got innerHTML: {inner_html}"
+                    f"Safe <b> tag should be preserved. " f"Got innerHTML: {inner_html}"
                 )
                 assert "<i>" in inner_html, (
-                    f"Safe <i> tag should be preserved. "
-                    f"Got innerHTML: {inner_html}"
+                    f"Safe <i> tag should be preserved. " f"Got innerHTML: {inner_html}"
                 )
 
             finally:
@@ -1555,9 +1551,9 @@ class TestDisplayPlayback:
 
                 # Verify all three lines are visible
                 for line in ["Line one", "Line two", "Line three"]:
-                    assert page.locator(f"text={line}").is_visible(), (
-                        f"Line '{line}' should be visible in the text slide"
-                    )
+                    assert page.locator(
+                        f"text={line}"
+                    ).is_visible(), f"Line '{line}' should be visible in the text slide"
 
                 # Verify line breaks are preserved
                 content_element = page.locator(".text-content .content")
