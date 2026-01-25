@@ -658,9 +658,7 @@ class TestVideoFormatValidation:
         video_path = Path(temp_storage_dir) / "test.mpeg"
         video_path.write_bytes(b"fake video data")
 
-        is_valid, error = storage_manager.validate_video_format(
-            video_path, "test.mpeg"
-        )
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.mpeg")
 
         assert is_valid is False
         assert "mpeg1video" in error

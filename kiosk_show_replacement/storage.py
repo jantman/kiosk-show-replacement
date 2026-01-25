@@ -223,9 +223,7 @@ class StorageManager:
             logger.error(f"ffprobe timed out getting codec info for {file_path}")
             return None
         except json.JSONDecodeError as e:
-            logger.error(
-                f"Failed to parse ffprobe codec output for {file_path}: {e}"
-            )
+            logger.error(f"Failed to parse ffprobe codec output for {file_path}: {e}")
             return None
         except Exception as e:
             logger.error(f"Error getting video codec info for {file_path}: {e}")

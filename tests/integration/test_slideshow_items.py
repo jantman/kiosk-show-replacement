@@ -397,13 +397,12 @@ class TestSlideshowItems:
 
         # Verify the error message mentions the codec issue and supported formats
         error_text = error_alert.inner_text()
-        assert "not supported" in error_text.lower(), (
-            f"Error message should mention codec not supported. Got: {error_text}"
-        )
+        assert (
+            "not supported" in error_text.lower()
+        ), f"Error message should mention codec not supported. Got: {error_text}"
         # Should mention at least one supported format
         assert any(
-            fmt in error_text.lower()
-            for fmt in ["h264", "vp8", "vp9", "mp4", "webm"]
+            fmt in error_text.lower() for fmt in ["h264", "vp8", "vp9", "mp4", "webm"]
         ), f"Error message should mention supported formats. Got: {error_text}"
 
         # The success badge should NOT appear
