@@ -161,6 +161,13 @@ class TestSystemMonitoring:
         showed "No active SSE connections found" even when connections exist.
         The admin UI itself maintains an SSE connection, so we should see at
         least 1 admin connection.
+
+        The test verifies:
+        1. SSE connection is established (Connected badge visible)
+        2. Total Connections shows >= 1
+        3. Admin Connections shows >= 1
+        4. "No active SSE connections found" is NOT visible
+        5. The connections table shows at least one admin connection
         """
         page = enhanced_page
         vite_url = servers["vite_url"]
@@ -171,24 +178,95 @@ class TestSystemMonitoring:
         # Navigate to system monitoring page
         page.goto(f"{vite_url}/admin/monitoring")
         page.wait_for_load_state("domcontentloaded", timeout=10000)
-        page.wait_for_timeout(2000)  # Wait for SSE connection to establish
 
-        # The SSE Debug Tools tab should be active by default
+        # Wait for SSE connection to be established
+        # The SSEDebugger component shows "Connected" badge when SSE is connected
+        connected_badge = page.locator("span.badge.bg-success:has-text('Connected')")
+        expect(connected_badge).to_be_visible(timeout=10000)
+
+        # Click refresh to get fresh stats after SSE connection is established
+        refresh_button = page.locator("button:has-text('Refresh')").first
+        expect(refresh_button).to_be_visible(timeout=5000)
+        refresh_button.click()
+        page.wait_for_timeout(1000)
+
+        # Verify "No active SSE connections found" is NOT visible
+        # This was the bug: the message showed even when connections existed
+        no_connections_alert = page.locator("text=No active SSE connections found")
+        expect(no_connections_alert).not_to_be_visible()
+
+        # Verify the Total Connections count is at least 1
+        # The structure is: <h4 class="text-primary">{count}</h4><p>Total Connections</p>
+        # We need to find the h4 that precedes the "Total Connections" label
+        total_connections_container = page.locator(
+            ".col-md-3:has(p:text('Total Connections'))"
+        )
+        total_connections_value = total_connections_container.locator("h4")
+        expect(total_connections_value).to_be_visible(timeout=5000)
+        total_count_text = total_connections_value.text_content()
+        assert total_count_text is not None, "Total Connections value should exist"
+        total_count = int(total_count_text)
+        assert total_count >= 1, (
+            f"Total Connections should be at least 1, got {total_count}"
+        )
+
+        # Verify the Admin Connections count is at least 1
+        admin_connections_container = page.locator(
+            ".col-md-3:has(p:text('Admin Connections'))"
+        )
+        admin_connections_value = admin_connections_container.locator("h4")
+        expect(admin_connections_value).to_be_visible(timeout=5000)
+        admin_count_text = admin_connections_value.text_content()
+        assert admin_count_text is not None, "Admin Connections value should exist"
+        admin_count = int(admin_count_text)
+        assert admin_count >= 1, (
+            f"Admin Connections should be at least 1, got {admin_count}"
+        )
+
+    def test_sse_debug_tools_shows_connections_table(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+    ):
+        """Test that SSE debug tools tab shows the connections table with data.
+
+        This is a regression test for the bug where the SSE Debug Tools tab
+        showed "No active SSE connections found" instead of the connections table.
+        When an admin session is active with SSE, the table should show at least
+        one row with "admin" type.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Login first
+        self._login(page, vite_url, test_database)
+
+        # Navigate to system monitoring page
+        page.goto(f"{vite_url}/admin/monitoring")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Wait for SSE connection to be established
+        connected_badge = page.locator("span.badge.bg-success:has-text('Connected')")
+        expect(connected_badge).to_be_visible(timeout=10000)
+
         # Click refresh to get fresh stats
         refresh_button = page.locator("button:has-text('Refresh')").first
-        if refresh_button.is_visible():
-            refresh_button.click()
-            page.wait_for_timeout(1000)
+        expect(refresh_button).to_be_visible(timeout=5000)
+        refresh_button.click()
+        page.wait_for_timeout(1000)
 
-        # Verify the admin connection count is shown
-        # The "Admin Connections" stat should show at least 1 (our connection)
-        admin_connections = page.locator("text=Admin Connections").first
-        expect(admin_connections).to_be_visible(timeout=5000)
+        # Verify the connections table is visible (not the "no connections" alert)
+        connections_table = page.locator("table")
+        expect(connections_table).to_be_visible(timeout=5000)
 
-        # The total connections should be visible and have a non-zero count
-        # (at minimum, the admin UI's own SSE connection)
-        total_connections = page.locator("text=Total Connections").first
-        expect(total_connections).to_be_visible(timeout=5000)
+        # Verify the table has headers including "Type", "User/Display", etc.
+        expect(page.locator("th:has-text('Type')")).to_be_visible()
+        expect(page.locator("th:has-text('User/Display')")).to_be_visible()
+
+        # Verify at least one row exists in the table body with "admin" type badge
+        admin_badge = page.locator("table tbody span.badge:has-text('admin')")
+        expect(admin_badge).to_be_visible(timeout=5000)
 
     def test_display_status_tab_no_error(
         self,
