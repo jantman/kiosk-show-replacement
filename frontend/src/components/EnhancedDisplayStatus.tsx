@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Card, Badge, ProgressBar, Table, Alert, Button, Modal } from 'react-bootstrap';
-import { useSSE } from '../hooks/useSSE';
+import { useSSEContext } from '../hooks/useSSE';
 
 interface DisplayStatus {
   id: number;
@@ -39,8 +39,8 @@ export const EnhancedDisplayStatus: React.FC<EnhancedDisplayStatusProps> = ({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Use SSE to get real-time display updates
-  const { connectionState, lastEvent } = useSSE('/api/v1/events/admin');
+  // Use SSE context to share the connection from SSEProvider
+  const { connectionState, lastEvent } = useSSEContext();
 
   const fetchDisplayStatuses = useCallback(async () => {
     try {

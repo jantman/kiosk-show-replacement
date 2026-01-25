@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Table, Badge, Button, Modal, Alert } from 'react-bootstrap';
-import { useSSE } from '../hooks/useSSE';
+import { useSSEContext } from '../hooks/useSSE';
 
 interface SSEConnection {
   id: string;
@@ -27,8 +27,8 @@ export const SSEDebugger: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
-  // Use SSE hook to listen for real-time updates
-  const { connectionState, lastEvent } = useSSE('/api/v1/events/admin');
+  // Use SSE context to share the connection from SSEProvider
+  const { connectionState, lastEvent } = useSSEContext();
 
   const fetchStats = async () => {
     setLoading(true);
