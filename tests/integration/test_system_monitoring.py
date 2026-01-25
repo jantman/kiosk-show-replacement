@@ -206,9 +206,9 @@ class TestSystemMonitoring:
         total_count_text = total_connections_value.text_content()
         assert total_count_text is not None, "Total Connections value should exist"
         total_count = int(total_count_text)
-        assert total_count >= 1, (
-            f"Total Connections should be at least 1, got {total_count}"
-        )
+        assert (
+            total_count >= 1
+        ), f"Total Connections should be at least 1, got {total_count}"
 
         # Verify the Admin Connections count is at least 1
         admin_connections_container = page.locator(
@@ -219,9 +219,9 @@ class TestSystemMonitoring:
         admin_count_text = admin_connections_value.text_content()
         assert admin_count_text is not None, "Admin Connections value should exist"
         admin_count = int(admin_count_text)
-        assert admin_count >= 1, (
-            f"Admin Connections should be at least 1, got {admin_count}"
-        )
+        assert (
+            admin_count >= 1
+        ), f"Admin Connections should be at least 1, got {admin_count}"
 
     def test_sse_debug_tools_shows_connections_table(
         self,
@@ -265,7 +265,7 @@ class TestSystemMonitoring:
         expect(page.locator("th:has-text('User/Display')")).to_be_visible()
 
         # Verify at least one row exists in the table body with "admin" type badge
-        admin_badge = page.locator("table tbody span.badge:has-text('admin')")
+        admin_badge = page.locator("table tbody span.badge:has-text('admin')").first
         expect(admin_badge).to_be_visible(timeout=5000)
 
     def test_display_status_tab_no_error(
