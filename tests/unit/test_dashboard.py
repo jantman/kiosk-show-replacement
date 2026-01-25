@@ -63,12 +63,12 @@ class TestDashboardRoutes:
 class TestHealthEndpoint:
     """Test system health check endpoint."""
 
-    def test_health_endpoint_accessible_without_auth(self, client):
+    def test_health_endpoint_accessible_without_auth(self, client, sample_user):
         """Test health endpoint accessible without authentication."""
         response = client.get("/health")
         assert response.status_code == 200
 
-    def test_health_endpoint_returns_json(self, client):
+    def test_health_endpoint_returns_json(self, client, sample_user):
         """Test health endpoint returns proper JSON response."""
         response = client.get("/health")
         assert response.status_code == 200
@@ -82,24 +82,35 @@ class TestHealthEndpoint:
         assert "version" in data
         assert "timestamp" in data
 
-    def test_health_endpoint_returns_healthy_status(self, client):
-        """Test health endpoint returns healthy status."""
+    def test_health_endpoint_returns_healthy_status(self, client, sample_user):
+        """Test health endpoint returns healthy status when database is initialized."""
         response = client.get("/health")
         data = response.get_json()
 
-        assert data["status"] in ["healthy", "degraded", "unhealthy"]
-        assert data["checks"]["database"]["status"] in ["healthy", "unhealthy"]
+        assert data["status"] in ["healthy", "degraded"]
+        assert data["checks"]["database"]["status"] == "healthy"
+        assert data["checks"]["database"]["initialized"] is True
         assert data["version"] == "0.1.0"
 
-    def test_health_endpoint_with_database_connection(self, app, client):
+    def test_health_endpoint_with_database_connection(self, app, client, sample_user):
         """Test health endpoint with working database connection."""
         with app.app_context():
             response = client.get("/health")
             data = response.get_json()
 
-            # With a working in-memory database, should be healthy
+            # With a working database and user, should be healthy
             assert data["status"] in ["healthy", "degraded"]
             assert data["checks"]["database"]["status"] == "healthy"
+            assert data["checks"]["database"]["initialized"] is True
+
+    def test_health_endpoint_not_initialized_without_user(self, client):
+        """Test health endpoint shows not_initialized when no users exist."""
+        response = client.get("/health")
+        data = response.get_json()
+
+        # Without any users, database is considered not initialized
+        assert data["checks"]["database"]["status"] == "not_initialized"
+        assert data["checks"]["database"]["initialized"] is False
 
 
 class TestErrorHandling:

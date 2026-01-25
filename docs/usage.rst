@@ -170,17 +170,13 @@ Database Management
 
 .. code-block:: bash
 
-   # Initialize database with sample data
-   kiosk-init-db --sample-data
+   # Initialize database (creates admin user with default credentials)
+   FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
+   # Default credentials: admin / admin
 
-   # Reset database (drop and recreate tables)
-   kiosk-init-db --reset
-
-   # Import slideshow from JSON file
-   kiosk-show import slideshow.json
-
-   # Export slideshow to JSON file
-   kiosk-show export 1 slideshow.json
+   # To reset the database, delete the database file and re-initialize
+   rm kiosk_show.db
+   FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
 
 Development Server
 ~~~~~~~~~~~~~~~~~~

@@ -1607,18 +1607,38 @@ def api_login() -> Tuple[Response, int]:
 
             return api_response(user.to_dict(), "Login successful")
 
+        # If we still can't login after IntegrityError, return an error
+        return api_error("Login failed. Please try again.", 500)
+
     except Exception as e:
         db.session.rollback()
+        error_str = str(e)
+
+        # Detect database initialization issues
+        if "no such table" in error_str.lower():
+            current_app.logger.error(
+                "Login failed: Database not initialized",
+                extra={
+                    "username": username,
+                    "action": "api_database_not_initialized",
+                    "error": error_str,
+                },
+            )
+            return api_error(
+                "Database not initialized. Please run 'flask cli init-db' to set up the database.",
+                503,
+                error_code="DATABASE_NOT_INITIALIZED",
+            )
+
         current_app.logger.error(
             "Unexpected error during API authentication",
             extra={
                 "username": username,
                 "action": "api_authentication_error",
-                "error": str(e),
+                "error": error_str,
             },
         )
-
-    return api_error("Login failed. Please try again.", 500)
+        return api_error("Login failed. Please try again.", 500)
 
 
 @api_v1_bp.route("/auth/user", methods=["GET"])

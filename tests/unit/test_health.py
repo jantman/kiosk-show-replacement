@@ -7,6 +7,10 @@ This module tests:
 - /health/storage - Storage health check
 - /health/ready - Readiness probe
 - /health/live - Liveness probe
+
+Note: Tests that require an "initialized" database (with at least one user)
+use the `sample_user` fixture from conftest.py. The health check considers
+a database "initialized" when it has at least one user.
 """
 
 from unittest.mock import patch
@@ -54,8 +58,8 @@ class TestHealthEndpoint:
 class TestDatabaseHealthEndpoint:
     """Tests for the /health/db endpoint."""
 
-    def test_db_health_returns_200_when_connected(self, app, client):
-        """Test database health returns 200 when database is connected."""
+    def test_db_health_returns_200_when_connected(self, app, client, sample_user):
+        """Test database health returns 200 when database is connected and initialized."""
         response = client.get("/health/db")
         assert response.status_code == 200
         data = response.json
@@ -63,12 +67,24 @@ class TestDatabaseHealthEndpoint:
         assert data["status"] == "healthy"
         assert "latency_ms" in data
         assert "timestamp" in data
+        assert data["initialized"] is True
+
+    def test_db_health_returns_503_when_not_initialized(self, app, client):
+        """Test database health returns 503 when database has no users."""
+        response = client.get("/health/db")
+        assert response.status_code == 503
+        data = response.json
+
+        assert data["status"] == "not_initialized"
+        assert data["initialized"] is False
+        assert "message" in data
 
     def test_db_health_returns_503_on_failure(self, app, client):
         """Test database health returns 503 when database fails."""
         with patch("kiosk_show_replacement.health._check_database") as mock_check:
             mock_check.return_value = {
                 "status": "unhealthy",
+                "initialized": False,
                 "error": "Connection refused",
             }
             response = client.get("/health/db")
@@ -106,20 +122,33 @@ class TestStorageHealthEndpoint:
 class TestReadinessProbe:
     """Tests for the /health/ready endpoint."""
 
-    def test_ready_returns_200_when_db_healthy(self, app, client):
-        """Test readiness probe returns 200 when database is healthy."""
+    def test_ready_returns_200_when_db_healthy(self, app, client, sample_user):
+        """Test readiness probe returns 200 when database is healthy and initialized."""
         response = client.get("/health/ready")
         assert response.status_code == 200
         data = response.json
 
         assert data["status"] == "ready"
         assert "timestamp" in data
+        assert data["database_initialized"] is True
+
+    def test_ready_returns_503_when_db_not_initialized(self, app, client):
+        """Test readiness probe returns 503 when database has no users."""
+        response = client.get("/health/ready")
+        assert response.status_code == 503
+        data = response.json
+
+        assert data["status"] == "not_ready"
+        assert data["reason"] == "database_not_initialized"
+        assert data["database_initialized"] is False
+        assert "message" in data
 
     def test_ready_returns_503_when_db_fails(self, app, client):
         """Test readiness probe returns 503 when database fails."""
         with patch("kiosk_show_replacement.health._check_database") as mock_check:
             mock_check.return_value = {
                 "status": "unhealthy",
+                "initialized": False,
                 "error": "Connection failed",
             }
             response = client.get("/health/ready")

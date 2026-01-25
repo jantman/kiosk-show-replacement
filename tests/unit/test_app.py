@@ -55,15 +55,20 @@ class TestAppFactory:
             assert "slideshows" in table_names
             assert "slideshow_items" in table_names
 
-    def test_health_check_endpoint(self, client):
-        """Test the health check endpoint."""
+    def test_health_check_endpoint(self, client, sample_user):
+        """Test the health check endpoint.
+
+        The health check requires an initialized database (at least one user).
+        """
         response = client.get("/health")
 
         assert response.status_code == 200
 
         data = response.get_json()
-        assert data["status"] == "healthy"
+        # Status can be healthy or degraded depending on storage state
+        assert data["status"] in ["healthy", "degraded"]
         assert data["version"] == "0.1.0"
+        assert data["checks"]["database"]["initialized"] is True
 
 
 class TestAppConfiguration:

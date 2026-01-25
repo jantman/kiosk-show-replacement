@@ -45,8 +45,9 @@ Ensure you have the following installed:
    npm install
    cd ..
 
-   # Initialize database with sample data
-   kiosk-init-db --sample-data
+   # Initialize database (creates admin user with default credentials)
+   FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
+   # Default credentials: admin / admin
 
    # Build the React admin interface
    cd frontend
@@ -127,8 +128,7 @@ Quick Commands Reference
    eval $(poetry env activate)
 
    # Database operations
-   kiosk-init-db --sample-data  # Initialize with sample data
-   kiosk-init-db --reset        # Reset database
+   FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db  # Initialize database
 
    # Development
    python run.py                # Start Flask server
@@ -150,8 +150,30 @@ Troubleshooting
 
 1. **Port already in use**: Change the port in ``run.py`` or kill existing processes
 2. **Permission errors**: Don't use ``sudo`` with npm; configure npm properly
-3. **Database errors**: Try ``rm kiosk_show.db`` and re-run ``kiosk-init-db``
+3. **Database errors**: Try ``rm kiosk_show.db`` and re-run database initialization
 4. **Frontend build fails**: Clear cache with ``cd frontend && rm -rf node_modules package-lock.json && npm install``
+5. **"Database not initialized" error**: Run the database initialization command:
+
+   .. code-block:: bash
+
+      FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
+
+**Using Health Endpoints for Diagnostics:**
+
+The application provides health check endpoints to diagnose database and system issues:
+
+* ``/health`` - Overall system health (database, storage)
+* ``/health/ready`` - Readiness check (returns clear error messages if database not initialized)
+* ``/health/db`` - Database-specific health check
+* ``/health/live`` - Basic liveness probe
+
+If you see login errors or database issues, check ``/health/ready`` first:
+
+.. code-block:: bash
+
+   curl http://localhost:5000/health/ready | python -m json.tool
+
+This will show if the database is initialized and provide guidance if not.
 
 **Need Help?**
 

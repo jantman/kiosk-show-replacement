@@ -50,7 +50,8 @@ Quick Start
 
    .. code-block:: bash
 
-      kiosk-init-db --sample-data
+      FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
+      # Default credentials: admin / admin
 
 3. **Build and run:**
 

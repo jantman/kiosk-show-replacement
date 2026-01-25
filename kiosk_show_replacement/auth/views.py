@@ -66,7 +66,13 @@ def login() -> Any:
             return render_template("auth/login.html")
 
         # Permissive authentication - accept any valid username/password
-        user = _get_or_create_user(username, password)
+        try:
+            user = _get_or_create_user(username, password)
+        except RuntimeError as e:
+            # Database initialization error
+            error_message = str(e)
+            flash(error_message, "error")
+            return render_template("auth/login.html")
 
         if user:
             # Log successful login
@@ -234,13 +240,29 @@ def _get_or_create_user(username: str, password: str) -> Optional[User]:
 
     except Exception as e:
         db.session.rollback()
+        error_str = str(e)
+
+        # Detect database initialization issues
+        if "no such table" in error_str.lower():
+            current_app.logger.error(
+                "Authentication failed: Database not initialized",
+                extra={
+                    "username": username,
+                    "action": "database_not_initialized",
+                    "error": error_str,
+                },
+            )
+            # Re-raise with a specific message that can be caught by the caller
+            raise RuntimeError(
+                "Database not initialized. Please run 'flask cli init-db' to set up the database."
+            ) from e
 
         current_app.logger.error(
             "Unexpected error during user authentication",
             extra={
                 "username": username,
                 "action": "authentication_error",
-                "error": str(e),
+                "error": error_str,
             },
         )
 

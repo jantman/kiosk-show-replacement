@@ -432,9 +432,15 @@ class ApiClient {
     return this.request('/health');
   }
 
-  async getHealthReady(): Promise<ApiResponse<{ status: string }>> {
+  async getHealthReady(): Promise<ApiResponse<{
+    status: string;
+    reason?: string;
+    message?: string;
+    database_initialized?: boolean;
+  }>> {
+    // Don't retry for health checks - we want to know immediately if the system is down
     return this.request('/health/ready', {
-      retryConfig: { maxRetries: 1, baseDelay: 500, maxDelay: 1000, retryOn: [503] },
+      retryConfig: { maxRetries: 0, baseDelay: 500, maxDelay: 1000, retryOn: [] },
     });
   }
 

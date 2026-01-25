@@ -67,10 +67,18 @@ npm run lint
 
 #### First-time Setup
 ```bash
-# Initialize the database (creates SQLite DB and admin user)
-FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
+# 1. Install Python dependencies (if not already done)
+poetry install
+
+# 2. Install frontend dependencies
+cd frontend && npm install && cd ..
+
+# 3. Initialize the database (creates SQLite DB and admin user)
+poetry run flask cli init-db
 # Default admin credentials: admin / admin (change in production!)
 ```
+
+The database is stored at `instance/kiosk_show_dev.db` in development mode.
 
 #### Starting the Application for Development
 
@@ -90,6 +98,25 @@ cd frontend && npm run dev
 # Admin interface at http://localhost:3000/admin/
 # (or http://localhost:5000/admin/ which redirects to port 3000)
 ```
+
+#### Troubleshooting Database Issues
+
+If you see "Database not initialized" errors:
+```bash
+# Re-initialize the database
+poetry run flask cli init-db
+```
+
+To check database health:
+```bash
+# Via curl
+curl http://localhost:5000/health/db
+
+# Or check the health endpoint
+curl http://localhost:5000/health/ready
+```
+
+The React frontend also displays helpful error messages when the database is not initialized.
 
 #### Port Summary
 
@@ -153,6 +180,16 @@ npm run build
 | `test-e2e` | Flask templates through browser | `tests/e2e/` |
 
 Integration tests require the React admin interface; E2E tests are for traditional Flask pages.
+
+### Test Database Isolation
+
+**Tests use separate databases and will NOT affect your development database.**
+
+- **Unit tests**: Use a temporary SQLite database in pytest's temp directory
+- **Integration tests**: Use a separate temporary database with `DATABASE_URL` override
+- **E2E tests**: Use a separate temporary database
+
+All test databases are automatically created and destroyed during test runs. Your development database at `instance/kiosk_show_dev.db` is never touched by tests.
 
 ## Acceptable Baselines
 

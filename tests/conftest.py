@@ -22,48 +22,68 @@ def app(tmp_path_factory):
 
     The app and database schema are created once per test session.
     Data cleanup between tests is handled by the clean_test_data fixture.
+
+    IMPORTANT: The DATABASE_URL environment variable must be set BEFORE
+    calling create_app() because SQLAlchemy is initialized during app creation.
+    Setting app.config after create_app() won't change the database connection.
     """
-    app = create_app()
+    import os
 
     # Use pytest's temporary directory for the database file
+    # This MUST be set before create_app() is called
     tmp_path = tmp_path_factory.mktemp("test_db")
     db_file = tmp_path / "test.db"
 
-    app.config.update(
-        {
-            "TESTING": True,
-            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{db_file}",
-            "SQLALCHEMY_ENGINE_OPTIONS": {
-                "poolclass": NullPool,  # Disable connection pooling for tests
-                "pool_recycle": -1,
-                "pool_pre_ping": True,
-                "echo": False,
-                "connect_args": {
-                    "check_same_thread": False,
-                    "timeout": 20,
+    # Store the original DATABASE_URL if it exists
+    original_db_url = os.environ.get("DATABASE_URL")
+
+    # Set the test database URI in the environment BEFORE creating the app
+    # This is critical because SQLAlchemy is initialized during create_app()
+    os.environ["DATABASE_URL"] = f"sqlite:///{db_file}"
+
+    try:
+        # Create app with testing config - this will use our DATABASE_URL
+        app = create_app("testing")
+
+        # Additional test-specific config
+        app.config.update(
+            {
+                "SQLALCHEMY_ENGINE_OPTIONS": {
+                    "poolclass": NullPool,  # Disable connection pooling for tests
+                    "pool_recycle": -1,
+                    "pool_pre_ping": True,
+                    "echo": False,
+                    "connect_args": {
+                        "check_same_thread": False,
+                        "timeout": 20,
+                    },
                 },
-            },
-            "WTF_CSRF_ENABLED": False,
-            "SECRET_KEY": "test-secret-key",
-        }
-    )
+                "SECRET_KEY": "test-secret-key",
+            }
+        )
 
-    # Create tables once at session start
-    with app.app_context():
-        db.create_all()
+        # Create tables once at session start
+        with app.app_context():
+            db.create_all()
 
-    yield app
+        yield app
 
-    # Comprehensive cleanup at end of test session
-    with app.app_context():
-        try:
-            db.session.rollback()
-            db.session.close()
-            db.session.remove()
-            db.drop_all()
-            db.engine.dispose()
-        except Exception:
-            pass
+        # Comprehensive cleanup at end of test session (before restoring env var)
+        with app.app_context():
+            try:
+                db.session.rollback()
+                db.session.close()
+                db.session.remove()
+                db.drop_all()
+                db.engine.dispose()
+            except Exception:
+                pass
+    finally:
+        # Restore the original DATABASE_URL (or remove it if it wasn't set)
+        if original_db_url is not None:
+            os.environ["DATABASE_URL"] = original_db_url
+        elif "DATABASE_URL" in os.environ:
+            del os.environ["DATABASE_URL"]
 
 
 @pytest.fixture

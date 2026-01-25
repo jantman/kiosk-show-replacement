@@ -29,10 +29,10 @@ def _get_timestamp() -> str:
 
 
 def _check_database() -> Dict[str, Any]:
-    """Check database connectivity and measure latency.
+    """Check database connectivity, initialization status, and measure latency.
 
     Returns:
-        Dictionary with status, latency_ms, and optional error
+        Dictionary with status, latency_ms, initialized flag, and optional error
     """
     from .app import db
 
@@ -42,16 +42,60 @@ def _check_database() -> Dict[str, Any]:
         db.session.execute(db.text("SELECT 1"))
         latency_ms = (time.perf_counter() - start) * 1000
 
-        return {
-            "status": "healthy",
+        # Check if the database is initialized (User table exists and has data)
+        initialized = _check_database_initialized()
+
+        result = {
+            "status": "healthy" if initialized else "not_initialized",
             "latency_ms": round(latency_ms, 2),
+            "initialized": initialized,
         }
+
+        if not initialized:
+            result["message"] = (
+                "Database tables exist but no admin user found. "
+                "Run 'flask cli init-db' to initialize the database."
+            )
+
+        return result
     except Exception as e:
+        error_str = str(e)
         current_app.logger.error(f"Database health check failed: {e}")
+
+        # Detect specific initialization issues
+        if "no such table" in error_str.lower():
+            return {
+                "status": "not_initialized",
+                "initialized": False,
+                "error": "Database tables do not exist",
+                "message": (
+                    "Database has not been initialized. "
+                    "Run 'flask cli init-db' to create tables and admin user."
+                ),
+            }
+
         return {
             "status": "unhealthy",
-            "error": str(e),
+            "initialized": False,
+            "error": error_str,
         }
+
+
+def _check_database_initialized() -> bool:
+    """Check if the database has been properly initialized.
+
+    Returns:
+        True if database is initialized with required tables and admin user
+    """
+    from .app import db
+
+    try:
+        # Check if User table exists and has at least one user
+        # Note: The table is named 'users' (plural) in the database
+        result = db.session.execute(db.text("SELECT COUNT(*) FROM users")).scalar()
+        return result is not None and result > 0
+    except Exception:
+        return False
 
 
 def _check_storage() -> Dict[str, Any]:
@@ -169,12 +213,20 @@ def health_check() -> Tuple[Response, int]:
 def health_database() -> Tuple[Response, int]:
     """Database health check endpoint.
 
-    Returns 200 if database is accessible, 503 otherwise.
+    Returns 200 if database is accessible and initialized, 503 otherwise.
+    Includes detailed information about database initialization status.
     """
     result = _check_database()
     result["timestamp"] = _get_timestamp()
 
-    status_code = 200 if result["status"] == "healthy" else 503
+    # Return 200 only if database is healthy AND initialized
+    if result["status"] == "healthy":
+        status_code = 200
+    elif result["status"] == "not_initialized":
+        status_code = 503
+    else:
+        status_code = 503
+
     return jsonify(result), status_code
 
 
@@ -196,7 +248,7 @@ def health_ready() -> Tuple[Response, int]:
     """Readiness probe for Kubernetes.
 
     Indicates whether the application is ready to receive traffic.
-    Checks database connectivity to ensure requests can be processed.
+    Checks database connectivity and initialization status.
 
     Returns 200 if ready, 503 if not ready.
     """
@@ -208,9 +260,26 @@ def health_ready() -> Tuple[Response, int]:
                 {
                     "status": "ready",
                     "timestamp": _get_timestamp(),
+                    "database_initialized": db_check.get("initialized", True),
                 }
             ),
             200,
+        )
+    elif db_check["status"] == "not_initialized":
+        return (
+            jsonify(
+                {
+                    "status": "not_ready",
+                    "timestamp": _get_timestamp(),
+                    "reason": "database_not_initialized",
+                    "message": db_check.get(
+                        "message",
+                        "Database not initialized. Run 'flask cli init-db'.",
+                    ),
+                    "database_initialized": False,
+                }
+            ),
+            503,
         )
     else:
         return (
@@ -218,7 +287,9 @@ def health_ready() -> Tuple[Response, int]:
                 {
                     "status": "not_ready",
                     "timestamp": _get_timestamp(),
-                    "reason": "Database unavailable",
+                    "reason": "database_unavailable",
+                    "message": db_check.get("error", "Database unavailable"),
+                    "database_initialized": False,
                 }
             ),
             503,

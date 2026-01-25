@@ -378,7 +378,20 @@ Code coverage is measured using pytest-cov. Coverage reports are generated in:
 Database Testing
 ~~~~~~~~~~~~~~~~
 
-Tests use an in-memory SQLite database for speed. The test database is automatically created and destroyed for each test session.
+**Test Database Isolation:**
+
+Tests use completely isolated databases that are separate from your development database:
+
+* **Unit tests**: Use a temporary SQLite database in a pytest temp directory
+* **Integration tests**: Use a fresh SQLite database per test session
+* **Your development database**: Located at ``kiosk_show.db`` (default) is never touched by tests
+
+This means running tests will **never** affect your development database or its data.
+
+**How it works:**
+
+The test fixtures in ``tests/conftest.py`` override ``SQLALCHEMY_DATABASE_URI`` to point
+to a temporary file, ensuring complete isolation from your development environment.
 
 Test Type Summary
 ~~~~~~~~~~~~~~~~~
@@ -1051,6 +1064,12 @@ Troubleshooting Frontend Issues
    - Restart Vite dev server: ``npm run dev``
    - Check file permissions and paths
    - Clear browser cache
+
+5. **Database Not Initialized:**
+   - The login page will show a clear error if the database is not initialized
+   - Run: ``FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db``
+   - Check the health endpoint: ``curl http://localhost:5000/health/ready``
+   - The ``/health/ready`` endpoint returns ``"reason": "database_not_initialized"`` if setup is needed
 
 **Debugging Tools:**
 
