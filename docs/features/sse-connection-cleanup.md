@@ -165,9 +165,9 @@ Final verification and documentation.
   - [x] M1.2 - Send connection ID to client (already implemented)
   - [x] M1.3 - Frontend tracks connection ID and sends disconnect
   - [x] M1.4 - Add unit tests for disconnect endpoint
-- [ ] M2: Improve Write Failure Detection
-  - [ ] M2.1 - Add write error handling in event generator
-  - [ ] M2.2 - Add unit tests for write failure cleanup
+- [x] M2: Improve Write Failure Detection (COMPLETE)
+  - [x] M2.1 - Add write error handling in event generator
+  - [x] M2.2 - Add unit tests for write failure cleanup
 - [ ] M3: Add Integration Tests
   - [ ] M3.1 - Test for page refresh cleanup
   - [ ] M3.2 - Test for tab navigation cleanup
