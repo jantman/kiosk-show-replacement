@@ -307,7 +307,18 @@ def create_sse_response(connection: SSEConnection) -> Response:
     """
 
     def event_stream() -> Generator[str, None, None]:
-        """Generate SSE event stream."""
+        """Generate SSE event stream.
+
+        This generator yields SSE-formatted events to the client. Cleanup happens
+        in the finally block, which runs when:
+        1. The generator is explicitly closed (GeneratorExit)
+        2. An exception occurs during event generation
+        3. The generator is garbage collected
+
+        Note: Write failures (broken pipe, connection reset) are typically caught
+        by the WSGI server, not the generator. The client should notify the server
+        via the /api/v1/events/disconnect endpoint for reliable cleanup.
+        """
         try:
             # Send initial connection event
             welcome_event = SSEEvent(
@@ -325,13 +336,41 @@ def create_sse_response(connection: SSEConnection) -> Response:
                 yield event.to_sse_format()
 
         except GeneratorExit:
-            # Client disconnected
-            logger.info(f"SSE connection {connection.connection_id} disconnected")
+            # Client disconnected - this is the normal case when the WSGI server
+            # detects a closed connection and closes the generator
+            logger.info(
+                f"SSE connection {connection.connection_id} closed "
+                f"(GeneratorExit - client disconnected)"
+            )
+            connection.disconnect()
+        except (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) as e:
+            # Socket-level errors indicating client disconnection
+            logger.info(
+                f"SSE connection {connection.connection_id} closed "
+                f"(socket error: {type(e).__name__})"
+            )
+            connection.disconnect()
+        except OSError as e:
+            # Other OS-level errors (e.g., EPIPE, ECONNRESET)
+            logger.info(
+                f"SSE connection {connection.connection_id} closed "
+                f"(OS error: {e})"
+            )
+            connection.disconnect()
         except Exception as e:
-            logger.error(f"SSE connection {connection.connection_id} error: {e}")
+            # Unexpected error - log as error for investigation
+            logger.error(
+                f"SSE connection {connection.connection_id} error: "
+                f"{type(e).__name__}: {e}"
+            )
+            connection.disconnect()
         finally:
-            # Clean up connection
+            # Always clean up connection from the manager
+            # This is idempotent - safe to call even if already removed
             sse_manager.remove_connection(connection.connection_id)
+            logger.debug(
+                f"SSE connection {connection.connection_id} cleanup complete"
+            )
 
     response = Response(
         event_stream(),
