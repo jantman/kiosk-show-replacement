@@ -41,7 +41,8 @@ export const SSEDebugger: React.FC = () => {
         throw new Error(`Failed to fetch SSE stats: ${response.statusText}`);
       }
       const data = await response.json();
-      setStats(data);
+      // API returns { success: true, data: {...} }, extract the actual stats
+      setStats(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     } finally {
