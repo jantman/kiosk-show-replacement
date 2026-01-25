@@ -123,6 +123,16 @@ The bug report mentions `crash_into_pole.mpeg` which is an MPEG-1 format that br
 
 ## Progress
 
-- [ ] **M1: Create Failing Regression Test** - Not started
-- [ ] **M2: Fix Video Playback** - Not started
-- [ ] **M3: Acceptance Criteria** - Not started
+- [x] **M1: Create Failing Regression Test** - Completed
+  - Added integration test `test_uploaded_video_displays_on_display_view` in `tests/integration/test_display_playback.py`
+  - Test uploads a video, creates a slideshow item, and verifies video displays correctly
+  - Test initially failed with `net::ERR_ABORTED` confirming the bug
+- [x] **M2: Fix Video Playback** - Completed
+  - Fixed `<source>` element to use a single element without type attribute
+  - Changed preload from "metadata" to "auto" for better loading
+  - Added defensive visibility fallback with `ensureVisible()` helper and 1-second timeout
+  - Regression test now passes
+- [x] **M3: Acceptance Criteria** - Completed
+  - All nox test sessions pass (format, lint, type_check, test-3.14, test-integration, test-e2e)
+  - No documentation updates needed (internal bug fix)
+  - Feature file moved to completed
