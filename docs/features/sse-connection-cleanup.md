@@ -160,11 +160,11 @@ Final verification and documentation.
 
 ## Progress
 
-- [ ] M1: Add Explicit Disconnect Notification
-  - [ ] M1.1 - Add disconnect endpoint to backend
-  - [ ] M1.2 - Send connection ID to client
-  - [ ] M1.3 - Frontend tracks connection ID and sends disconnect
-  - [ ] M1.4 - Add unit tests for disconnect endpoint
+- [x] M1: Add Explicit Disconnect Notification (COMPLETE)
+  - [x] M1.1 - Add disconnect endpoint to backend
+  - [x] M1.2 - Send connection ID to client (already implemented)
+  - [x] M1.3 - Frontend tracks connection ID and sends disconnect
+  - [x] M1.4 - Add unit tests for disconnect endpoint
 - [ ] M2: Improve Write Failure Detection
   - [ ] M2.1 - Add write error handling in event generator
   - [ ] M2.2 - Add unit tests for write failure cleanup
