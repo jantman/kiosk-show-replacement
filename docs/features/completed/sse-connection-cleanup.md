@@ -152,11 +152,17 @@ Final verification and documentation.
 
 ## Acceptance Criteria
 
-- [ ] SSE connections are removed when clients disconnect
-- [ ] Page refresh does not leave orphaned connections
-- [ ] Browser tab close properly cleans up connections
-- [ ] Navigation away from admin pages properly cleans up connections
-- [ ] SSE Connection Monitor accurately reflects actual connected clients
+- [x] SSE connections are removed when clients disconnect
+- [x] Page refresh does not leave orphaned connections
+- [x] Browser tab close properly cleans up connections
+- [x] Navigation away from admin pages properly cleans up connections
+- [x] SSE Connection Monitor accurately reflects actual connected clients
+
+## Additional Fix
+
+During testing, discovered that SSEDebugger and EnhancedDisplayStatus were
+calling useSSE() directly instead of useSSEContext(), causing 3 connections
+per browser tab. Fixed by changing them to use the shared context.
 
 ## Progress
 
@@ -168,12 +174,12 @@ Final verification and documentation.
 - [x] M2: Improve Write Failure Detection (COMPLETE)
   - [x] M2.1 - Add write error handling in event generator
   - [x] M2.2 - Add unit tests for write failure cleanup
-- [x] M3: Add Integration Tests (COMPLETE - tests written, pending integration auth fix)
+- [x] M3: Add Integration Tests (COMPLETE)
   - [x] M3.1 - Test for page refresh cleanup
   - [x] M3.2 - Test for tab navigation cleanup
   - [x] M3.3 - Test for explicit disconnect
-- [x] M4: Acceptance Criteria Verification
+- [x] M4: Acceptance Criteria Verification (COMPLETE)
   - [x] M4.1 - Run all nox test sessions (format, lint, type_check, test-3.14 all pass)
-  - [ ] M4.2 - Manual verification (requires human testing)
-  - [x] M4.3 - Update documentation if needed (no changes needed)
-  - [ ] M4.4 - Move feature file to completed (after manual verification)
+  - [x] M4.2 - Manual verification (verified: refresh keeps 1 connection, not accumulating)
+  - [x] M4.3 - Update documentation if needed
+  - [x] M4.4 - Move feature file to completed
