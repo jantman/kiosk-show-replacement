@@ -222,6 +222,134 @@ class TestSSEStatsEndpoint:
         assert isinstance(stats["connections"], list)
 
 
+class TestSSEDisconnectEndpoint:
+    """Test /api/v1/events/disconnect endpoint for explicit SSE cleanup.
+
+    This endpoint allows clients to notify the server when they're disconnecting,
+    enabling immediate cleanup rather than waiting for the next failed write.
+    """
+
+    def test_disconnect_requires_connection_id(self, client):
+        """Test that disconnect endpoint requires connection_id parameter."""
+        response = client.post(
+            "/api/v1/events/disconnect",
+            json={},
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "connection_id is required" in data.get("error", "")
+
+    def test_disconnect_requires_json_body(self, client):
+        """Test that disconnect endpoint requires JSON body."""
+        response = client.post(
+            "/api/v1/events/disconnect",
+            content_type="application/json",
+        )
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "No data provided" in data.get("error", "")
+
+    def test_disconnect_removes_existing_connection(self, client, authenticated_user, app):
+        """Test that disconnect endpoint removes an existing SSE connection."""
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a connection
+            connection = sse_manager.create_connection(
+                user_id=authenticated_user.id, connection_type="admin"
+            )
+            connection_id = connection.connection_id
+
+            # Verify connection exists
+            with sse_manager.connections_lock:
+                assert connection_id in sse_manager.connections
+
+            # Call disconnect endpoint
+            response = client.post(
+                "/api/v1/events/disconnect",
+                json={"connection_id": connection_id},
+                content_type="application/json",
+            )
+            assert response.status_code == 200
+
+            data = response.get_json()
+            assert data["success"] is True
+            assert data["data"]["connection_id"] == connection_id
+            assert data["data"]["disconnected"] is True
+
+            # Verify connection was removed
+            with sse_manager.connections_lock:
+                assert connection_id not in sse_manager.connections
+
+    def test_disconnect_handles_nonexistent_connection(self, client):
+        """Test that disconnect endpoint handles non-existent connection gracefully."""
+        response = client.post(
+            "/api/v1/events/disconnect",
+            json={"connection_id": "nonexistent-connection-id-12345"},
+            content_type="application/json",
+        )
+        # Should still succeed - connection may already be cleaned up
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["disconnected"] is False
+        assert "not found" in data["message"].lower() or "disconnected" in data["message"].lower()
+
+    def test_disconnect_is_idempotent(self, client, authenticated_user, app):
+        """Test that calling disconnect multiple times is safe (idempotent)."""
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a connection
+            connection = sse_manager.create_connection(
+                user_id=authenticated_user.id, connection_type="admin"
+            )
+            connection_id = connection.connection_id
+
+            # First disconnect - should succeed and remove connection
+            response1 = client.post(
+                "/api/v1/events/disconnect",
+                json={"connection_id": connection_id},
+                content_type="application/json",
+            )
+            assert response1.status_code == 200
+            assert response1.get_json()["data"]["disconnected"] is True
+
+            # Second disconnect - should still succeed (idempotent)
+            response2 = client.post(
+                "/api/v1/events/disconnect",
+                json={"connection_id": connection_id},
+                content_type="application/json",
+            )
+            assert response2.status_code == 200
+            assert response2.get_json()["data"]["disconnected"] is False
+
+    def test_disconnect_does_not_require_authentication(self, client, app):
+        """Test that disconnect endpoint works without authentication.
+
+        The connection_id serves as an authentication token - only the client
+        that received this ID can disconnect it.
+        """
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a connection (simulating one created by an authenticated session)
+            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection_id = connection.connection_id
+
+            # Call disconnect without being authenticated
+            # Note: client fixture doesn't have authenticated session by default
+            response = client.post(
+                "/api/v1/events/disconnect",
+                json={"connection_id": connection_id},
+                content_type="application/json",
+            )
+            assert response.status_code == 200
+            assert response.get_json()["data"]["disconnected"] is True
+
+
 class TestSSEEventsTracking:
     """Test SSE event tracking functionality."""
 

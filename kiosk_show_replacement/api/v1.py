@@ -2009,8 +2009,13 @@ def disconnect_sse_connection() -> Tuple[Response, int]:
     received this ID during connection establishment can disconnect it.
     """
     try:
-        data = request.get_json()
-        if not data:
+        try:
+            data = request.get_json()
+        except Exception:
+            # Handle malformed JSON or empty body with content-type: application/json
+            return api_error("No data provided", 400)
+
+        if data is None:
             return api_error("No data provided", 400)
 
         connection_id = data.get("connection_id")
