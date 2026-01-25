@@ -24,23 +24,55 @@ Web page slide types need a mechanism to handle pages with content that exceeds 
 
 ## Implementation Plan
 
+### User Experience
+
+**Target user:** Non-technical users who notice that a webpage slide is "cut off" and want to see the whole page.
+
+**User flow:**
+1. User adds a webpage slide to their slideshow
+2. On the display, they notice only part of the page is visible
+3. In the admin, they see a "Zoom" slider for URL slides
+4. They drag the slider toward "Zoom out" until the preview shows all the content they want
+5. Save and verify on the actual display
+
+**Admin UI:**
+- Slider labeled "Zoom" ranging from "Normal" (100%) to "Zoomed out" (10%)
+- Only visible for URL-type slides
+- Live preview in the admin showing the effect
+- Default: 100% (normal, no zoom)
+
 ### Technical Approach
 
 The implementation will use CSS transforms to scale iframe content. This approach:
 - Works reliably across browsers
 - Does not require same-origin access to iframe content
 - Can be configured per-slide
-- Uses a simple scale factor (percentage) that users can understand
+- Uses a simple scale factor (percentage)
 
 **CSS Transform Technique:**
 - Apply `transform: scale(X)` to the iframe where X is the scale factor (e.g., 0.5 for 50%)
 - Set `transform-origin: 0 0` (top-left) for predictable positioning
 - Expand iframe dimensions inversely (e.g., at 50% scale, use 200vw × 200vh) so the scaled content fills the viewport
 
-**User Interface:**
-- Add a "Scale" slider/input for URL-type slides (10% to 100%)
-- Default to 100% (no scaling) for backward compatibility
-- Only show the option for URL content type slides
+### Design Principles for Future Flexibility
+
+This implementation uses a simple fixed-percentage approach. To support future enhancements (e.g., adaptive scaling based on display size), the following boundaries are maintained:
+
+1. **Data layer isolation**: The model stores only `scale_factor` (integer 10-100). Future implementations could reinterpret this or add new fields.
+
+2. **Rendering logic isolation**: The CSS transform calculation is contained in a single, clearly-documented section of `slideshow.html`. Swapping to a different scaling method requires changes only there.
+
+3. **API abstraction**: The API accepts/returns `scale_factor` without exposing implementation details. Future versions could accept additional parameters.
+
+4. **UI abstraction**: The admin presents a user-friendly "Zoom" slider. The underlying value (percentage) is an implementation detail that could change.
+
+### Known Limitations (Documented)
+
+- **Fixed percentage**: The scale factor is a fixed percentage applied identically regardless of display resolution. A 50% zoom on a 1080p display and a 4K display will show different amounts of content.
+- **Multi-display slideshows**: If a slideshow is shown on displays of different sizes, the same scale factor may produce different results. Users with varied display sizes may need separate slideshows.
+- **No auto-detection**: The system cannot automatically detect webpage content dimensions due to cross-origin iframe restrictions.
+
+These limitations are candidates for future feature work (e.g., "adaptive scaling" or "per-display overrides").
 
 ---
 
@@ -111,19 +143,20 @@ Update the display template to apply CSS transform scaling based on scale_factor
 
 ### Milestone 4: Frontend Admin UI
 
-Add scale factor controls to the admin interface for URL slides.
+Add zoom controls to the admin interface for URL slides.
 
 **Prefix:** `WPS-M4`
 
 **Tasks:**
-1. **M4.1**: Update `SlideshowItemForm.tsx` to include scale_factor field
-   - Show slider/input only for URL content type
-   - Range: 10-100 (percentage)
-   - Default: 100 (no scaling)
+1. **M4.1**: Update TypeScript types for slideshow items to include `scale_factor`
 
-2. **M4.2**: Update TypeScript types for slideshow items
+2. **M4.2**: Update `SlideshowItemForm.tsx` to include zoom slider
+   - Show slider only for URL content type
+   - Label: "Zoom" with "Normal" (100%) to "Zoomed out" (10%) range
+   - Default: 100 (no zoom/normal)
+   - Include preview showing scaled iframe
 
-3. **M4.3**: Add integration tests for admin UI scale controls
+3. **M4.3**: Add integration tests for admin UI zoom controls
 
 **Status:** Not started
 
