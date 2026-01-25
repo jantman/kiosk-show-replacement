@@ -405,6 +405,13 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
         db.session.add(item)
         db.session.commit()
 
+        # Broadcast slideshow update to displays showing this slideshow
+        broadcast_slideshow_update(
+            slideshow,
+            "updated",
+            {"updated_by": current_user.username, "item_created": item.id},
+        )
+
         current_app.logger.info(
             f"User {current_user.username} created item in slideshow {slideshow.name}"
         )
@@ -458,6 +465,13 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
         item.updated_by_id = current_user.id
         db.session.commit()
 
+        # Broadcast slideshow update to displays showing this slideshow
+        broadcast_slideshow_update(
+            slideshow,
+            "updated",
+            {"updated_by": current_user.username, "item_updated": item.id},
+        )
+
         current_app.logger.info(
             f"User {current_user.username} updated item {item.title}"
         )
@@ -490,6 +504,13 @@ def delete_slideshow_item(item_id: int) -> Tuple[Response, int]:
         item.is_active = False
         item.updated_by_id = current_user.id
         db.session.commit()
+
+        # Broadcast slideshow update to displays showing this slideshow
+        broadcast_slideshow_update(
+            slideshow,
+            "updated",
+            {"updated_by": current_user.username, "item_deleted": item.id},
+        )
 
         current_app.logger.info(
             f"User {current_user.username} deleted item {item.title}"
@@ -559,6 +580,13 @@ def reorder_slideshow_item(item_id: int) -> Tuple[Response, int]:
 
         item.updated_by_id = current_user.id
         db.session.commit()
+
+        # Broadcast slideshow update to displays showing this slideshow
+        broadcast_slideshow_update(
+            slideshow,
+            "updated",
+            {"updated_by": current_user.username, "item_reordered": item.id},
+        )
 
         current_app.logger.info(
             f"User {current_user.username} reordered item {item.title}"
