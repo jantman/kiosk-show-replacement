@@ -231,6 +231,73 @@ class StorageManager:
             logger.error(f"Error getting video codec info for {file_path}: {e}")
             return None
 
+    # Browser-compatible video codecs for HTML5 <video> element
+    SUPPORTED_VIDEO_CODECS = {"h264", "vp8", "vp9", "theora", "av1"}
+
+    def validate_video_format(
+        self, file_path: Path, original_filename: str
+    ) -> Tuple[bool, str]:
+        """
+        Validate that a video file uses browser-compatible codecs.
+
+        Checks if the video codec is supported by HTML5 <video> element.
+        Supported codecs: H.264, VP8, VP9, Theora, AV1.
+
+        Args:
+            file_path: Path to the video file to validate
+            original_filename: Original filename for error messages
+
+        Returns:
+            Tuple of (is_valid, error_message). If valid, error_message is empty.
+        """
+        codec_info = self.get_video_codec_info(file_path)
+
+        if codec_info is None:
+            # If we can't get codec info, log warning but allow the upload
+            # This maintains backwards compatibility if ffprobe is unavailable
+            logger.warning(
+                f"Could not determine video codec for '{original_filename}' "
+                f"at {file_path}. Allowing upload but video may not play in browser."
+            )
+            return True, ""
+
+        video_codec = codec_info.get("video_codec")
+        container_format = codec_info.get("container_format")
+
+        if video_codec is None:
+            logger.warning(
+                f"No video stream found in '{original_filename}' at {file_path}. "
+                f"Container format: {container_format}"
+            )
+            return False, (
+                "No video stream found in the uploaded file. "
+                "Please upload a valid video file."
+            )
+
+        # Check if codec is supported
+        if video_codec.lower() not in self.SUPPORTED_VIDEO_CODECS:
+            # Log detailed warning for troubleshooting
+            logger.warning(
+                f"Rejected video upload: unsupported codec. "
+                f"Filename: '{original_filename}', "
+                f"Video codec: '{video_codec}', "
+                f"Container format: '{container_format}', "
+                f"File path: {file_path}"
+            )
+
+            supported_list = ", ".join(sorted(self.SUPPORTED_VIDEO_CODECS))
+            return False, (
+                f"Video codec '{video_codec}' is not supported by web browsers. "
+                f"Supported codecs: {supported_list}. "
+                f"Please convert your video to MP4 (H.264) or WebM (VP8/VP9) format."
+            )
+
+        logger.debug(
+            f"Video format validation passed for '{original_filename}': "
+            f"codec={video_codec}, container={container_format}"
+        )
+        return True, ""
+
     def get_video_duration(self, file_path: Path) -> Optional[float]:
         """
         Extract video duration using ffprobe.
