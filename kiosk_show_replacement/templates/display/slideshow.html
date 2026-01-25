@@ -122,6 +122,21 @@
             border: none;
             background: #fff;
         }
+
+        /* Scaled iframe container for URL slides with zoom */
+        .scaled-iframe-container {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .scaled-iframe-container iframe {
+            transform-origin: 0 0;
+            border: none;
+            background: #fff;
+            /* Width/height and transform scale set dynamically via inline styles */
+        }
         
         .slide .text-content {
             padding: 3rem;
@@ -356,11 +371,7 @@
                                        </video>`;
                             break;
                         case 'url':
-                            content = `<iframe src="${contentUrl}" 
-                                             sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
-                                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                             onload="this.style.opacity=1"
-                                             onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load webpage</div></div>'"></iframe>`;
+                            content = this.createUrlSlideContent(slide, contentUrl);
                             break;
                         case 'text':
                             // Text slides only show content_text, not the title
@@ -387,6 +398,50 @@
                 const div = document.createElement('div');
                 div.textContent = text;
                 return div.innerHTML;
+            }
+
+            /**
+             * Create HTML content for URL slides, with optional scaling.
+             *
+             * When scale_factor is set (10-100), the iframe is rendered at
+             * an expanded size and then scaled down using CSS transform.
+             * For example, at 50% scale:
+             * - iframe dimensions are 200vw × 200vh
+             * - transform: scale(0.5) shrinks it to fit the viewport
+             * - The effect is "zooming out" to show more content
+             *
+             * @param {Object} slide - The slide object containing scale_factor
+             * @param {string} contentUrl - The URL to load in the iframe
+             * @returns {string} - HTML string for the slide content
+             */
+            createUrlSlideContent(slide, contentUrl) {
+                const scaleFactor = slide.scale_factor;
+
+                // If no scale_factor or scale_factor is 100, render normal iframe
+                if (!scaleFactor || scaleFactor === 100) {
+                    return `<iframe src="${contentUrl}"
+                                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
+                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                 onload="this.style.opacity=1"
+                                 onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load webpage</div></div>'"></iframe>`;
+                }
+
+                // Calculate scaling values
+                // scale_factor is percentage (10-100), convert to decimal (0.1-1.0)
+                const scale = scaleFactor / 100;
+                // Inverse scale for iframe dimensions (e.g., 50% scale = 200% dimensions)
+                const inverseScale = 100 / scaleFactor;
+                const iframeWidth = `${inverseScale * 100}vw`;
+                const iframeHeight = `${inverseScale * 100}vh`;
+
+                return `<div class="scaled-iframe-container">
+                            <iframe src="${contentUrl}"
+                                 sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
+                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                 style="width: ${iframeWidth}; height: ${iframeHeight}; transform: scale(${scale});"
+                                 onload="this.style.opacity=1"
+                                 onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load webpage</div></div>'"></iframe>
+                        </div>`;
             }
 
             /**

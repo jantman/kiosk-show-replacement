@@ -1590,3 +1590,261 @@ class TestDisplayPlayback:
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
             )
+
+    def test_url_slide_with_scale_factor_applies_css_transform(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that URL slides with scale_factor apply CSS transform scaling.
+
+        This test:
+        1. Creates a slideshow with a URL slide that has scale_factor=50
+        2. Assigns the slideshow to a display
+        3. Navigates to the display view
+        4. Verifies the iframe has:
+           - transform: scale(0.5) applied
+           - Expanded dimensions (200vw × 200vh)
+           - A container wrapper with overflow: hidden
+
+        This tests the webpage slide scaling feature for zooming out to show
+        more content.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "URL Scale Test Slideshow",
+                "description": "Test slideshow for URL scale factor",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a URL slide with scale_factor=50 (zoom out to 50%)
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Scaled URL Slide",
+                    "content_type": "url",
+                    "content_url": "https://example.com",
+                    "scale_factor": 50,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+            item_data = item_response.json().get("data", item_response.json())
+            assert item_data["scale_factor"] == 50
+
+            # Create a display
+            display_name = f"test-url-scale-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for URL scale testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Verify the scaled iframe container exists
+                container = page.locator(".scaled-iframe-container")
+                assert container.is_visible(), (
+                    "Scaled iframe container should exist for URL slides with "
+                    "scale_factor < 100"
+                )
+
+                # Verify the iframe has the correct transform scale
+                iframe = container.locator("iframe")
+                assert iframe.is_visible(), "Iframe should be visible"
+
+                # Check the inline style for transform
+                transform_style = iframe.evaluate("""(el) => el.style.transform""")
+                assert "scale(0.5)" in transform_style, (
+                    f"Iframe should have transform: scale(0.5) for scale_factor=50. "
+                    f"Got: {transform_style}"
+                )
+
+                # Check the inline style for dimensions (should be 200vw × 200vh)
+                width_style = iframe.evaluate("""(el) => el.style.width""")
+                height_style = iframe.evaluate("""(el) => el.style.height""")
+                assert "200vw" in width_style, (
+                    f"Iframe width should be 200vw for scale_factor=50. "
+                    f"Got: {width_style}"
+                )
+                assert "200vh" in height_style, (
+                    f"Iframe height should be 200vh for scale_factor=50. "
+                    f"Got: {height_style}"
+                )
+
+            finally:
+                # Cleanup display (test_url_slide_with_scale_factor_applies_css_transform)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_url_slide_with_scale_factor_applies_css_transform)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_url_slide_without_scale_factor_has_no_transform(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that URL slides without scale_factor render normally (no transform).
+
+        This test verifies backwards compatibility - URL slides without scale_factor
+        (or scale_factor=100) should render as before without any transform.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "URL No Scale Test Slideshow",
+                "description": "Test slideshow for URL without scale",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a URL slide without scale_factor (default behavior)
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Normal URL Slide",
+                    "content_type": "url",
+                    "content_url": "https://example.com",
+                    # No scale_factor - should be null/100 (no scaling)
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+            item_data = item_response.json().get("data", item_response.json())
+            assert item_data["scale_factor"] is None
+
+            # Create a display
+            display_name = f"test-url-noscale-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for URL no scale testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait a moment for content to render
+                time.sleep(1)
+
+                # Verify NO scaled iframe container exists
+                container = page.locator(".scaled-iframe-container")
+                assert not container.is_visible(), (
+                    "Scaled iframe container should NOT exist for URL slides "
+                    "without scale_factor"
+                )
+
+                # Verify the iframe exists directly in the slide (not wrapped)
+                iframe = page.locator(".slide.active iframe")
+                assert iframe.is_visible(), "Iframe should be visible"
+
+                # Verify no transform scale is applied
+                transform_style = iframe.evaluate(
+                    """(el) => window.getComputedStyle(el).transform"""
+                )
+                # "none" or "matrix(1, 0, 0, 1, 0, 0)" = no transform
+                has_no_transform = (
+                    transform_style == "none"
+                    or "matrix(1, 0, 0, 1, 0, 0)" in transform_style
+                )
+                assert has_no_transform, (
+                    f"Iframe should have no transform for URL slides without scale_factor. "
+                    f"Got: {transform_style}"
+                )
+
+            finally:
+                # Cleanup display (test_url_slide_without_scale_factor_has_no_transform)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_url_slide_without_scale_factor_has_no_transform)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )

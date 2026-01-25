@@ -552,6 +552,173 @@ class TestSlideshowItemAPI:
         data = response.get_json()
         assert data["success"] is True
 
+    def test_create_slideshow_item_with_scale_factor(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating a URL slideshow item with scale_factor."""
+        item_data = {
+            "title": "Scaled URL Slide",
+            "content_type": "url",
+            "content_url": "https://example.com/page",
+            "display_duration": 30,
+            "scale_factor": 50,
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["scale_factor"] == 50
+
+    def test_create_slideshow_item_scale_factor_null(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating a URL slideshow item with null scale_factor."""
+        item_data = {
+            "title": "URL Slide No Scale",
+            "content_type": "url",
+            "content_url": "https://example.com/page",
+            "scale_factor": None,
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["scale_factor"] is None
+
+    def test_create_slideshow_item_scale_factor_invalid_too_low(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating slideshow item with scale_factor below 10."""
+        item_data = {
+            "content_type": "url",
+            "content_url": "https://example.com/page",
+            "scale_factor": 5,
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "Scale factor" in data["errors"][0]
+
+    def test_create_slideshow_item_scale_factor_invalid_too_high(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating slideshow item with scale_factor above 100."""
+        item_data = {
+            "content_type": "url",
+            "content_url": "https://example.com/page",
+            "scale_factor": 150,
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "Scale factor" in data["errors"][0]
+
+    def test_update_slideshow_item_scale_factor(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test updating slideshow item scale_factor."""
+        slideshow, items = sample_slideshow_with_items
+        # Find a URL item or create one
+        url_item = next((i for i in items if i.content_type == "url"), None)
+        if not url_item:
+            # Create a URL item for testing
+            url_item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                content_type="url",
+                content_url="https://example.com/test",
+                order_index=100,
+            )
+            db.session.add(url_item)
+            db.session.commit()
+
+        update_data = {"scale_factor": 75}
+
+        response = client.put(
+            f"/api/v1/slideshow-items/{url_item.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["scale_factor"] == 75
+
+    def test_update_slideshow_item_scale_factor_to_null(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test updating slideshow item scale_factor to null (remove scaling)."""
+        slideshow, items = sample_slideshow_with_items
+        # Create a URL item with scale_factor
+        url_item = SlideshowItem(
+            slideshow_id=slideshow.id,
+            content_type="url",
+            content_url="https://example.com/test",
+            order_index=100,
+            scale_factor=50,
+        )
+        db.session.add(url_item)
+        db.session.commit()
+
+        update_data = {"scale_factor": None}
+
+        response = client.put(
+            f"/api/v1/slideshow-items/{url_item.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["scale_factor"] is None
+
+    def test_update_slideshow_item_scale_factor_invalid(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test updating slideshow item with invalid scale_factor."""
+        slideshow, items = sample_slideshow_with_items
+        item = items[0]
+
+        update_data = {"scale_factor": 5}  # Below minimum
+
+        response = client.put(
+            f"/api/v1/slideshow-items/{item.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "Scale factor" in data["errors"][0]
+
 
 class TestDisplayAPI:
     """Test display management API endpoints."""
