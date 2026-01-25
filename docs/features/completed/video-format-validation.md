@@ -122,13 +122,21 @@ The validation will happen at upload time using ffprobe to extract codec informa
 
 ## Progress Log
 
-### 2026-01-25 - Milestone 1 Complete
+### 2026-01-25 - Feature Complete
+**Milestone 3 Complete:**
+- VFV-M3.1: All nox sessions passing (466 unit tests, 109 integration tests, 21 E2E tests)
+- VFV-M3.2: Documentation updated (README.md, docs/usage.rst)
+- VFV-M3.3: Feature file moved to completed directory
+
+**Milestone 2 Complete:**
+- VFV-M2.1: Updated `test_add_video_item_via_file_upload` to use `test_video_5s.mp4` (H.264)
+- VFV-M2.2: Added `test_video_upload_unsupported_format_shows_error` test
+
+**Milestone 1 Complete:**
 - VFV-M1.1: Added `get_video_codec_info()` function to storage.py
 - VFV-M1.2: Added `validate_video_format()` function with supported codecs: h264, vp8, vp9, theora, av1
 - VFV-M1.3: Integrated validation into `save_file()` with WARNING-level logging for rejected uploads
 - VFV-M1.4: Added comprehensive unit tests (18 new tests) for codec extraction and validation
-- All 466 unit tests passing
 
-### [Date] - Planning Complete
+### 2026-01-25 - Planning Complete
 - Implementation plan created and committed
-- Awaiting human approval to proceed with Milestone 1
