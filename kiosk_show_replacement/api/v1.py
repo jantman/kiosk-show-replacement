@@ -1996,6 +1996,55 @@ def broadcast_test_event() -> Tuple[Response, int]:
         return api_error("Failed to broadcast test event", 500)
 
 
+@api_v1_bp.route("/events/disconnect", methods=["POST"])
+def disconnect_sse_connection() -> Tuple[Response, int]:
+    """Explicitly disconnect an SSE connection.
+
+    This endpoint allows clients to notify the server when they are disconnecting,
+    enabling immediate cleanup of the connection rather than waiting for the next
+    failed write attempt. This is called via navigator.sendBeacon() during page
+    unload to ensure reliable delivery.
+
+    The connection_id serves as an authentication token - only the client that
+    received this ID during connection establishment can disconnect it.
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return api_error("No data provided", 400)
+
+        connection_id = data.get("connection_id")
+        if not connection_id:
+            return api_error("connection_id is required", 400)
+
+        # Check if connection exists before removing
+        with sse_manager.connections_lock:
+            connection_exists = connection_id in sse_manager.connections
+
+        if connection_exists:
+            sse_manager.remove_connection(connection_id)
+            current_app.logger.info(
+                f"SSE connection {connection_id} explicitly disconnected by client"
+            )
+            return api_response(
+                {"connection_id": connection_id, "disconnected": True},
+                "Connection disconnected successfully",
+            )
+        else:
+            # Connection already removed or never existed - not an error
+            current_app.logger.debug(
+                f"SSE disconnect request for unknown connection {connection_id}"
+            )
+            return api_response(
+                {"connection_id": connection_id, "disconnected": False},
+                "Connection not found (may already be disconnected)",
+            )
+
+    except Exception as e:
+        current_app.logger.error(f"Error disconnecting SSE connection: {e}")
+        return api_error("Failed to disconnect SSE connection", 500)
+
+
 # =============================================================================
 # SSE Event Broadcasting Functions
 # =============================================================================
