@@ -399,12 +399,14 @@ class TestSlideItemCRUDBroadcastToDisplays:
                 # Create a new slide item via API
                 response = client.post(
                     f"/api/v1/slideshows/{slideshow_id}/items",
-                    data=json.dumps({
-                        "title": "New Test Slide",
-                        "content_type": "text",
-                        "content_text": "Test content",
-                        "display_duration": 10,
-                    }),
+                    data=json.dumps(
+                        {
+                            "title": "New Test Slide",
+                            "content_type": "text",
+                            "content_text": "Test content",
+                            "display_duration": 10,
+                        }
+                    ),
                     content_type="application/json",
                 )
 
@@ -475,10 +477,12 @@ class TestSlideItemCRUDBroadcastToDisplays:
                 # Update the slide item via API
                 response = client.put(
                     f"/api/v1/slideshow-items/{item_id}",
-                    data=json.dumps({
-                        "title": "Updated Slide Title",
-                        "content_text": "Updated content",
-                    }),
+                    data=json.dumps(
+                        {
+                            "title": "Updated Slide Title",
+                            "content_text": "Updated content",
+                        }
+                    ),
                     content_type="application/json",
                 )
 

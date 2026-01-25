@@ -122,18 +122,18 @@ Move this feature markdown file from `docs/features/` to `docs/features/complete
 
 ## Progress
 
-- [ ] Milestone 1: Regression Tests
-  - [ ] M1.1 - Test slide item create SSE broadcast to displays
-  - [ ] M1.2 - Test slide item update SSE broadcast to displays
-  - [ ] M1.3 - Test slide item delete SSE broadcast to displays
-  - [ ] M1.4 - Test slide item reorder SSE broadcast to displays
-- [ ] Milestone 2: Fix Slide Item SSE Broadcasts
-  - [ ] M2.1 - Add SSE broadcast to create_slideshow_item()
-  - [ ] M2.2 - Add SSE broadcast to update_slideshow_item()
-  - [ ] M2.3 - Add SSE broadcast to delete_slideshow_item()
-  - [ ] M2.4 - Add SSE broadcast to reorder_slideshow_item()
-- [ ] Milestone 3: Acceptance Criteria
-  - [ ] M3.1 - Verify all regression tests pass
-  - [ ] M3.2 - Run all nox tests
-  - [ ] M3.3 - Documentation review
-  - [ ] M3.4 - Move feature file to completed
+- [x] Milestone 1: Regression Tests
+  - [x] M1.1 - Test slide item create SSE broadcast to displays
+  - [x] M1.2 - Test slide item update SSE broadcast to displays
+  - [x] M1.3 - Test slide item delete SSE broadcast to displays
+  - [x] M1.4 - Test slide item reorder SSE broadcast to displays
+- [x] Milestone 2: Fix Slide Item SSE Broadcasts
+  - [x] M2.1 - Add SSE broadcast to create_slideshow_item()
+  - [x] M2.2 - Add SSE broadcast to update_slideshow_item()
+  - [x] M2.3 - Add SSE broadcast to delete_slideshow_item()
+  - [x] M2.4 - Add SSE broadcast to reorder_slideshow_item()
+- [x] Milestone 3: Acceptance Criteria
+  - [x] M3.1 - Verify all regression tests pass
+  - [x] M3.2 - Run all nox tests
+  - [x] M3.3 - Documentation review
+  - [x] M3.4 - Move feature file to completed
