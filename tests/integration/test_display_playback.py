@@ -953,3 +953,211 @@ class TestDisplayPlayback:
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
             )
+
+    def test_uploaded_video_displays_on_display_view(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that uploaded videos display and play correctly on the display view.
+
+        This test:
+        1. Creates a slideshow
+        2. Uploads a video file via the API
+        3. Creates a slideshow item with the uploaded video
+        4. Assigns the slideshow to a display
+        5. Navigates to the display view
+        6. Verifies the video element becomes visible (loaded class applied)
+        7. Verifies no error message is shown
+
+        This tests the bug where video slides showed a black screen instead of
+        playing the video, due to incorrect <source> element configuration.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Verify test asset exists
+        video_path = ASSETS_DIR / "test_video_5s.mp4"
+        assert video_path.exists(), f"Test asset not found: {video_path}"
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Video Display Test Slideshow",
+                "description": "Test slideshow for video display",
+                "default_item_duration": 10,
+                "transition_type": "fade",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Upload a video
+            with open(video_path, "rb") as f:
+                files = {"file": ("test_video_5s.mp4", f, "video/mp4")}
+                data = {"slideshow_id": str(slideshow_id)}
+                # Need to remove Content-Type from headers for multipart
+                upload_headers = {
+                    k: v for k, v in auth_headers.items() if k != "Content-Type"
+                }
+                upload_response = http_client.post(
+                    "/api/v1/uploads/video",
+                    files=files,
+                    data=data,
+                    headers=upload_headers,
+                )
+
+            assert upload_response.status_code in [
+                200,
+                201,
+            ], f"Failed to upload video: {upload_response.text}"
+            upload_data = upload_response.json().get("data", upload_response.json())
+            file_path = upload_data.get("file_path")
+            assert file_path, f"No file_path in upload response: {upload_data}"
+
+            # Create a slideshow item with the uploaded video
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Test Uploaded Video",
+                    "content_type": "video",
+                    "content_file_path": file_path,
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Verify the item was created with the file path
+            item_data = item_response.json().get("data", item_response.json())
+            assert item_data.get("content_file_path") == file_path
+            assert item_data.get(
+                "display_url"
+            ), f"display_url should be set for uploaded video: {item_data}"
+
+            # Create a display
+            display_name = f"test-video-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for video display testing",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Track network requests to detect video loading
+                video_requests = []
+                failed_requests = []
+
+                def track_request(request):
+                    if "/uploads/" in request.url:
+                        video_requests.append(request.url)
+
+                def track_failed(request):
+                    if "/uploads/" in request.url:
+                        failed_requests.append(
+                            {"url": request.url, "failure": request.failure}
+                        )
+
+                def track_response(response):
+                    if "/uploads/" in response.url and response.status >= 400:
+                        failed_requests.append(
+                            {"url": response.url, "status": response.status}
+                        )
+
+                page.on("request", track_request)
+                page.on("requestfailed", track_failed)
+                page.on("response", track_response)
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait for video to load - give it up to 5 seconds
+                video_element = page.locator("video").first
+                video_element.wait_for(state="attached", timeout=5000)
+
+                # Wait for the video to become visible (loaded class applied)
+                # The video should have opacity: 1 and the loaded class after loading
+                max_wait = 5  # seconds
+                start_time = time.time()
+                video_visible = False
+
+                while time.time() - start_time < max_wait:
+                    # Check if video has loaded class (opacity: 1)
+                    has_loaded_class = page.evaluate(
+                        """() => {
+                            const video = document.querySelector('video');
+                            return video && video.classList.contains('loaded');
+                        }"""
+                    )
+                    if has_loaded_class:
+                        video_visible = True
+                        break
+                    time.sleep(0.2)
+
+                # Check that we don't see the error message
+                error_visible = page.locator("text=Failed to load video").is_visible()
+                assert not error_visible, (
+                    f"Video failed to load. "
+                    f"Video requests: {video_requests}, "
+                    f"Failed requests: {failed_requests}"
+                )
+
+                # Verify video element has loaded class (is visible)
+                assert video_visible, (
+                    f"Video element should have 'loaded' class (be visible). "
+                    f"Video requests: {video_requests}, "
+                    f"Failed requests: {failed_requests}. "
+                    f"This indicates the video didn't load properly."
+                )
+
+                # Verify a video request was made to /uploads/
+                assert (
+                    len(video_requests) > 0
+                ), "No video requests were made to /uploads/ endpoint"
+
+                # Verify no requests failed
+                assert (
+                    len(failed_requests) == 0
+                ), f"Video request(s) failed: {failed_requests}"
+
+            finally:
+                # Cleanup display (test_uploaded_video_displays_on_display_view)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_uploaded_video_displays_on_display_view)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
