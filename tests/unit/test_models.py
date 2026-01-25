@@ -736,6 +736,106 @@ class TestSlideshowItemModel:
             item = slideshow.items[0]
             assert item.slideshow.id == slideshow.id
 
+    def test_slideshow_item_scale_factor_valid(self, app, sample_slideshow):
+        """Test valid scale factor values for URL slides."""
+        with app.app_context():
+            slideshow = sample_slideshow()  # Get fresh slideshow instance
+
+            # Test valid scale factors
+            valid_scale_factors = [10, 25, 50, 75, 100]
+            for scale in valid_scale_factors:
+                item = SlideshowItem(
+                    slideshow_id=slideshow.id,
+                    content_type="url",
+                    content_url=f"https://example.com/page{scale}",
+                    scale_factor=scale,
+                )
+                db.session.add(item)
+                db.session.commit()
+                assert item.scale_factor == scale
+
+    def test_slideshow_item_scale_factor_null(self, app, sample_slideshow):
+        """Test that scale_factor can be null (no scaling)."""
+        with app.app_context():
+            slideshow = sample_slideshow()  # Get fresh slideshow instance
+            item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                content_type="url",
+                content_url="https://example.com/page",
+                scale_factor=None,
+            )
+            db.session.add(item)
+            db.session.commit()
+            assert item.scale_factor is None
+
+    def test_slideshow_item_scale_factor_validation_too_low(self, app, sample_slideshow):
+        """Test scale factor validation rejects values below 10."""
+        with app.app_context():
+            slideshow = sample_slideshow()  # Get fresh slideshow instance
+            with pytest.raises(
+                ValueError, match="Scale factor must be between 10 and 100"
+            ):
+                item = SlideshowItem(
+                    slideshow_id=slideshow.id,
+                    content_type="url",
+                    content_url="https://example.com/page",
+                    scale_factor=9,
+                )
+                db.session.add(item)
+                db.session.commit()
+
+    def test_slideshow_item_scale_factor_validation_too_high(
+        self, app, sample_slideshow
+    ):
+        """Test scale factor validation rejects values above 100."""
+        with app.app_context():
+            slideshow = sample_slideshow()  # Get fresh slideshow instance
+            with pytest.raises(
+                ValueError, match="Scale factor must be between 10 and 100"
+            ):
+                item = SlideshowItem(
+                    slideshow_id=slideshow.id,
+                    content_type="url",
+                    content_url="https://example.com/page",
+                    scale_factor=101,
+                )
+                db.session.add(item)
+                db.session.commit()
+
+    def test_slideshow_item_to_dict_includes_scale_factor(self, app, sample_slideshow):
+        """Test that to_dict includes scale_factor."""
+        with app.app_context():
+            slideshow = sample_slideshow()  # Get fresh slideshow instance
+            item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                content_type="url",
+                content_url="https://example.com/page",
+                scale_factor=50,
+            )
+            db.session.add(item)
+            db.session.commit()
+
+            item_dict = item.to_dict()
+            assert "scale_factor" in item_dict
+            assert item_dict["scale_factor"] == 50
+
+    def test_slideshow_item_to_dict_scale_factor_null(self, app, sample_slideshow):
+        """Test that to_dict includes scale_factor when null."""
+        with app.app_context():
+            slideshow = sample_slideshow()  # Get fresh slideshow instance
+            item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                content_type="url",
+                content_url="https://example.com/page",
+                scale_factor=None,
+            )
+            db.session.add(item)
+            db.session.commit()
+
+            item_dict = item.to_dict()
+            assert "scale_factor" in item_dict
+            assert item_dict["scale_factor"] is None
+
 
 class TestModelRelationships:
     """Test model relationships and constraints."""

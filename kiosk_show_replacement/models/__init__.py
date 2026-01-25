@@ -646,6 +646,11 @@ class SlideshowItem(db.Model):
     order_index: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    # URL slide scaling (zoom out to show more content)
+    # Only applies to content_type='url'. Value is percentage (10-100).
+    # NULL or 100 = no scaling (normal). Lower values zoom out to show more.
+    scale_factor: Mapped[Optional[int]] = mapped_column(Integer)
+
     # Audit fields
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
@@ -727,6 +732,7 @@ class SlideshowItem(db.Model):
             "effective_duration": self.effective_duration,
             "order_index": self.order_index,
             "is_active": self.is_active,
+            "scale_factor": self.scale_factor,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -767,6 +773,20 @@ class SlideshowItem(db.Model):
         if order_index < 0:
             raise ValueError("Order index must be non-negative")
         return order_index
+
+    @validates("scale_factor")
+    def validate_scale_factor(
+        self, key: str, scale_factor: Optional[int]
+    ) -> Optional[int]:
+        """Validate scale factor for URL slides.
+
+        Scale factor represents zoom percentage (10-100).
+        NULL or 100 means no scaling (normal view).
+        Lower values zoom out to show more content.
+        """
+        if scale_factor is not None and (scale_factor < 10 or scale_factor > 100):
+            raise ValueError("Scale factor must be between 10 and 100")
+        return scale_factor
 
 
 class AssignmentHistory(db.Model):
