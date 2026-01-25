@@ -4,7 +4,9 @@ Unit tests for SSE broadcast functionality.
 These tests verify that SSE events are properly broadcast to displays
 when display settings or slideshows are modified via the API.
 
-Regression tests for: bug-display-settings-not-realtime
+Regression tests for:
+- bug-display-settings-not-realtime
+- bug-sse-slideshow-edit (slide item CRUD operations)
 
 Run with: poetry run -- nox -s test-3.14 -- tests/unit/test_sse_broadcast.py
 """
@@ -346,6 +348,301 @@ class TestSlideshowUpdateBroadcastToDisplays:
                 assert (
                     "id" in data or "slideshow_id" in data
                 ), f"Event data should include slideshow id for matching, got: {data}"
+
+            finally:
+                sse_manager.remove_connection(connection.connection_id)
+
+
+class TestSlideItemCRUDBroadcastToDisplays:
+    """Test SSE broadcast to displays when slide items are created, updated, deleted, or reordered.
+
+    Regression tests for: bug-sse-slideshow-edit
+
+    When slide items are modified (create, update, delete, reorder), a 'slideshow.updated'
+    event should be broadcast to all displays that are currently showing the affected slideshow.
+    """
+
+    def test_create_slide_item_broadcasts_slideshow_updated_to_display(
+        self, app, client, authenticated_user
+    ):
+        """Test that creating a slide item broadcasts slideshow.updated event to displays."""
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a slideshow
+            slideshow = Slideshow(
+                name="Test Slideshow for Create",
+                owner_id=authenticated_user.id,
+                is_active=True,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+            slideshow_id = slideshow.id
+
+            # Create a display assigned to this slideshow
+            display = Display(
+                name="test-display-create-item",
+                owner_id=authenticated_user.id,
+                current_slideshow_id=slideshow_id,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            # Create a display SSE connection
+            connection = sse_manager.create_connection(
+                user_id=None, connection_type="display"
+            )
+            connection.display_name = display.name
+            connection.display_id = display.id
+
+            try:
+                # Create a new slide item via API
+                response = client.post(
+                    f"/api/v1/slideshows/{slideshow_id}/items",
+                    data=json.dumps({
+                        "title": "New Test Slide",
+                        "content_type": "text",
+                        "content_text": "Test content",
+                        "display_duration": 10,
+                    }),
+                    content_type="application/json",
+                )
+
+                assert response.status_code == 201
+
+                # Check what events the display received
+                events_in_queue = []
+                while not connection.event_queue.empty():
+                    events_in_queue.append(connection.event_queue.get_nowait())
+
+                # Display should receive slideshow.updated event
+                event_types = [e.event_type for e in events_in_queue]
+                assert any("slideshow.updated" in et for et in event_types), (
+                    f"Display should receive 'slideshow.updated' event when slide item "
+                    f"is created, got: {event_types}"
+                )
+
+            finally:
+                sse_manager.remove_connection(connection.connection_id)
+
+    def test_update_slide_item_broadcasts_slideshow_updated_to_display(
+        self, app, client, authenticated_user
+    ):
+        """Test that updating a slide item broadcasts slideshow.updated event to displays."""
+        from kiosk_show_replacement.models import SlideshowItem
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a slideshow with an existing slide
+            slideshow = Slideshow(
+                name="Test Slideshow for Update",
+                owner_id=authenticated_user.id,
+                is_active=True,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+
+            slide_item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                title="Existing Slide",
+                content_type="text",
+                content_text="Original content",
+                display_duration=10,
+                order_index=1,
+                is_active=True,
+            )
+            db.session.add(slide_item)
+            db.session.commit()
+            item_id = slide_item.id
+
+            # Create a display assigned to this slideshow
+            display = Display(
+                name="test-display-update-item",
+                owner_id=authenticated_user.id,
+                current_slideshow_id=slideshow.id,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            # Create a display SSE connection
+            connection = sse_manager.create_connection(
+                user_id=None, connection_type="display"
+            )
+            connection.display_name = display.name
+            connection.display_id = display.id
+
+            try:
+                # Update the slide item via API
+                response = client.put(
+                    f"/api/v1/slideshow-items/{item_id}",
+                    data=json.dumps({
+                        "title": "Updated Slide Title",
+                        "content_text": "Updated content",
+                    }),
+                    content_type="application/json",
+                )
+
+                assert response.status_code == 200
+
+                # Check what events the display received
+                events_in_queue = []
+                while not connection.event_queue.empty():
+                    events_in_queue.append(connection.event_queue.get_nowait())
+
+                # Display should receive slideshow.updated event
+                event_types = [e.event_type for e in events_in_queue]
+                assert any("slideshow.updated" in et for et in event_types), (
+                    f"Display should receive 'slideshow.updated' event when slide item "
+                    f"is updated, got: {event_types}"
+                )
+
+            finally:
+                sse_manager.remove_connection(connection.connection_id)
+
+    def test_delete_slide_item_broadcasts_slideshow_updated_to_display(
+        self, app, client, authenticated_user
+    ):
+        """Test that deleting a slide item broadcasts slideshow.updated event to displays."""
+        from kiosk_show_replacement.models import SlideshowItem
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a slideshow with an existing slide
+            slideshow = Slideshow(
+                name="Test Slideshow for Delete",
+                owner_id=authenticated_user.id,
+                is_active=True,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+
+            slide_item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                title="Slide to Delete",
+                content_type="text",
+                content_text="Content to delete",
+                display_duration=10,
+                order_index=1,
+                is_active=True,
+            )
+            db.session.add(slide_item)
+            db.session.commit()
+            item_id = slide_item.id
+
+            # Create a display assigned to this slideshow
+            display = Display(
+                name="test-display-delete-item",
+                owner_id=authenticated_user.id,
+                current_slideshow_id=slideshow.id,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            # Create a display SSE connection
+            connection = sse_manager.create_connection(
+                user_id=None, connection_type="display"
+            )
+            connection.display_name = display.name
+            connection.display_id = display.id
+
+            try:
+                # Delete the slide item via API
+                response = client.delete(f"/api/v1/slideshow-items/{item_id}")
+
+                assert response.status_code == 200
+
+                # Check what events the display received
+                events_in_queue = []
+                while not connection.event_queue.empty():
+                    events_in_queue.append(connection.event_queue.get_nowait())
+
+                # Display should receive slideshow.updated event
+                event_types = [e.event_type for e in events_in_queue]
+                assert any("slideshow.updated" in et for et in event_types), (
+                    f"Display should receive 'slideshow.updated' event when slide item "
+                    f"is deleted, got: {event_types}"
+                )
+
+            finally:
+                sse_manager.remove_connection(connection.connection_id)
+
+    def test_reorder_slide_item_broadcasts_slideshow_updated_to_display(
+        self, app, client, authenticated_user
+    ):
+        """Test that reordering a slide item broadcasts slideshow.updated event to displays."""
+        from kiosk_show_replacement.models import SlideshowItem
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a slideshow with multiple slides
+            slideshow = Slideshow(
+                name="Test Slideshow for Reorder",
+                owner_id=authenticated_user.id,
+                is_active=True,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+
+            slide_item1 = SlideshowItem(
+                slideshow_id=slideshow.id,
+                title="Slide 1",
+                content_type="text",
+                content_text="Content 1",
+                display_duration=10,
+                order_index=1,
+                is_active=True,
+            )
+            slide_item2 = SlideshowItem(
+                slideshow_id=slideshow.id,
+                title="Slide 2",
+                content_type="text",
+                content_text="Content 2",
+                display_duration=10,
+                order_index=2,
+                is_active=True,
+            )
+            db.session.add(slide_item1)
+            db.session.add(slide_item2)
+            db.session.commit()
+            item1_id = slide_item1.id
+
+            # Create a display assigned to this slideshow
+            display = Display(
+                name="test-display-reorder-item",
+                owner_id=authenticated_user.id,
+                current_slideshow_id=slideshow.id,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            # Create a display SSE connection
+            connection = sse_manager.create_connection(
+                user_id=None, connection_type="display"
+            )
+            connection.display_name = display.name
+            connection.display_id = display.id
+
+            try:
+                # Reorder the slide item via API
+                response = client.post(
+                    f"/api/v1/slideshow-items/{item1_id}/reorder",
+                    data=json.dumps({"new_order": 2}),
+                    content_type="application/json",
+                )
+
+                assert response.status_code == 200
+
+                # Check what events the display received
+                events_in_queue = []
+                while not connection.event_queue.empty():
+                    events_in_queue.append(connection.event_queue.get_nowait())
+
+                # Display should receive slideshow.updated event
+                event_types = [e.event_type for e in events_in_queue]
+                assert any("slideshow.updated" in et for et in event_types), (
+                    f"Display should receive 'slideshow.updated' event when slide item "
+                    f"is reordered, got: {event_types}"
+                )
 
             finally:
                 sse_manager.remove_connection(connection.connection_id)
