@@ -59,6 +59,45 @@ function calculateBackoff(
   return Math.min(jitter, maxDelay);
 }
 
+/**
+ * Send disconnect notification to the server.
+ * Uses navigator.sendBeacon for reliable delivery during page unload.
+ * Falls back to fetch for regular disconnections.
+ */
+function sendDisconnectNotification(connectionId: string, useBeacon: boolean = false): void {
+  const payload = JSON.stringify({ connection_id: connectionId });
+  const url = '/api/v1/events/disconnect';
+
+  if (useBeacon && navigator.sendBeacon) {
+    // Use sendBeacon for page unload - more reliable during navigation
+    const blob = new Blob([payload], { type: 'application/json' });
+    const sent = navigator.sendBeacon(url, blob);
+    if (sent) {
+      console.log('SSE disconnect beacon sent for connection:', connectionId);
+    } else {
+      console.warn('SSE disconnect beacon failed, falling back to fetch');
+      // Fallback to fetch if beacon fails
+      sendDisconnectNotification(connectionId, false);
+    }
+  } else {
+    // Use fetch for regular disconnections (not during page unload)
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      credentials: 'include',
+      // keepalive allows the request to outlive the page
+      keepalive: true,
+    }).catch((error) => {
+      // Don't log errors during page unload as they're expected
+      if (document.visibilityState !== 'hidden') {
+        console.error('SSE disconnect request failed:', error);
+      }
+    });
+    console.log('SSE disconnect request sent for connection:', connectionId);
+  }
+}
+
 // SSE Hook for managing connections
 // eslint-disable-next-line react-refresh/only-export-components
 export function useSSE(endpoint: string, options?: {
@@ -84,6 +123,7 @@ export function useSSE(endpoint: string, options?: {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventHandlersRef = useRef<Map<string, ((event: SSEEvent) => void)[]>>(new Map());
   const connectRef = useRef<(() => void) | undefined>(undefined);
+  const connectionIdRef = useRef<string | null>(null);
 
   // Add event listener
   const addEventListener = useCallback((eventType: string, handler: (event: SSEEvent) => void) => {
@@ -113,6 +153,15 @@ export function useSSE(endpoint: string, options?: {
       data: eventData,
       timestamp: new Date().toISOString()
     };
+
+    // Capture connection ID from the "connected" event for cleanup
+    if (eventType === 'connected' && eventData && typeof eventData === 'object') {
+      const data = eventData as { connection_id?: string };
+      if (data.connection_id) {
+        connectionIdRef.current = data.connection_id;
+        console.log('SSE connection ID:', data.connection_id);
+      }
+    }
 
     setLastEvent(event);
     setEventHistory(prev => [...prev.slice(-99), event]); // Keep last 100 events
@@ -233,10 +282,16 @@ export function useSSE(endpoint: string, options?: {
   }, [connect]);
 
   // Disconnect from SSE
-  const disconnect = useCallback(() => {
+  const disconnect = useCallback((useBeacon: boolean = false) => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+
+    // Send disconnect notification to server before closing
+    if (connectionIdRef.current) {
+      sendDisconnectNotification(connectionIdRef.current, useBeacon);
+      connectionIdRef.current = null;
     }
 
     if (eventSourceRef.current) {
@@ -259,14 +314,30 @@ export function useSSE(endpoint: string, options?: {
       }, 0);
     }
 
-    // Cleanup on unmount
+    // Cleanup on unmount - use beacon for reliable delivery during navigation
     return () => {
       if (connectTimer) {
         clearTimeout(connectTimer);
       }
-      disconnect();
+      disconnect(true); // Use beacon for unmount cleanup
     };
   }, [autoConnect, connect, disconnect]);
+
+  // Handle page unload (tab close, browser close) with beacon
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Send disconnect notification via beacon for reliable delivery during unload
+      if (connectionIdRef.current) {
+        sendDisconnectNotification(connectionIdRef.current, true);
+        // Don't clear the ref here - the component may not actually unmount
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
 
   // Handle page visibility changes (reconnect when page becomes visible)
   useEffect(() => {
