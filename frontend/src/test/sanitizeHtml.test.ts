@@ -62,11 +62,12 @@ describe('sanitizeHtml', () => {
 
   describe('with plain text', () => {
     it('escapes HTML entities', () => {
-      const text = '<script>alert("XSS")</script>';
-      const result = sanitizeHtml(text);
-      // When there are no HTML tags (detected by regex), text is escaped
-      // But this text DOES contain HTML tags, so it gets sanitized instead
-      // Let's test actual plain text
+      // This test verifies that text containing HTML-like patterns gets sanitized
+      // The input contains script tags which get stripped by sanitization
+      const html = '<script>alert("XSS")</script>';
+      const result = sanitizeHtml(html);
+      expect(result).not.toContain('<script>');
+      expect(result).not.toContain('alert');
     });
 
     it('converts newlines to br tags for plain text', () => {
@@ -79,11 +80,13 @@ describe('sanitizeHtml', () => {
     });
 
     it('escapes special characters in plain text', () => {
+      // Text with angle brackets that look like tags gets processed
+      // The sanitizer handles this by stripping invalid tags
       const text = 'Some text with <angle brackets> & ampersand';
-      // This contains < and >, but they're not valid HTML tags
-      // The regex checks for valid tag pattern: /<[^>]+>/
-      // So "<angle brackets>" matches and gets sanitized as HTML
-      // Let's test with truly plain text
+      const result = sanitizeHtml(text);
+      // The content should still contain the readable text
+      expect(result).toContain('Some text with');
+      expect(result).toContain('ampersand');
     });
 
     it('handles text without any special characters', () => {
