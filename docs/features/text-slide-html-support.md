@@ -113,11 +113,11 @@ DOMPurify is a battle-tested, lightweight (~10KB minified) library specifically 
 
 ## Progress
 
-- [ ] M1: Display View HTML Support
-  - [ ] M1.1: Create failing regression tests
-  - [ ] M1.2: Add DOMPurify to display template
-  - [ ] M1.3: Replace escapeHtml with sanitizeHtml
-  - [ ] M1.4: Handle line breaks
+- [x] M1: Display View HTML Support ✅ COMPLETE
+  - [x] M1.1: Create failing regression tests
+  - [x] M1.2: Add DOMPurify to display template (local file, not CDN)
+  - [x] M1.3: Replace escapeHtml with sanitizeHtml
+  - [x] M1.4: Handle line breaks (auto-convert \n to <br> for plain text)
 - [ ] M2: Admin Preview Support
   - [ ] M2.1: Add tests for admin preview
   - [ ] M2.2: Add DOMPurify to React frontend
