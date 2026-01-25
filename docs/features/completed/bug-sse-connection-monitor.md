@@ -125,15 +125,31 @@ Move this file to `docs/features/completed/`.
 
 ## Progress Tracking
 
-- [ ] **Milestone 1: Regression Tests**
-  - [ ] Task 1.1: Fix SSE stats integration test to verify actual values
-  - [ ] Task 1.2: Add test for connections table visibility
-- [ ] **Milestone 2: Investigate and Fix**
-  - [ ] Task 2.1: Live debugging with Chrome DevTools
-  - [ ] Task 2.2: Fix identified issues
-- [ ] **Milestone 3: Acceptance Criteria**
-  - [ ] Task 3.1: Unit tests pass
-  - [ ] Task 3.2: Integration tests pass
-  - [ ] Task 3.3: All nox sessions pass
-  - [ ] Task 3.4: Documentation updated
-  - [ ] Task 3.5: Feature file moved to completed
+- [x] **Milestone 1: Regression Tests** - Complete
+  - [x] Task 1.1: Fix SSE stats integration test to verify actual values
+  - [x] Task 1.2: Add test for connections table visibility
+- [x] **Milestone 2: Investigate and Fix** - Complete
+  - [x] Task 2.1: Live debugging with Chrome DevTools - Found root cause
+  - [x] Task 2.2: Fix identified issues - Fixed `setStats(data)` to `setStats(data.data)`
+- [x] **Milestone 3: Acceptance Criteria** - Complete
+  - [x] Task 3.1: Unit tests pass (418 passed)
+  - [x] Task 3.2: Integration tests pass (93 passed, 2 xpassed)
+  - [x] Task 3.3: All nox sessions pass (format, lint, type_check, test-3.14, test-integration)
+  - [x] Task 3.4: Documentation updated
+  - [x] Task 3.5: Feature file moved to completed
+
+## Root Cause (Final)
+
+The bug was in `frontend/src/components/SSEDebugger.tsx` line 44:
+
+```tsx
+const data = await response.json();
+setStats(data);  // BUG: data is { success: true, data: {...} }
+```
+
+The API returns a wrapper object `{ success: true, data: {...}, message: "..." }` but the
+component was setting `stats` to the entire response instead of extracting `data.data`.
+This caused `stats.total_connections` etc. to be undefined since the actual stats were
+nested one level deeper.
+
+**Fix:** Changed to `setStats(data.data)` to properly extract the stats object.
