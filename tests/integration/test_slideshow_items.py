@@ -1380,3 +1380,200 @@ class TestSlideshowItems:
             f"Safe <b> tag should be preserved in preview. "
             f"Got innerHTML: {inner_html}"
         )
+
+    def test_url_item_zoom_slider_visible(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that zoom slider is visible for URL content type.
+
+        The zoom slider (scale_factor) should only appear when content_type
+        is 'url' (Web Page). It should not appear for other content types.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select image type - zoom slider should NOT be visible
+        page.locator("#content_type").select_option("image")
+        zoom_slider = page.locator("#scale_factor")
+        expect(zoom_slider).not_to_be_visible()
+
+        # Select url type - zoom slider SHOULD be visible
+        page.locator("#content_type").select_option("url")
+        expect(zoom_slider).to_be_visible(timeout=2000)
+
+        # Verify label shows "Normal (100%)" by default
+        zoom_label = page.locator("label[for='scale_factor']")
+        expect(zoom_label).to_contain_text("Normal (100%)")
+
+        # Select text type - zoom slider should NOT be visible
+        page.locator("#content_type").select_option("text")
+        expect(zoom_slider).not_to_be_visible()
+
+    def test_add_url_item_with_zoom_scale(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test adding a URL item with zoom (scale_factor) set.
+
+        Verifies via API that scale_factor is persisted correctly.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+        test_url = "https://example.com/tall-page"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Fill in the form for URL type
+        page.locator("#title").fill("Zoomed Web Page")
+        page.locator("#content_type").select_option("url")
+        page.locator("#url").fill(test_url)
+
+        # Set zoom to 50% using the slider
+        zoom_slider = page.locator("#scale_factor")
+        expect(zoom_slider).to_be_visible()
+
+        # Set slider value to 50 using JavaScript
+        page.evaluate("""() => {
+            const slider = document.querySelector('#scale_factor');
+            slider.value = '50';
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
+        }""")
+
+        # Verify label updated
+        zoom_label = page.locator("label[for='scale_factor']")
+        expect(zoom_label).to_contain_text("Zoomed out (50%)")
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for modal to close
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # Verify item appears in the table
+        expect(page.locator("text=Zoomed Web Page")).to_be_visible(timeout=5000)
+
+        # CRITICAL: Verify via API that scale_factor was persisted
+        item = get_item_by_title(
+            http_client, auth_headers, slideshow_id, "Zoomed Web Page"
+        )
+        assert item is not None, "Item not found via API after creation"
+        assert item.get("scale_factor") == 50, (
+            f"scale_factor not persisted correctly: expected 50, "
+            f"got {item.get('scale_factor')}"
+        )
+        assert item.get("content_url") == test_url
+
+    def test_edit_url_item_zoom_scale(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test editing an existing URL item's zoom scale.
+
+        Creates a URL item via API, then edits the scale_factor via UI.
+        Verifies via API that the update was persisted.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Create a URL item via API first (no scale_factor)
+        response = http_client.post(
+            f"/api/v1/slideshows/{slideshow_id}/items",
+            json={
+                "title": "Edit Zoom Test",
+                "content_type": "url",
+                "content_url": "https://example.com/edit-test",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code in [200, 201]
+        item_data = response.json().get("data", response.json())
+        item_id = item_data["id"]
+        assert item_data.get("scale_factor") is None  # Initially no scale
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Find the row with our test item and click edit
+        row = page.locator("tr").filter(
+            has=page.locator("div.fw-bold", has_text="Edit Zoom Test")
+        )
+        expect(row).to_be_visible(timeout=5000)
+
+        # Click the edit button
+        edit_button = row.locator("button[title='Edit item']")
+        edit_button.click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Verify zoom slider is visible and at 100%
+        zoom_slider = page.locator("#scale_factor")
+        expect(zoom_slider).to_be_visible()
+
+        # Set zoom to 25% using JavaScript
+        page.evaluate("""() => {
+            const slider = document.querySelector('#scale_factor');
+            slider.value = '25';
+            slider.dispatchEvent(new Event('change', { bubbles: true }));
+        }""")
+
+        # Submit the form
+        page.locator("button[type='submit']").click()
+
+        # Wait for modal to close
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # CRITICAL: Verify via API that scale_factor was updated
+        updated_item = get_item_by_title(
+            http_client, auth_headers, slideshow_id, "Edit Zoom Test"
+        )
+        assert updated_item is not None
+        assert updated_item.get("scale_factor") == 25, (
+            f"scale_factor not updated correctly: expected 25, "
+            f"got {updated_item.get('scale_factor')}"
+        )

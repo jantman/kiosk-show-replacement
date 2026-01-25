@@ -85,6 +85,9 @@ export interface SlideshowItem {
   effective_duration?: number;
   order_index: number;
   is_active: boolean;
+  // URL slide scaling: zoom percentage (10-100). NULL or 100 = no scaling.
+  // Lower values zoom out to show more content.
+  scale_factor?: number | null;
   created_at: string;
   updated_at: string;
 }

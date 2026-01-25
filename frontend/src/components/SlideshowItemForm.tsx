@@ -19,6 +19,8 @@ interface SlideshowItemFormState {
   content_file_path: string;
   display_duration: number | null;
   is_active: boolean;
+  // URL slide scaling: zoom percentage (10-100). null = no scaling (100%)
+  scale_factor: number | null;
 }
 
 /**
@@ -78,6 +80,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     content_file_path: '',
     display_duration: null,
     is_active: true,
+    scale_factor: null,
   });
 
   const [loading, setLoading] = useState(false);
@@ -97,6 +100,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         content_file_path: item.content_file_path || '',
         display_duration: item.display_duration ?? null,
         is_active: item.is_active,
+        scale_factor: item.scale_factor ?? null,
       });
     }
   }, [item]);
@@ -172,6 +176,8 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         content_file_path: formData.content_file_path || null,
         display_duration: formData.display_duration,
         is_active: formData.is_active,
+        // Only include scale_factor for URL content type
+        scale_factor: formData.content_type === 'url' ? formData.scale_factor : null,
       };
 
       let response;
@@ -292,24 +298,55 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     switch (formData.content_type) {
       case 'url':
         return (
-          <Form.Group className="mb-3">
-            <Form.Label htmlFor="url">URL *</Form.Label>
-            <Form.Control
-              id="url"
-              type="url"
-              value={formData.content_url}
-              onChange={(e) => handleInputChange('content_url', e.target.value)}
-              onBlur={(e) => handleUrlBlur(e.target.value)}
-              isInvalid={!!validationErrors.content_url}
-              placeholder="https://example.com"
-            />
-            <Form.Control.Feedback type="invalid">
-              {validationErrors.content_url}
-            </Form.Control.Feedback>
-            <Form.Text className="text-muted">
-              Enter the URL of the webpage to display
-            </Form.Text>
-          </Form.Group>
+          <>
+            <Form.Group className="mb-3">
+              <Form.Label htmlFor="url">URL *</Form.Label>
+              <Form.Control
+                id="url"
+                type="url"
+                value={formData.content_url}
+                onChange={(e) => handleInputChange('content_url', e.target.value)}
+                onBlur={(e) => handleUrlBlur(e.target.value)}
+                isInvalid={!!validationErrors.content_url}
+                placeholder="https://example.com"
+              />
+              <Form.Control.Feedback type="invalid">
+                {validationErrors.content_url}
+              </Form.Control.Feedback>
+              <Form.Text className="text-muted">
+                Enter the URL of the webpage to display
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label htmlFor="scale_factor">
+                Zoom: {formData.scale_factor === null || formData.scale_factor === 100
+                  ? 'Normal (100%)'
+                  : `Zoomed out (${formData.scale_factor}%)`}
+              </Form.Label>
+              <Form.Range
+                id="scale_factor"
+                min={10}
+                max={100}
+                step={5}
+                value={formData.scale_factor ?? 100}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value);
+                  // Treat 100 as null (no scaling)
+                  handleInputChange('scale_factor', value === 100 ? null : value);
+                }}
+              />
+              <div className="d-flex justify-content-between text-muted small">
+                <span>Zoomed out (10%)</span>
+                <span>Normal (100%)</span>
+              </div>
+              <Form.Text className="text-muted">
+                {formData.scale_factor !== null && formData.scale_factor < 100
+                  ? `The webpage will be scaled to ${formData.scale_factor}% to show more content. Use this if the page is too tall to fit on the display.`
+                  : 'Slide the zoom to the left to show more of the webpage content. Use this when the page is cut off.'}
+              </Form.Text>
+            </Form.Group>
+          </>
         );
 
       case 'text':
@@ -440,6 +477,8 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                 handleInputChange('content_url', '');
                 handleInputChange('content_text', '');
                 handleInputChange('content_file_path', '');
+                // Reset scale_factor when changing away from URL type
+                handleInputChange('scale_factor', null);
                 // Reset video duration detection flag (but keep user-entered duration)
                 setVideoDurationDetected(false);
               }}
