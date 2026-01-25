@@ -198,13 +198,15 @@ class TestSlideshowItems:
 
         Tests the video file upload flow through the admin interface.
         Verifies via API that content_file_path is persisted.
+
+        Uses test_video_5s.mp4 which has H.264 codec (browser-compatible).
         """
         page = enhanced_page
         vite_url = servers["vite_url"]
         slideshow_id = test_slideshow["id"]
 
-        # Get the video path for upload
-        video_path = ASSETS_DIR / "crash_into_pole.mpeg"
+        # Get the video path for upload - use H.264 video (browser-compatible)
+        video_path = ASSETS_DIR / "test_video_5s.mp4"
         assert video_path.exists(), f"Test asset not found: {video_path}"
 
         # Login and navigate to slideshow detail page
