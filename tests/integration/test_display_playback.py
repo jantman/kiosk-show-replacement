@@ -1111,12 +1111,10 @@ class TestDisplayPlayback:
 
                 while time.time() - start_time < max_wait:
                     # Check if video has loaded class (opacity: 1)
-                    has_loaded_class = page.evaluate(
-                        """() => {
+                    has_loaded_class = page.evaluate("""() => {
                             const video = document.querySelector('video');
                             return video && video.classList.contains('loaded');
-                        }"""
-                    )
+                        }""")
                     if has_loaded_class:
                         video_visible = True
                         break
