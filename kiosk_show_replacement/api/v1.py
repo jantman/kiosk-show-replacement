@@ -380,6 +380,14 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
         if content_type not in ["image", "video", "url", "text"]:
             return api_error("Invalid content type", 400)
 
+        # Validate scale_factor if provided (only meaningful for URL slides)
+        scale_factor = data.get("scale_factor")
+        if scale_factor is not None:
+            if not isinstance(scale_factor, int) or scale_factor < 10 or scale_factor > 100:
+                return api_error(
+                    "Scale factor must be an integer between 10 and 100", 400
+                )
+
         # Get the next order index
         max_order = (
             db.session.query(db.func.max(SlideshowItem.order_index))
@@ -400,6 +408,7 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
             created_by_id=current_user.id,
             updated_by_id=current_user.id,
             is_active=data.get("is_active", True),
+            scale_factor=scale_factor,
         )
 
         db.session.add(item)
@@ -461,6 +470,18 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
             item.display_duration = data["display_duration"]
         if "is_active" in data:
             item.is_active = data["is_active"]
+        if "scale_factor" in data:
+            scale_factor = data["scale_factor"]
+            if scale_factor is not None:
+                if (
+                    not isinstance(scale_factor, int)
+                    or scale_factor < 10
+                    or scale_factor > 100
+                ):
+                    return api_error(
+                        "Scale factor must be an integer between 10 and 100", 400
+                    )
+            item.scale_factor = scale_factor
 
         item.updated_by_id = current_user.id
         db.session.commit()
