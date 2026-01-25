@@ -148,6 +148,154 @@ class StorageManager:
 
         return True, ""
 
+    def get_video_codec_info(
+        self, file_path: Path
+    ) -> Optional[Dict[str, Optional[str]]]:
+        """
+        Extract video codec information using ffprobe.
+
+        Args:
+            file_path: Path to the video file
+
+        Returns:
+            Dictionary with 'video_codec', 'audio_codec', and 'container_format',
+            or None if extraction fails. Individual values may be None if not found.
+        """
+        try:
+            # Run ffprobe to get stream and format information
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_streams",
+                    "-show_format",
+                    str(file_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+            )
+
+            if result.returncode != 0:
+                logger.warning(
+                    f"ffprobe failed to get codec info for {file_path}: {result.stderr}"
+                )
+                return None
+
+            # Parse JSON output
+            data = json.loads(result.stdout)
+
+            # Extract codec information from streams
+            video_codec: Optional[str] = None
+            audio_codec: Optional[str] = None
+
+            for stream in data.get("streams", []):
+                codec_type = stream.get("codec_type")
+                codec_name = stream.get("codec_name")
+
+                if codec_type == "video" and video_codec is None:
+                    video_codec = codec_name
+                elif codec_type == "audio" and audio_codec is None:
+                    audio_codec = codec_name
+
+            # Extract container format
+            container_format = data.get("format", {}).get("format_name")
+
+            codec_info = {
+                "video_codec": video_codec,
+                "audio_codec": audio_codec,
+                "container_format": container_format,
+            }
+
+            logger.debug(f"Video codec info for {file_path}: {codec_info}")
+            return codec_info
+
+        except FileNotFoundError:
+            logger.error(
+                "ffprobe not found. Please install ffmpeg to enable "
+                "video codec detection."
+            )
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error(f"ffprobe timed out getting codec info for {file_path}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse ffprobe codec output for {file_path}: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting video codec info for {file_path}: {e}")
+            return None
+
+    # Browser-compatible video codecs for HTML5 <video> element
+    SUPPORTED_VIDEO_CODECS = {"h264", "vp8", "vp9", "theora", "av1"}
+
+    def validate_video_format(
+        self, file_path: Path, original_filename: str
+    ) -> Tuple[bool, str]:
+        """
+        Validate that a video file uses browser-compatible codecs.
+
+        Checks if the video codec is supported by HTML5 <video> element.
+        Supported codecs: H.264, VP8, VP9, Theora, AV1.
+
+        Args:
+            file_path: Path to the video file to validate
+            original_filename: Original filename for error messages
+
+        Returns:
+            Tuple of (is_valid, error_message). If valid, error_message is empty.
+        """
+        codec_info = self.get_video_codec_info(file_path)
+
+        if codec_info is None:
+            # If we can't get codec info, log warning but allow the upload
+            # This maintains backwards compatibility if ffprobe is unavailable
+            logger.warning(
+                f"Could not determine video codec for '{original_filename}' "
+                f"at {file_path}. Allowing upload but video may not play in browser."
+            )
+            return True, ""
+
+        video_codec = codec_info.get("video_codec")
+        container_format = codec_info.get("container_format")
+
+        if video_codec is None:
+            logger.warning(
+                f"No video stream found in '{original_filename}' at {file_path}. "
+                f"Container format: {container_format}"
+            )
+            return False, (
+                "No video stream found in the uploaded file. "
+                "Please upload a valid video file."
+            )
+
+        # Check if codec is supported
+        if video_codec.lower() not in self.SUPPORTED_VIDEO_CODECS:
+            # Log detailed warning for troubleshooting
+            logger.warning(
+                f"Rejected video upload: unsupported codec. "
+                f"Filename: '{original_filename}', "
+                f"Video codec: '{video_codec}', "
+                f"Container format: '{container_format}', "
+                f"File path: {file_path}"
+            )
+
+            supported_list = ", ".join(sorted(self.SUPPORTED_VIDEO_CODECS))
+            return False, (
+                f"Video codec '{video_codec}' is not supported by web browsers. "
+                f"Supported codecs: {supported_list}. "
+                f"Please convert your video to MP4 (H.264) or WebM (VP8/VP9) format."
+            )
+
+        logger.debug(
+            f"Video format validation passed for '{original_filename}': "
+            f"codec={video_codec}, container={container_format}"
+        )
+        return True, ""
+
     def get_video_duration(self, file_path: Path) -> Optional[float]:
         """
         Extract video duration using ffprobe.
@@ -279,6 +427,22 @@ class StorageManager:
 
             # Save the file
             file.save(str(file_path))
+
+            # For videos, validate the codec is browser-compatible
+            if content_type == "video":
+                is_format_valid, format_error = self.validate_video_format(
+                    file_path, filename
+                )
+                if not is_format_valid:
+                    # Delete the saved file since validation failed
+                    try:
+                        file_path.unlink()
+                    except Exception as delete_err:
+                        logger.error(
+                            f"Failed to delete invalid video file {file_path}: "
+                            f"{delete_err}"
+                        )
+                    return False, format_error, None
 
             # Get MIME type
             mime_type, _ = mimetypes.guess_type(str(file_path))

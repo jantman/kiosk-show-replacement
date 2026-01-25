@@ -10,7 +10,7 @@ A self-hosted digital signage solution built with Flask, serving as a replacemen
 - **Web-based Management**: Create and manage slideshows through an intuitive web interface
 - **Modern Admin Interface**: React-based admin panel with real-time updates and responsive design
 - **Kiosk Display Mode**: Full-screen slideshow display optimized for kiosk devices
-- **Multiple Content Types**: Support for images, web pages, and text slides
+- **Multiple Content Types**: Support for images, videos, web pages, and text slides
 - **Flexible Timing**: Customizable display duration for each slide
 - **Real-time Updates**: Dynamic slideshow management without restarts
 - **Responsive Design**: Works on desktop, tablet, and mobile devices
@@ -87,10 +87,15 @@ The modern React admin interface provides the best user experience:
 ### Adding Slides
 
 1. Go to the slideshow edit page
-2. Select content type (Image, Web Page, or Text)
-3. Enter the content details
-4. Set display duration in seconds
+2. Select content type (Image, Video, Web Page, or Text)
+3. Enter the content details (upload file or provide URL)
+4. Set display duration in seconds (auto-detected for videos)
 5. Click "Add Slide"
+
+**Video Requirements:** Uploaded videos must use browser-compatible codecs
+(H.264, VP8, VP9, Theora, or AV1). MP4 with H.264 is recommended for maximum
+compatibility. Videos with unsupported codecs will be rejected with a helpful
+error message.
 
 ### Displaying a Slideshow
 

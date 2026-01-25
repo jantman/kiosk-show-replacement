@@ -198,13 +198,15 @@ class TestSlideshowItems:
 
         Tests the video file upload flow through the admin interface.
         Verifies via API that content_file_path is persisted.
+
+        Uses test_video_5s.mp4 which has H.264 codec (browser-compatible).
         """
         page = enhanced_page
         vite_url = servers["vite_url"]
         slideshow_id = test_slideshow["id"]
 
-        # Get the video path for upload
-        video_path = ASSETS_DIR / "crash_into_pole.mpeg"
+        # Get the video path for upload - use H.264 video (browser-compatible)
+        video_path = ASSETS_DIR / "test_video_5s.mp4"
         assert video_path.exists(), f"Test asset not found: {video_path}"
 
         # Login and navigate to slideshow detail page
@@ -342,6 +344,82 @@ class TestSlideshowItems:
         assert item.get("display_duration") == 5, (
             f"display_duration should be auto-set to 5 seconds from video, "
             f"got: {item.get('display_duration')}"
+        )
+
+    def test_video_upload_unsupported_format_shows_error(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that uploading a video with unsupported codec shows error.
+
+        When a video with an unsupported codec (e.g., MPEG-1) is uploaded,
+        the server should reject it with a clear error message explaining
+        which formats are supported.
+
+        Uses crash_into_pole.mpeg which has MPEG-1 codec (not browser-compatible).
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Get the video path for upload - MPEG-1 codec (not supported)
+        video_path = ASSETS_DIR / "crash_into_pole.mpeg"
+        assert video_path.exists(), f"Test asset not found: {video_path}"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Fill in the form
+        page.locator("#title").fill("Unsupported Video Test")
+        page.locator("#content_type").select_option("video")
+
+        # Upload the video file with unsupported codec
+        page.locator("#file_video").set_input_files(str(video_path))
+
+        # Wait for the error to appear (should show alert with error message)
+        # The upload should fail and show an error, not a success badge
+        error_alert = page.locator(".alert-danger")
+        expect(error_alert).to_be_visible(timeout=30000)
+
+        # Verify the error message mentions the codec issue and supported formats
+        error_text = error_alert.inner_text()
+        assert (
+            "not supported" in error_text.lower()
+        ), f"Error message should mention codec not supported. Got: {error_text}"
+        # Should mention at least one supported format
+        assert any(
+            fmt in error_text.lower() for fmt in ["h264", "vp8", "vp9", "mp4", "webm"]
+        ), f"Error message should mention supported formats. Got: {error_text}"
+
+        # The success badge should NOT appear
+        success_badge = page.locator(".badge.bg-success:has-text('File uploaded')")
+        expect(success_badge).not_to_be_visible()
+
+        # Close the modal without submitting
+        page.keyboard.press("Escape")
+        expect(modal).to_be_hidden(timeout=5000)
+
+        # CRITICAL: Verify via API that NO item was created
+        item = get_item_by_title(
+            http_client, auth_headers, slideshow_id, "Unsupported Video Test"
+        )
+        assert item is None, (
+            "Item should NOT have been created for unsupported video format. "
+            f"Found: {item}"
         )
 
     def test_add_video_item_via_url(
