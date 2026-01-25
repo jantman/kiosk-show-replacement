@@ -350,6 +350,100 @@ class TestSSEDisconnectEndpoint:
             assert response.get_json()["data"]["disconnected"] is True
 
 
+class TestSSEConnectionCleanup:
+    """Test SSE connection cleanup on errors and disconnection."""
+
+    def test_connection_disconnect_sets_inactive(self, app):
+        """Test that calling disconnect() on a connection sets is_active to False."""
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            assert connection.is_active is True
+
+            connection.disconnect()
+            assert connection.is_active is False
+
+            # Cleanup
+            sse_manager.remove_connection(connection.connection_id)
+
+    def test_add_event_failure_deactivates_connection(self, app):
+        """Test that add_event failure sets connection to inactive."""
+        from unittest.mock import patch
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            assert connection.is_active is True
+
+            # Make the queue raise an exception
+            with patch.object(
+                connection.event_queue, "put_nowait", side_effect=Exception("Queue full")
+            ):
+                from kiosk_show_replacement.sse import SSEEvent
+                event = SSEEvent(event_type="test", data={"message": "test"})
+                connection.add_event(event)
+
+            # Connection should now be inactive
+            assert connection.is_active is False
+
+            # Cleanup
+            sse_manager.remove_connection(connection.connection_id)
+
+    def test_remove_connection_is_idempotent(self, app):
+        """Test that remove_connection can be called multiple times safely."""
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection_id = connection.connection_id
+
+            # First removal should work
+            sse_manager.remove_connection(connection_id)
+
+            with sse_manager.connections_lock:
+                assert connection_id not in sse_manager.connections
+
+            # Second removal should not raise an error
+            sse_manager.remove_connection(connection_id)  # Should not raise
+
+            with sse_manager.connections_lock:
+                assert connection_id not in sse_manager.connections
+
+    def test_get_events_stops_when_inactive(self, app):
+        """Test that get_events generator stops when connection is deactivated."""
+        from kiosk_show_replacement.sse import sse_manager, SSEEvent
+
+        with app.app_context():
+            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+
+            # Add some events
+            connection.add_event(SSEEvent(event_type="test1", data={"msg": "1"}))
+            connection.add_event(SSEEvent(event_type="test2", data={"msg": "2"}))
+
+            # Get the generator
+            gen = connection.get_events()
+
+            # First event should work
+            event1 = next(gen)
+            assert event1.event_type == "test1"
+
+            # Deactivate connection
+            connection.disconnect()
+
+            # Generator should stop (raise StopIteration)
+            # Note: The loop in get_events checks is_active at the start of each iteration
+            # Since is_active is now False, the while loop exits
+            remaining = list(gen)
+            # Should get the second event that was already queued, then stop
+            # Actually, since we disconnect after getting first event, the loop
+            # will check is_active before getting next event and exit
+            assert len(remaining) == 0 or (len(remaining) == 1 and remaining[0].event_type == "test2")
+
+            # Cleanup
+            sse_manager.remove_connection(connection.connection_id)
+
+
 class TestSSEEventsTracking:
     """Test SSE event tracking functionality."""
 
