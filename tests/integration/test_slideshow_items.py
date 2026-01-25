@@ -1468,10 +1468,17 @@ class TestSlideshowItems:
         expect(zoom_slider).to_be_visible()
 
         # Set slider value to 50 using JavaScript
+        # React uses 'input' event for range inputs, and needs special handling
+        # to properly trigger React's synthetic event system
         page.evaluate("""() => {
             const slider = document.querySelector('#scale_factor');
-            slider.value = '50';
-            slider.dispatchEvent(new Event('change', { bubbles: true }));
+            // Use native value setter to bypass React's controlled input
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value'
+            ).set;
+            nativeInputValueSetter.call(slider, '50');
+            // Dispatch input event to trigger React onChange
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
         }""")
 
         # Verify label updated
@@ -1529,7 +1536,6 @@ class TestSlideshowItems:
         )
         assert response.status_code in [200, 201]
         item_data = response.json().get("data", response.json())
-        item_id = item_data["id"]
         assert item_data.get("scale_factor") is None  # Initially no scale
 
         # Login and navigate to slideshow detail page
@@ -1537,14 +1543,19 @@ class TestSlideshowItems:
         page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
         page.wait_for_load_state("domcontentloaded", timeout=10000)
 
+        # Wait for the items table to be populated with the item we created
+        # The React frontend needs time to fetch and render the data
+        expect(page.locator("text=Edit Zoom Test")).to_be_visible(timeout=10000)
+
         # Find the row with our test item and click edit
         row = page.locator("tr").filter(
             has=page.locator("div.fw-bold", has_text="Edit Zoom Test")
         )
         expect(row).to_be_visible(timeout=5000)
 
-        # Click the edit button
-        edit_button = row.locator("button[title='Edit item']")
+        # Click the edit button - use longer timeout as table may still be loading
+        edit_button = row.locator("button[title='Edit']")
+        expect(edit_button).to_be_visible(timeout=5000)
         edit_button.click()
 
         # Wait for modal
@@ -1556,10 +1567,17 @@ class TestSlideshowItems:
         expect(zoom_slider).to_be_visible()
 
         # Set zoom to 25% using JavaScript
+        # React uses 'input' event for range inputs, and needs special handling
+        # to properly trigger React's synthetic event system
         page.evaluate("""() => {
             const slider = document.querySelector('#scale_factor');
-            slider.value = '25';
-            slider.dispatchEvent(new Event('change', { bubbles: true }));
+            // Use native value setter to bypass React's controlled input
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value'
+            ).set;
+            nativeInputValueSetter.call(slider, '25');
+            // Dispatch input event to trigger React onChange
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
         }""")
 
         # Submit the form

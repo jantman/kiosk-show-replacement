@@ -383,7 +383,11 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
         # Validate scale_factor if provided (only meaningful for URL slides)
         scale_factor = data.get("scale_factor")
         if scale_factor is not None:
-            if not isinstance(scale_factor, int) or scale_factor < 10 or scale_factor > 100:
+            if (
+                not isinstance(scale_factor, int)
+                or scale_factor < 10
+                or scale_factor > 100
+            ):
                 return api_error(
                     "Scale factor must be an integer between 10 and 100", 400
                 )

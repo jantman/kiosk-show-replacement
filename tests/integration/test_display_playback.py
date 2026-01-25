@@ -1695,9 +1695,7 @@ class TestDisplayPlayback:
                 assert iframe.is_visible(), "Iframe should be visible"
 
                 # Check the inline style for transform
-                transform_style = iframe.evaluate(
-                    """(el) => el.style.transform"""
-                )
+                transform_style = iframe.evaluate("""(el) => el.style.transform""")
                 assert "scale(0.5)" in transform_style, (
                     f"Iframe should have transform: scale(0.5) for scale_factor=50. "
                     f"Got: {transform_style}"
@@ -1828,7 +1826,10 @@ class TestDisplayPlayback:
                     """(el) => window.getComputedStyle(el).transform"""
                 )
                 # "none" or "matrix(1, 0, 0, 1, 0, 0)" = no transform
-                has_no_transform = transform_style == "none" or "matrix(1, 0, 0, 1, 0, 0)" in transform_style
+                has_no_transform = (
+                    transform_style == "none"
+                    or "matrix(1, 0, 0, 1, 0, 0)" in transform_style
+                )
                 assert has_no_transform, (
                     f"Iframe should have no transform for URL slides without scale_factor. "
                     f"Got: {transform_style}"

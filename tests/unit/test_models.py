@@ -768,7 +768,9 @@ class TestSlideshowItemModel:
             db.session.commit()
             assert item.scale_factor is None
 
-    def test_slideshow_item_scale_factor_validation_too_low(self, app, sample_slideshow):
+    def test_slideshow_item_scale_factor_validation_too_low(
+        self, app, sample_slideshow
+    ):
         """Test scale factor validation rejects values below 10."""
         with app.app_context():
             slideshow = sample_slideshow()  # Get fresh slideshow instance
