@@ -58,6 +58,44 @@ For each slideshow, you can:
 * Remove slides
 * Preview the slideshow
 
+Video Format Requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+When uploading video files, the server validates that the video uses a codec
+supported by web browsers. Videos with unsupported codecs will be rejected
+with a clear error message.
+
+**Supported Video Codecs:**
+
+* **H.264** (MP4 containers) - Universally supported by all modern browsers
+* **VP8** (WebM containers) - Supported by most modern browsers
+* **VP9** (WebM containers) - Supported by most modern browsers
+* **Theora** (Ogg containers) - Limited browser support
+* **AV1** (WebM containers) - Growing browser support
+
+**Recommended Format:**
+
+For maximum compatibility, we recommend using **MP4 files with H.264 video codec
+and AAC audio codec**. This format is supported by all modern web browsers
+including Chrome, Firefox, Safari, and Edge.
+
+**Converting Videos:**
+
+If you have a video in an unsupported format (e.g., MPEG-1, MPEG-2, WMV, AVI with
+older codecs), you can convert it using FFmpeg:
+
+.. code-block:: bash
+
+   # Convert any video to MP4 (H.264)
+   ffmpeg -i input.mpeg -c:v libx264 -c:a aac output.mp4
+
+   # Convert to WebM (VP9)
+   ffmpeg -i input.avi -c:v libvpx-vp9 -c:a libopus output.webm
+
+**Note:** The server requires ``ffprobe`` (part of FFmpeg) to be installed for
+video codec validation. If ffprobe is not available, the server will allow
+uploads but cannot guarantee browser compatibility.
+
 Text Slide Formatting
 ~~~~~~~~~~~~~~~~~~~~~
 
