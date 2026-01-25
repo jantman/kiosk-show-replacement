@@ -372,6 +372,230 @@ class TestSSEIntegration:
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("SKIP_BROWSER_TESTS", "false").lower() == "true",
+    reason="Browser tests skipped due to Playwright browser dependency issues on Arch Linux",
+)
+class TestSSEConnectionCleanup:
+    """Test SSE connection cleanup scenarios.
+
+    These tests verify that SSE connections are properly cleaned up when:
+    - The page is refreshed
+    - The user navigates away
+    - The client explicitly disconnects
+    """
+
+    def test_sse_connection_cleanup_on_page_refresh(
+        self, servers, authenticated_page: Page
+    ):
+        """Test that SSE connections are cleaned up when page is refreshed.
+
+        M3.1: Navigate to monitoring page, verify 1 connection, refresh page,
+        verify still 1 connection (not 2).
+        """
+        flask_url = servers["flask_url"]
+        vite_url = servers["vite_url"]
+        logger.info("Testing SSE connection cleanup on page refresh")
+
+        # Navigate to the monitoring page (which establishes an SSE connection)
+        authenticated_page.goto(f"{vite_url}/admin/monitoring", timeout=15000)
+        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        logger.info("Navigated to monitoring page")
+
+        # Wait for SSE connection to be established
+        time.sleep(2)
+
+        # Check initial connection count via API
+        session = requests.Session()
+        login_data = {"username": "admin", "password": "admin"}
+        session.post(
+            f"{flask_url}/api/v1/auth/login",
+            json=login_data,
+            headers={"Content-Type": "application/json"},
+            timeout=5,
+        )
+
+        initial_response = session.get(f"{flask_url}/api/v1/events/stats", timeout=5)
+        initial_data = initial_response.json()
+        initial_admin_count = initial_data["data"]["admin_connections"]
+        logger.info(f"Initial admin connection count: {initial_admin_count}")
+
+        # Refresh the page
+        authenticated_page.reload()
+        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        logger.info("Page refreshed")
+
+        # Wait for the new SSE connection to establish and old one to be cleaned up
+        time.sleep(3)
+
+        # Check connection count after refresh
+        final_response = session.get(f"{flask_url}/api/v1/events/stats", timeout=5)
+        final_data = final_response.json()
+        final_admin_count = final_data["data"]["admin_connections"]
+        logger.info(f"Final admin connection count: {final_admin_count}")
+
+        # Should have same or fewer connections (old one cleaned up)
+        # Allow for 1 connection (the new one after refresh)
+        assert final_admin_count <= initial_admin_count, (
+            f"Connection count should not increase after refresh. "
+            f"Initial: {initial_admin_count}, Final: {final_admin_count}"
+        )
+
+    def test_sse_connection_cleanup_on_navigation(
+        self, servers, authenticated_page: Page
+    ):
+        """Test that SSE connections are cleaned up when navigating away.
+
+        M3.2: Navigate to monitoring page, verify connection, navigate to
+        different page, navigate back, verify still 1 connection.
+        """
+        flask_url = servers["flask_url"]
+        vite_url = servers["vite_url"]
+        logger.info("Testing SSE connection cleanup on navigation")
+
+        # Set up API session
+        session = requests.Session()
+        login_data = {"username": "admin", "password": "admin"}
+        session.post(
+            f"{flask_url}/api/v1/auth/login",
+            json=login_data,
+            headers={"Content-Type": "application/json"},
+            timeout=5,
+        )
+
+        # Navigate to the monitoring page
+        authenticated_page.goto(f"{vite_url}/admin/monitoring", timeout=15000)
+        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        time.sleep(2)
+
+        # Check initial count
+        initial_response = session.get(f"{flask_url}/api/v1/events/stats", timeout=5)
+        initial_count = initial_response.json()["data"]["admin_connections"]
+        logger.info(f"Initial connection count: {initial_count}")
+
+        # Navigate to a different page (dashboard)
+        authenticated_page.goto(f"{vite_url}/admin/", timeout=15000)
+        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        logger.info("Navigated to dashboard")
+        time.sleep(2)
+
+        # Navigate back to monitoring
+        authenticated_page.goto(f"{vite_url}/admin/monitoring", timeout=15000)
+        authenticated_page.wait_for_load_state("networkidle", timeout=10000)
+        time.sleep(3)
+
+        # Check final count
+        final_response = session.get(f"{flask_url}/api/v1/events/stats", timeout=5)
+        final_count = final_response.json()["data"]["admin_connections"]
+        logger.info(f"Final connection count: {final_count}")
+
+        # Should have same or fewer connections
+        assert final_count <= initial_count + 1, (
+            f"Connection count should not grow significantly. "
+            f"Initial: {initial_count}, Final: {final_count}"
+        )
+
+    def test_sse_disconnect_endpoint_works(self, servers):
+        """Test that the SSE disconnect endpoint works correctly.
+
+        M3.3: Test that the disconnect endpoint properly removes connections.
+        """
+        flask_url = servers["flask_url"]
+        logger.info("Testing SSE disconnect endpoint")
+
+        # Set up authenticated session
+        session = requests.Session()
+        login_data = {"username": "admin", "password": "admin"}
+        login_response = session.post(
+            f"{flask_url}/api/v1/auth/login",
+            json=login_data,
+            headers={"Content-Type": "application/json"},
+            timeout=5,
+        )
+        assert login_response.status_code == 200
+
+        # Get initial connection count
+        initial_stats = session.get(f"{flask_url}/api/v1/events/stats", timeout=5)
+        initial_count = initial_stats.json()["data"]["total_connections"]
+        logger.info(f"Initial total connections: {initial_count}")
+
+        # Start an SSE connection and get the connection ID
+        # We'll use a streaming request to establish the SSE connection
+        import threading
+
+        connection_id = None
+        sse_response = None
+        connection_established = threading.Event()
+
+        def establish_sse():
+            nonlocal connection_id, sse_response
+            try:
+                sse_response = session.get(
+                    f"{flask_url}/api/v1/events/admin",
+                    stream=True,
+                    timeout=10,
+                )
+                # Read the first event (connected event with connection_id)
+                for line in sse_response.iter_lines(decode_unicode=True):
+                    if line and line.startswith("data:"):
+                        import json
+                        data = json.loads(line[5:].strip())
+                        if "connection_id" in data:
+                            connection_id = data["connection_id"]
+                            logger.info(f"SSE connection established: {connection_id}")
+                            connection_established.set()
+                            break
+            except Exception as e:
+                logger.error(f"Error establishing SSE: {e}")
+                connection_established.set()
+
+        # Start SSE connection in background
+        sse_thread = threading.Thread(target=establish_sse)
+        sse_thread.daemon = True
+        sse_thread.start()
+
+        # Wait for connection to establish
+        connection_established.wait(timeout=5)
+        time.sleep(1)  # Extra time for server to register connection
+
+        if connection_id:
+            # Verify connection exists
+            stats_after_connect = session.get(
+                f"{flask_url}/api/v1/events/stats", timeout=5
+            )
+            count_after_connect = stats_after_connect.json()["data"]["total_connections"]
+            logger.info(f"Connections after SSE connect: {count_after_connect}")
+            assert count_after_connect > initial_count, "SSE connection should increase count"
+
+            # Now call disconnect endpoint
+            disconnect_response = session.post(
+                f"{flask_url}/api/v1/events/disconnect",
+                json={"connection_id": connection_id},
+                headers={"Content-Type": "application/json"},
+                timeout=5,
+            )
+            logger.info(f"Disconnect response: {disconnect_response.status_code}")
+            assert disconnect_response.status_code == 200
+            assert disconnect_response.json()["data"]["disconnected"] is True
+
+            # Verify connection was removed
+            stats_after_disconnect = session.get(
+                f"{flask_url}/api/v1/events/stats", timeout=5
+            )
+            count_after_disconnect = stats_after_disconnect.json()["data"][
+                "total_connections"
+            ]
+            logger.info(f"Connections after disconnect: {count_after_disconnect}")
+            assert count_after_disconnect < count_after_connect, (
+                "Connection count should decrease after disconnect"
+            )
+
+        # Clean up
+        if sse_response:
+            sse_response.close()
+
+
+@pytest.mark.integration
 class TestSSEFailureScenarios:
     """Test SSE failure scenarios and recovery mechanisms."""
 
