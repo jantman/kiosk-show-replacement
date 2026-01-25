@@ -1235,3 +1235,150 @@ class TestSlideshowItems:
         item = get_item_by_title(http_client, auth_headers, slideshow_id, custom_title)
         assert item is not None, "Item with custom title not found"
         assert item.get("content_file_path"), "File was not uploaded"
+
+    def test_text_item_preview_renders_html(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that text item preview renders HTML formatting tags.
+
+        This test:
+        1. Creates a text item with HTML tags via API
+        2. Views the slideshow detail page
+        3. Verifies the HTML is rendered (not shown as literal text)
+
+        This tests the admin preview functionality for HTML in text slides.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Create a text item with HTML content via API
+        html_content = "This is <b>bold</b> and <i>italic</i> text"
+
+        response = http_client.post(
+            f"/api/v1/slideshows/{slideshow_id}/items",
+            json={
+                "title": "HTML Preview Test",
+                "content_type": "text",
+                "content_text": html_content,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code in [200, 201]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Find the row with our test item
+        row = page.locator("tr").filter(
+            has=page.locator("div.fw-bold", has_text="HTML Preview Test")
+        )
+        expect(row).to_be_visible(timeout=5000)
+
+        # Get the preview text cell (the text-muted small div)
+        preview_cell = row.locator("div.text-muted.small")
+        expect(preview_cell).to_be_visible()
+
+        # Get the innerHTML to verify HTML tags are rendered
+        inner_html = preview_cell.inner_html()
+
+        # Verify HTML tags are present (rendered, not escaped)
+        assert "<b>" in inner_html, (
+            f"<b> tag should be rendered in preview. "
+            f"Got innerHTML: {inner_html}"
+        )
+        assert "<i>" in inner_html, (
+            f"<i> tag should be rendered in preview. "
+            f"Got innerHTML: {inner_html}"
+        )
+
+        # Verify the user sees the formatted text, not literal tags
+        visible_text = preview_cell.inner_text()
+        assert "<b>" not in visible_text, (
+            f"Literal <b> tag should not be visible. "
+            f"Got visible text: {visible_text}"
+        )
+        assert "&lt;b&gt;" not in visible_text, (
+            f"Escaped <b> tag should not be visible. "
+            f"Got visible text: {visible_text}"
+        )
+
+    def test_text_item_preview_strips_unsafe_html(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that text item preview strips unsafe HTML tags.
+
+        This test:
+        1. Creates a text item with unsafe HTML via API
+        2. Views the slideshow detail page
+        3. Verifies unsafe HTML is stripped in the preview
+
+        This ensures XSS prevention in the admin preview.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Create a text item with unsafe HTML content via API
+        unsafe_content = '<script>alert("XSS")</script><b>Safe bold</b>'
+
+        response = http_client.post(
+            f"/api/v1/slideshows/{slideshow_id}/items",
+            json={
+                "title": "XSS Preview Test",
+                "content_type": "text",
+                "content_text": unsafe_content,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code in [200, 201]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Find the row with our test item
+        row = page.locator("tr").filter(
+            has=page.locator("div.fw-bold", has_text="XSS Preview Test")
+        )
+        expect(row).to_be_visible(timeout=5000)
+
+        # Get the preview text cell
+        preview_cell = row.locator("div.text-muted.small")
+        expect(preview_cell).to_be_visible()
+
+        # Get the innerHTML
+        inner_html = preview_cell.inner_html()
+
+        # Verify unsafe tags are stripped
+        assert "<script>" not in inner_html.lower(), (
+            f"<script> tag should be stripped from preview. "
+            f"Got innerHTML: {inner_html}"
+        )
+        assert "alert(" not in inner_html, (
+            f"JavaScript should be stripped from preview. "
+            f"Got innerHTML: {inner_html}"
+        )
+
+        # Verify safe tags are preserved
+        assert "<b>" in inner_html, (
+            f"Safe <b> tag should be preserved in preview. "
+            f"Got innerHTML: {inner_html}"
+        )
