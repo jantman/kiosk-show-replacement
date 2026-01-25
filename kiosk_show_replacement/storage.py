@@ -430,6 +430,22 @@ class StorageManager:
             # Save the file
             file.save(str(file_path))
 
+            # For videos, validate the codec is browser-compatible
+            if content_type == "video":
+                is_format_valid, format_error = self.validate_video_format(
+                    file_path, filename
+                )
+                if not is_format_valid:
+                    # Delete the saved file since validation failed
+                    try:
+                        file_path.unlink()
+                    except Exception as delete_err:
+                        logger.error(
+                            f"Failed to delete invalid video file {file_path}: "
+                            f"{delete_err}"
+                        )
+                    return False, format_error, None
+
             # Get MIME type
             mime_type, _ = mimetypes.guess_type(str(file_path))
 
