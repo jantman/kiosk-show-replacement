@@ -172,8 +172,8 @@ Final verification and documentation.
   - [x] M3.1 - Test for page refresh cleanup
   - [x] M3.2 - Test for tab navigation cleanup
   - [x] M3.3 - Test for explicit disconnect
-- [ ] M4: Acceptance Criteria Verification
-  - [ ] M4.1 - Run all nox test sessions
-  - [ ] M4.2 - Manual verification
-  - [ ] M4.3 - Update documentation if needed
-  - [ ] M4.4 - Move feature file to completed
+- [x] M4: Acceptance Criteria Verification
+  - [x] M4.1 - Run all nox test sessions (format, lint, type_check, test-3.14 all pass)
+  - [ ] M4.2 - Manual verification (requires human testing)
+  - [x] M4.3 - Update documentation if needed (no changes needed)
+  - [ ] M4.4 - Move feature file to completed (after manual verification)
