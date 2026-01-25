@@ -56,7 +56,9 @@ The validation will happen at upload time using ffprobe to extract codec informa
 #### Task 1.3 (VFV-M1.3): Integrate validation into save_file()
 - After initial validation passes, save file to temp location
 - Call `validate_video_format()` on saved file
-- If validation fails, delete temp file and return error
+- If validation fails:
+  - Log a detailed WARNING-level message with: filename, detected codec, container format, and file path for troubleshooting
+  - Delete temp file and return error to user
 - If validation passes, proceed as normal
 
 #### Task 1.4 (VFV-M1.4): Add unit tests for codec validation
@@ -66,6 +68,7 @@ The validation will happen at upload time using ffprobe to extract codec informa
 
 **Milestone 1 Deliverables:**
 - Video codec extraction and validation functions in `storage.py`
+- WARNING-level logging for rejected uploads with detailed troubleshooting info
 - Unit tests for new functions in `tests/unit/test_storage.py`
 - All existing tests still pass
 
@@ -101,16 +104,18 @@ The validation will happen at upload time using ffprobe to extract codec informa
 - Run all nox sessions: `test-3.14`, `test-integration`, `test-e2e`, `lint`, `type_check`, `format`
 - Fix any failures
 
-#### Task 3.2 (VFV-M3.2): Update documentation if needed
-- Review if any documentation updates are needed (deployment docs, CLAUDE.md, etc.)
-- Document supported video formats if appropriate
+#### Task 3.2 (VFV-M3.2): Update documentation
+- Update `README.md` with supported video formats information
+- Update `CLAUDE.md` if any development workflow changes are needed
+- Update `docs/*.rst` files as appropriate (e.g., deployment docs, user guide)
+- Document the supported video codecs (H.264, VP8, VP9, Theora) and container formats
 
 #### Task 3.3 (VFV-M3.3): Move feature file to completed
 - Move this file from `docs/features/` to `docs/features/completed/`
 
 **Milestone 3 Deliverables:**
 - All nox sessions passing
-- Documentation updated (if needed)
+- Documentation updated (README.md, CLAUDE.md, docs/*.rst as appropriate)
 - Feature file moved to completed directory
 
 ---
