@@ -148,6 +148,89 @@ class StorageManager:
 
         return True, ""
 
+    def get_video_codec_info(
+        self, file_path: Path
+    ) -> Optional[Dict[str, Optional[str]]]:
+        """
+        Extract video codec information using ffprobe.
+
+        Args:
+            file_path: Path to the video file
+
+        Returns:
+            Dictionary with 'video_codec', 'audio_codec', and 'container_format',
+            or None if extraction fails. Individual values may be None if not found.
+        """
+        try:
+            # Run ffprobe to get stream and format information
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_streams",
+                    "-show_format",
+                    str(file_path),
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,  # 30 second timeout
+            )
+
+            if result.returncode != 0:
+                logger.warning(
+                    f"ffprobe failed to get codec info for {file_path}: {result.stderr}"
+                )
+                return None
+
+            # Parse JSON output
+            data = json.loads(result.stdout)
+
+            # Extract codec information from streams
+            video_codec: Optional[str] = None
+            audio_codec: Optional[str] = None
+
+            for stream in data.get("streams", []):
+                codec_type = stream.get("codec_type")
+                codec_name = stream.get("codec_name")
+
+                if codec_type == "video" and video_codec is None:
+                    video_codec = codec_name
+                elif codec_type == "audio" and audio_codec is None:
+                    audio_codec = codec_name
+
+            # Extract container format
+            container_format = data.get("format", {}).get("format_name")
+
+            codec_info = {
+                "video_codec": video_codec,
+                "audio_codec": audio_codec,
+                "container_format": container_format,
+            }
+
+            logger.debug(f"Video codec info for {file_path}: {codec_info}")
+            return codec_info
+
+        except FileNotFoundError:
+            logger.error(
+                "ffprobe not found. Please install ffmpeg to enable "
+                "video codec detection."
+            )
+            return None
+        except subprocess.TimeoutExpired:
+            logger.error(f"ffprobe timed out getting codec info for {file_path}")
+            return None
+        except json.JSONDecodeError as e:
+            logger.error(
+                f"Failed to parse ffprobe codec output for {file_path}: {e}"
+            )
+            return None
+        except Exception as e:
+            logger.error(f"Error getting video codec info for {file_path}: {e}")
+            return None
+
     def get_video_duration(self, file_path: Path) -> Optional[float]:
         """
         Extract video duration using ffprobe.
