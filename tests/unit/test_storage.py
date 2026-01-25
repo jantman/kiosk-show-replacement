@@ -371,6 +371,397 @@ class TestVideoDurationExtraction:
         assert duration is None
 
 
+class TestVideoCodecExtraction:
+    """Test video codec information extraction using ffprobe.
+
+    All tests mock subprocess.run to avoid requiring ffprobe to be installed.
+    """
+
+    @pytest.fixture
+    def temp_storage_dir(self):
+        """Create a temporary directory for testing."""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        shutil.rmtree(temp_dir)
+
+    @pytest.fixture
+    def storage_manager(self, temp_storage_dir):
+        """Create a StorageManager instance with temporary directory."""
+        return StorageManager(temp_storage_dir)
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_success(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test successful video codec extraction."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="""{
+                "streams": [
+                    {"codec_type": "video", "codec_name": "h264"},
+                    {"codec_type": "audio", "codec_name": "aac"}
+                ],
+                "format": {"format_name": "mov,mp4,m4a,3gp,3g2,mj2"}
+            }""",
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is not None
+        assert codec_info["video_codec"] == "h264"
+        assert codec_info["audio_codec"] == "aac"
+        assert codec_info["container_format"] == "mov,mp4,m4a,3gp,3g2,mj2"
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_video_only(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test codec extraction for video-only file (no audio)."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="""{
+                "streams": [
+                    {"codec_type": "video", "codec_name": "vp9"}
+                ],
+                "format": {"format_name": "webm"}
+            }""",
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test.webm"
+        video_path.write_bytes(b"fake video data")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is not None
+        assert codec_info["video_codec"] == "vp9"
+        assert codec_info["audio_codec"] is None
+        assert codec_info["container_format"] == "webm"
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_mpeg1(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test codec extraction for MPEG-1 video (unsupported codec)."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="""{
+                "streams": [
+                    {"codec_type": "video", "codec_name": "mpeg1video"}
+                ],
+                "format": {"format_name": "mpeg"}
+            }""",
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test.mpeg"
+        video_path.write_bytes(b"fake video data")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is not None
+        assert codec_info["video_codec"] == "mpeg1video"
+        assert codec_info["container_format"] == "mpeg"
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_ffprobe_failure(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe fails."""
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="ffprobe: Invalid data found",
+        )
+
+        video_path = Path(temp_storage_dir) / "invalid.mp4"
+        video_path.write_bytes(b"not a video")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is None
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_invalid_json(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe returns invalid JSON."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="not valid json",
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "test.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is None
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_ffprobe_not_found(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe is not installed."""
+        mock_run.side_effect = FileNotFoundError("ffprobe not found")
+
+        video_path = Path(temp_storage_dir) / "video.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is None
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_timeout(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test handling when ffprobe times out."""
+        import subprocess
+
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd="ffprobe", timeout=30)
+
+        video_path = Path(temp_storage_dir) / "video.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        codec_info = storage_manager.get_video_codec_info(video_path)
+
+        assert codec_info is None
+
+
+class TestVideoFormatValidation:
+    """Test video format validation for browser-compatible codecs."""
+
+    @pytest.fixture
+    def temp_storage_dir(self):
+        """Create a temporary directory for testing."""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        shutil.rmtree(temp_dir)
+
+    @pytest.fixture
+    def storage_manager(self, temp_storage_dir):
+        """Create a StorageManager instance with temporary directory."""
+        return StorageManager(temp_storage_dir)
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_h264_success(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation passes for H.264 codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "h264",
+            "audio_codec": "aac",
+            "container_format": "mov,mp4,m4a,3gp,3g2,mj2",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.mp4")
+
+        assert is_valid is True
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_vp8_success(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation passes for VP8 codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "vp8",
+            "audio_codec": "vorbis",
+            "container_format": "webm",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.webm"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.webm")
+
+        assert is_valid is True
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_vp9_success(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation passes for VP9 codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "vp9",
+            "audio_codec": "opus",
+            "container_format": "webm",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.webm"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.webm")
+
+        assert is_valid is True
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_theora_success(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation passes for Theora codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "theora",
+            "audio_codec": "vorbis",
+            "container_format": "ogg",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.ogv"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.ogv")
+
+        assert is_valid is True
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_av1_success(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation passes for AV1 codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "av1",
+            "audio_codec": "opus",
+            "container_format": "webm",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.webm"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.webm")
+
+        assert is_valid is True
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_mpeg1_rejected(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation fails for MPEG-1 codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "mpeg1video",
+            "audio_codec": None,
+            "container_format": "mpeg",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.mpeg"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(
+            video_path, "test.mpeg"
+        )
+
+        assert is_valid is False
+        assert "mpeg1video" in error
+        assert "not supported" in error
+        assert "h264" in error.lower() or "H.264" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_mpeg2_rejected(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation fails for MPEG-2 codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "mpeg2video",
+            "audio_codec": "mp2",
+            "container_format": "mpeg",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.mpg"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.mpg")
+
+        assert is_valid is False
+        assert "mpeg2video" in error
+        assert "not supported" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_wmv_rejected(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation fails for WMV codec."""
+        mock_get_codec.return_value = {
+            "video_codec": "wmv3",
+            "audio_codec": "wmav2",
+            "container_format": "asf",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.wmv"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.wmv")
+
+        assert is_valid is False
+        assert "wmv3" in error
+        assert "not supported" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_no_video_stream(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation fails when no video stream is found."""
+        mock_get_codec.return_value = {
+            "video_codec": None,
+            "audio_codec": "mp3",
+            "container_format": "mp3",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.mp4")
+
+        assert is_valid is False
+        assert "No video stream found" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_ffprobe_unavailable(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test validation passes gracefully when ffprobe is unavailable."""
+        mock_get_codec.return_value = None  # ffprobe not available
+
+        video_path = Path(temp_storage_dir) / "test.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.mp4")
+
+        # Should allow upload when ffprobe is unavailable
+        assert is_valid is True
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_format_case_insensitive(
+        self, mock_get_codec, storage_manager, temp_storage_dir
+    ):
+        """Test that codec comparison is case-insensitive."""
+        mock_get_codec.return_value = {
+            "video_codec": "H264",  # Uppercase
+            "audio_codec": "AAC",
+            "container_format": "mp4",
+        }
+
+        video_path = Path(temp_storage_dir) / "test.mp4"
+        video_path.write_bytes(b"fake video data")
+
+        is_valid, error = storage_manager.validate_video_format(video_path, "test.mp4")
+
+        assert is_valid is True
+        assert error == ""
+
+
 class TestFileUploadAPI:
     """Test file upload API endpoints."""
 
