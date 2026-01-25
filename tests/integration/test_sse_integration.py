@@ -539,6 +539,7 @@ class TestSSEConnectionCleanup:
                 for line in sse_response.iter_lines(decode_unicode=True):
                     if line and line.startswith("data:"):
                         import json
+
                         data = json.loads(line[5:].strip())
                         if "connection_id" in data:
                             connection_id = data["connection_id"]
@@ -563,9 +564,13 @@ class TestSSEConnectionCleanup:
             stats_after_connect = session.get(
                 f"{flask_url}/api/v1/events/stats", timeout=5
             )
-            count_after_connect = stats_after_connect.json()["data"]["total_connections"]
+            count_after_connect = stats_after_connect.json()["data"][
+                "total_connections"
+            ]
             logger.info(f"Connections after SSE connect: {count_after_connect}")
-            assert count_after_connect > initial_count, "SSE connection should increase count"
+            assert (
+                count_after_connect > initial_count
+            ), "SSE connection should increase count"
 
             # Now call disconnect endpoint
             disconnect_response = session.post(
@@ -586,9 +591,9 @@ class TestSSEConnectionCleanup:
                 "total_connections"
             ]
             logger.info(f"Connections after disconnect: {count_after_disconnect}")
-            assert count_after_disconnect < count_after_connect, (
-                "Connection count should decrease after disconnect"
-            )
+            assert (
+                count_after_disconnect < count_after_connect
+            ), "Connection count should decrease after disconnect"
 
         # Clean up
         if sse_response:

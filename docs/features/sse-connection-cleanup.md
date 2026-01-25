@@ -168,10 +168,10 @@ Final verification and documentation.
 - [x] M2: Improve Write Failure Detection (COMPLETE)
   - [x] M2.1 - Add write error handling in event generator
   - [x] M2.2 - Add unit tests for write failure cleanup
-- [ ] M3: Add Integration Tests
-  - [ ] M3.1 - Test for page refresh cleanup
-  - [ ] M3.2 - Test for tab navigation cleanup
-  - [ ] M3.3 - Test for explicit disconnect
+- [x] M3: Add Integration Tests (COMPLETE - tests written, pending integration auth fix)
+  - [x] M3.1 - Test for page refresh cleanup
+  - [x] M3.2 - Test for tab navigation cleanup
+  - [x] M3.3 - Test for explicit disconnect
 - [ ] M4: Acceptance Criteria Verification
   - [ ] M4.1 - Run all nox test sessions
   - [ ] M4.2 - Manual verification

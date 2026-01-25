@@ -353,8 +353,7 @@ def create_sse_response(connection: SSEConnection) -> Response:
         except OSError as e:
             # Other OS-level errors (e.g., EPIPE, ECONNRESET)
             logger.info(
-                f"SSE connection {connection.connection_id} closed "
-                f"(OS error: {e})"
+                f"SSE connection {connection.connection_id} closed " f"(OS error: {e})"
             )
             connection.disconnect()
         except Exception as e:
@@ -368,9 +367,7 @@ def create_sse_response(connection: SSEConnection) -> Response:
             # Always clean up connection from the manager
             # This is idempotent - safe to call even if already removed
             sse_manager.remove_connection(connection.connection_id)
-            logger.debug(
-                f"SSE connection {connection.connection_id} cleanup complete"
-            )
+            logger.debug(f"SSE connection {connection.connection_id} cleanup complete")
 
     response = Response(
         event_stream(),

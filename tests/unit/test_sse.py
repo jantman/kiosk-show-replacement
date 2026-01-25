@@ -250,7 +250,9 @@ class TestSSEDisconnectEndpoint:
         data = response.get_json()
         assert "No data provided" in data.get("error", "")
 
-    def test_disconnect_removes_existing_connection(self, client, authenticated_user, app):
+    def test_disconnect_removes_existing_connection(
+        self, client, authenticated_user, app
+    ):
         """Test that disconnect endpoint removes an existing SSE connection."""
         from kiosk_show_replacement.sse import sse_manager
 
@@ -295,7 +297,10 @@ class TestSSEDisconnectEndpoint:
         data = response.get_json()
         assert data["success"] is True
         assert data["data"]["disconnected"] is False
-        assert "not found" in data["message"].lower() or "disconnected" in data["message"].lower()
+        assert (
+            "not found" in data["message"].lower()
+            or "disconnected" in data["message"].lower()
+        )
 
     def test_disconnect_is_idempotent(self, client, authenticated_user, app):
         """Test that calling disconnect multiple times is safe (idempotent)."""
@@ -336,7 +341,9 @@ class TestSSEDisconnectEndpoint:
 
         with app.app_context():
             # Create a connection (simulating one created by an authenticated session)
-            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection = sse_manager.create_connection(
+                user_id=1, connection_type="admin"
+            )
             connection_id = connection.connection_id
 
             # Call disconnect without being authenticated
@@ -358,7 +365,9 @@ class TestSSEConnectionCleanup:
         from kiosk_show_replacement.sse import sse_manager
 
         with app.app_context():
-            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection = sse_manager.create_connection(
+                user_id=1, connection_type="admin"
+            )
             assert connection.is_active is True
 
             connection.disconnect()
@@ -370,17 +379,23 @@ class TestSSEConnectionCleanup:
     def test_add_event_failure_deactivates_connection(self, app):
         """Test that add_event failure sets connection to inactive."""
         from unittest.mock import patch
+
         from kiosk_show_replacement.sse import sse_manager
 
         with app.app_context():
-            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection = sse_manager.create_connection(
+                user_id=1, connection_type="admin"
+            )
             assert connection.is_active is True
 
             # Make the queue raise an exception
             with patch.object(
-                connection.event_queue, "put_nowait", side_effect=Exception("Queue full")
+                connection.event_queue,
+                "put_nowait",
+                side_effect=Exception("Queue full"),
             ):
                 from kiosk_show_replacement.sse import SSEEvent
+
                 event = SSEEvent(event_type="test", data={"message": "test"})
                 connection.add_event(event)
 
@@ -395,7 +410,9 @@ class TestSSEConnectionCleanup:
         from kiosk_show_replacement.sse import sse_manager
 
         with app.app_context():
-            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection = sse_manager.create_connection(
+                user_id=1, connection_type="admin"
+            )
             connection_id = connection.connection_id
 
             # First removal should work
@@ -412,10 +429,12 @@ class TestSSEConnectionCleanup:
 
     def test_get_events_stops_when_inactive(self, app):
         """Test that get_events generator stops when connection is deactivated."""
-        from kiosk_show_replacement.sse import sse_manager, SSEEvent
+        from kiosk_show_replacement.sse import SSEEvent, sse_manager
 
         with app.app_context():
-            connection = sse_manager.create_connection(user_id=1, connection_type="admin")
+            connection = sse_manager.create_connection(
+                user_id=1, connection_type="admin"
+            )
 
             # Add some events
             connection.add_event(SSEEvent(event_type="test1", data={"msg": "1"}))
@@ -438,7 +457,9 @@ class TestSSEConnectionCleanup:
             # Should get the second event that was already queued, then stop
             # Actually, since we disconnect after getting first event, the loop
             # will check is_active before getting next event and exit
-            assert len(remaining) == 0 or (len(remaining) == 1 and remaining[0].event_type == "test2")
+            assert len(remaining) == 0 or (
+                len(remaining) == 1 and remaining[0].event_type == "test2"
+            )
 
             # Cleanup
             sse_manager.remove_connection(connection.connection_id)
