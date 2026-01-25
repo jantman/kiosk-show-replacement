@@ -343,13 +343,12 @@
                                            onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load image</div></div>'">`;
                             break;
                         case 'video':
-                            content = `<video autoplay muted loop preload="metadata"
-                                             onloadeddata="this.style.opacity=1; this.classList.add('loaded')" 
+                            // Use single source element without type attribute - browser auto-detects format
+                            content = `<video autoplay muted loop preload="auto"
+                                             onloadeddata="this.style.opacity=1; this.classList.add('loaded')"
                                              oncanplay="this.dataset.ready='true'"
                                              onerror="this.parentElement.innerHTML='<div class=error-message><div class=icon>⚠️</div><div>Failed to load video</div></div>'">
-                                        <source src="${contentUrl}" type="video/mp4">
-                                        <source src="${contentUrl}" type="video/webm">
-                                        <source src="${contentUrl}" type="video/ogg">
+                                        <source src="${contentUrl}">
                                         Your browser does not support video playback.
                                        </video>`;
                             break;
@@ -407,8 +406,19 @@
                     const video = currentSlide.querySelector('video');
                     if (video) {
                         video.currentTime = 0;
+
+                        // Ensure video becomes visible - add loaded class if not already present
+                        // This serves as a defensive fallback in case onloadeddata doesn't fire
+                        const ensureVisible = () => {
+                            if (!video.classList.contains('loaded')) {
+                                video.style.opacity = '1';
+                                video.classList.add('loaded');
+                            }
+                        };
+
                         // Wait for video to be ready before playing
                         const playVideo = () => {
+                            ensureVisible();
                             video.play().catch(e => {
                                 console.warn('Video autoplay failed:', e);
                                 // Try muted playback if unmuted fails
@@ -416,11 +426,13 @@
                                 video.play().catch(err => console.error('Video playback failed:', err));
                             });
                         };
-                        
+
                         if (video.readyState >= 2) { // HAVE_CURRENT_DATA
                             playVideo();
                         } else {
                             video.addEventListener('canplay', playVideo, { once: true });
+                            // Fallback: ensure visibility after a short timeout even if events don't fire
+                            setTimeout(ensureVisible, 1000);
                         }
                     }
                 }
