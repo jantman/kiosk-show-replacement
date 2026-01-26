@@ -172,6 +172,73 @@ Check the application logs for NewRelic activation:
 
 You should see "NewRelic monitoring enabled" if properly configured.
 
+Prometheus Metrics
+~~~~~~~~~~~~~~~~~~
+
+The application exposes a ``/metrics`` endpoint in Prometheus text format for
+scraping by Prometheus or compatible monitoring systems.
+
+**Endpoint:** ``GET /metrics``
+
+**Authentication:** None required (publicly accessible)
+
+**Metrics Exposed:**
+
+*HTTP Metrics:*
+
+* ``http_requests_total`` - Total HTTP requests (labels: method, endpoint, status)
+* ``http_request_duration_seconds`` - Request duration histogram (label: endpoint)
+
+*System Metrics:*
+
+* ``active_sse_connections`` - Current number of Server-Sent Events connections
+* ``database_errors_total`` - Total database errors
+* ``storage_errors_total`` - Total storage errors
+
+*Display Metrics (per-display, labels: display_id, display_name):*
+
+* ``display_info`` - Info gauge (always 1) with slideshow_id/name labels
+* ``display_online`` - Online status (1=online, 0=offline)
+* ``display_resolution_width_pixels`` - Display width in pixels
+* ``display_resolution_height_pixels`` - Display height in pixels
+* ``display_rotation_degrees`` - Rotation (0, 90, 180, 270)
+* ``display_last_seen_timestamp_seconds`` - Unix timestamp of last heartbeat
+* ``display_heartbeat_interval_seconds`` - Configured heartbeat interval
+* ``display_heartbeat_age_seconds`` - Seconds since last heartbeat
+* ``display_missed_heartbeats`` - Number of missed heartbeats
+* ``display_sse_connected`` - SSE connection status (1=connected, 0=disconnected)
+* ``display_is_active`` - Active status (1=active, 0=inactive)
+
+*Summary Metrics:*
+
+* ``displays_total`` - Total number of displays
+* ``displays_online_total`` - Number of online displays
+* ``displays_active_total`` - Number of active (not disabled) displays
+* ``slideshows_total`` - Total number of slideshows
+
+**Example Prometheus Configuration:**
+
+.. code-block:: yaml
+
+   scrape_configs:
+     - job_name: 'kiosk-show'
+       static_configs:
+         - targets: ['localhost:5000']
+       metrics_path: '/metrics'
+
+**Example Queries:**
+
+.. code-block:: promql
+
+   # Percentage of online displays
+   displays_online_total / displays_total * 100
+
+   # Displays with missed heartbeats
+   display_missed_heartbeats > 0
+
+   # Request rate by endpoint
+   rate(http_requests_total[5m])
+
 Resource Limits
 ~~~~~~~~~~~~~~~
 

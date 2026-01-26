@@ -221,6 +221,19 @@ def init_metrics(app: Flask) -> None:
         return response
 
 
+def _escape_label_value(value: str) -> str:
+    """Escape a label value for Prometheus text format.
+
+    Args:
+        value: The label value to escape
+
+    Returns:
+        Escaped label value safe for Prometheus format
+    """
+    # Escape backslashes first, then quotes, then newlines
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")
+
+
 def get_display_heartbeat_metrics() -> str:
     """Get metrics for display heartbeat ages.
 
@@ -245,10 +258,214 @@ def get_display_heartbeat_metrics() -> str:
             else:
                 age = -1  # Never seen
 
-            safe_name = display.name.replace('"', '\\"')
+            safe_name = _escape_label_value(display.name)
             lines.append(
                 f'display_heartbeat_age_seconds{{display_id="{display.id}",display_name="{safe_name}"}} {age:.1f}'
             )
+
+        return "\n".join(lines) + "\n"
+    except Exception:
+        return ""
+
+
+def get_display_metrics() -> str:
+    """Get comprehensive metrics for all displays.
+
+    Returns:
+        Prometheus-formatted metrics for display information and status
+    """
+    try:
+        from .models import Display
+
+        lines: List[str] = []
+        displays = Display.query.all()
+
+        # display_info - info metric with slideshow labels
+        lines.append(
+            "# HELP display_info Display information metric (always 1) "
+            "with slideshow assignment in labels"
+        )
+        lines.append("# TYPE display_info gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            slideshow_id = display.current_slideshow_id or ""
+            slideshow_name = ""
+            if display.current_slideshow:
+                slideshow_name = _escape_label_value(display.current_slideshow.name)
+            lines.append(
+                f'display_info{{display_id="{display.id}",display_name="{safe_name}",'
+                f'slideshow_id="{slideshow_id}",slideshow_name="{slideshow_name}"}} 1'
+            )
+
+        # display_online - 1 if online, 0 if offline
+        lines.append("")
+        lines.append(
+            "# HELP display_online Display online status (1=online, 0=offline)"
+        )
+        lines.append("# TYPE display_online gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            online_val = 1 if display.is_online else 0
+            lines.append(
+                f'display_online{{display_id="{display.id}",'
+                f'display_name="{safe_name}"}} {online_val}'
+            )
+
+        # display_resolution_width_pixels
+        lines.append("")
+        lines.append("# HELP display_resolution_width_pixels Display width in pixels")
+        lines.append("# TYPE display_resolution_width_pixels gauge")
+        for display in displays:
+            if display.resolution_width is not None:
+                safe_name = _escape_label_value(display.name)
+                lines.append(
+                    f'display_resolution_width_pixels{{display_id="{display.id}",'
+                    f'display_name="{safe_name}"}} {display.resolution_width}'
+                )
+
+        # display_resolution_height_pixels
+        lines.append("")
+        lines.append("# HELP display_resolution_height_pixels Display height in pixels")
+        lines.append("# TYPE display_resolution_height_pixels gauge")
+        for display in displays:
+            if display.resolution_height is not None:
+                safe_name = _escape_label_value(display.name)
+                lines.append(
+                    f'display_resolution_height_pixels{{display_id="{display.id}",'
+                    f'display_name="{safe_name}"}} {display.resolution_height}'
+                )
+
+        # display_rotation_degrees
+        lines.append("")
+        lines.append(
+            "# HELP display_rotation_degrees Display rotation in degrees (0, 90, 180, 270)"
+        )
+        lines.append("# TYPE display_rotation_degrees gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            lines.append(
+                f'display_rotation_degrees{{display_id="{display.id}",'
+                f'display_name="{safe_name}"}} {display.rotation}'
+            )
+
+        # display_last_seen_timestamp_seconds
+        lines.append("")
+        lines.append(
+            "# HELP display_last_seen_timestamp_seconds "
+            "Unix timestamp of last display heartbeat"
+        )
+        lines.append("# TYPE display_last_seen_timestamp_seconds gauge")
+        for display in displays:
+            if display.last_seen_at:
+                safe_name = _escape_label_value(display.name)
+                last_seen = display.last_seen_at
+                # Ensure timezone-aware
+                if last_seen.tzinfo is None:
+                    last_seen = last_seen.replace(tzinfo=timezone.utc)
+                timestamp = last_seen.timestamp()
+                lines.append(
+                    f'display_last_seen_timestamp_seconds{{display_id="{display.id}",'
+                    f'display_name="{safe_name}"}} {timestamp:.3f}'
+                )
+
+        # display_heartbeat_interval_seconds
+        lines.append("")
+        lines.append(
+            "# HELP display_heartbeat_interval_seconds "
+            "Configured heartbeat interval in seconds"
+        )
+        lines.append("# TYPE display_heartbeat_interval_seconds gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            lines.append(
+                f'display_heartbeat_interval_seconds{{display_id="{display.id}",'
+                f'display_name="{safe_name}"}} {display.heartbeat_interval}'
+            )
+
+        # display_missed_heartbeats
+        lines.append("")
+        lines.append("# HELP display_missed_heartbeats Number of missed heartbeats")
+        lines.append("# TYPE display_missed_heartbeats gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            lines.append(
+                f'display_missed_heartbeats{{display_id="{display.id}",'
+                f'display_name="{safe_name}"}} {display.missed_heartbeats}'
+            )
+
+        # display_sse_connected - 1 if SSE connected, 0 if not
+        lines.append("")
+        lines.append(
+            "# HELP display_sse_connected "
+            "Display SSE connection status (1=connected, 0=disconnected)"
+        )
+        lines.append("# TYPE display_sse_connected gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            sse_val = 1 if display.sse_connected else 0
+            lines.append(
+                f'display_sse_connected{{display_id="{display.id}",'
+                f'display_name="{safe_name}"}} {sse_val}'
+            )
+
+        # display_is_active - 1 if active, 0 if inactive
+        lines.append("")
+        lines.append(
+            "# HELP display_is_active Display active status (1=active, 0=inactive)"
+        )
+        lines.append("# TYPE display_is_active gauge")
+        for display in displays:
+            safe_name = _escape_label_value(display.name)
+            active_val = 1 if display.is_active else 0
+            lines.append(
+                f'display_is_active{{display_id="{display.id}",'
+                f'display_name="{safe_name}"}} {active_val}'
+            )
+
+        return "\n".join(lines) + "\n"
+    except Exception:
+        return ""
+
+
+def get_summary_metrics() -> str:
+    """Get summary/aggregate metrics for displays and slideshows.
+
+    Returns:
+        Prometheus-formatted metrics for summary counts
+    """
+    try:
+        from .models import Display, Slideshow
+
+        lines: List[str] = []
+
+        # Total displays count
+        displays = Display.query.all()
+        total_displays = len(displays)
+        online_displays = sum(1 for d in displays if d.is_online)
+        active_displays = sum(1 for d in displays if d.is_active)
+
+        lines.append("# HELP displays_total Total number of displays")
+        lines.append("# TYPE displays_total gauge")
+        lines.append(f"displays_total {total_displays}")
+
+        lines.append("")
+        lines.append("# HELP displays_online_total Number of displays currently online")
+        lines.append("# TYPE displays_online_total gauge")
+        lines.append(f"displays_online_total {online_displays}")
+
+        lines.append("")
+        lines.append(
+            "# HELP displays_active_total Number of active (not disabled) displays"
+        )
+        lines.append("# TYPE displays_active_total gauge")
+        lines.append(f"displays_active_total {active_displays}")
+
+        # Total slideshows count
+        total_slideshows = Slideshow.query.count()
+        lines.append("")
+        lines.append("# HELP slideshows_total Total number of slideshows")
+        lines.append("# TYPE slideshows_total gauge")
+        lines.append(f"slideshows_total {total_slideshows}")
 
         return "\n".join(lines) + "\n"
     except Exception:
@@ -280,6 +497,12 @@ def metrics_endpoint() -> Response:
 
     # Add display heartbeat metrics
     output += "\n" + get_display_heartbeat_metrics()
+
+    # Add comprehensive display metrics
+    output += "\n" + get_display_metrics()
+
+    # Add summary metrics
+    output += "\n" + get_summary_metrics()
 
     return Response(output, mimetype="text/plain; charset=utf-8")
 
