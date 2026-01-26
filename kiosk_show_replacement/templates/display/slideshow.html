@@ -207,15 +207,52 @@
             100% { transform: rotate(360deg); }
         }
         
+        /* Transition styles for different slideshow transition types */
+
+        /* Fade transition: Smooth opacity change */
         .fade-transition {
             opacity: 0;
             transition: opacity 0.5s ease-in-out;
         }
-        
+
         .fade-transition.active {
             opacity: 1;
         }
-        
+
+        /* Slide transition: Horizontal slide animation */
+        .slide-transition {
+            transform: translateX(100%);
+            opacity: 0;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+
+        .slide-transition.active {
+            transform: translateX(0);
+            opacity: 1;
+        }
+
+        /* Zoom transition: Scale animation */
+        .zoom-transition {
+            transform: scale(0.8);
+            opacity: 0;
+            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
+        }
+
+        .zoom-transition.active {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        /* None transition: Immediate switch with no animation */
+        .none-transition {
+            opacity: 0;
+            transition: none;
+        }
+
+        .none-transition.active {
+            opacity: 1;
+        }
+
         .error-message {
             display: flex;
             flex-direction: column;
