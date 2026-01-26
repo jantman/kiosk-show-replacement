@@ -109,4 +109,14 @@ All display metrics will include labels: `display_id`, `display_name`
 
 - [x] Milestone 1: Add Display Metrics Function (completed)
 - [x] Milestone 2: Add Summary Metrics (completed)
-- [ ] Milestone 3: Acceptance Criteria
+- [x] Milestone 3: Acceptance Criteria (completed)
+
+## Implementation Complete
+
+All milestones completed. The `/metrics` endpoint now exposes comprehensive
+Prometheus metrics including:
+
+- Per-display metrics with display_id and display_name labels
+- Summary/aggregate metrics for displays and slideshows
+- Full documentation in docs/deployment.rst
+- 100% test coverage for new functionality
