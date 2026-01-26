@@ -427,6 +427,51 @@ def get_display_metrics() -> str:
         return ""
 
 
+def get_summary_metrics() -> str:
+    """Get summary/aggregate metrics for displays and slideshows.
+
+    Returns:
+        Prometheus-formatted metrics for summary counts
+    """
+    try:
+        from .models import Display, Slideshow
+
+        lines: List[str] = []
+
+        # Total displays count
+        displays = Display.query.all()
+        total_displays = len(displays)
+        online_displays = sum(1 for d in displays if d.is_online)
+        active_displays = sum(1 for d in displays if d.is_active)
+
+        lines.append("# HELP displays_total Total number of displays")
+        lines.append("# TYPE displays_total gauge")
+        lines.append(f"displays_total {total_displays}")
+
+        lines.append("")
+        lines.append("# HELP displays_online_total Number of displays currently online")
+        lines.append("# TYPE displays_online_total gauge")
+        lines.append(f"displays_online_total {online_displays}")
+
+        lines.append("")
+        lines.append(
+            "# HELP displays_active_total Number of active (not disabled) displays"
+        )
+        lines.append("# TYPE displays_active_total gauge")
+        lines.append(f"displays_active_total {active_displays}")
+
+        # Total slideshows count
+        total_slideshows = Slideshow.query.count()
+        lines.append("")
+        lines.append("# HELP slideshows_total Total number of slideshows")
+        lines.append("# TYPE slideshows_total gauge")
+        lines.append(f"slideshows_total {total_slideshows}")
+
+        return "\n".join(lines) + "\n"
+    except Exception:
+        return ""
+
+
 def get_sse_connection_metrics() -> None:
     """Update SSE connection count metric."""
     try:
@@ -455,6 +500,9 @@ def metrics_endpoint() -> Response:
 
     # Add comprehensive display metrics
     output += "\n" + get_display_metrics()
+
+    # Add summary metrics
+    output += "\n" + get_summary_metrics()
 
     return Response(output, mimetype="text/plain; charset=utf-8")
 

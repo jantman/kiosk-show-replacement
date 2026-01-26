@@ -643,3 +643,141 @@ class TestDisplayMetrics:
 
         # The quotes should be escaped
         assert 'display_name="display-with-\\"quotes\\""' in data
+
+
+class TestSummaryMetrics:
+    """Tests for summary/aggregate metrics."""
+
+    def test_summary_metrics_included_in_endpoint(self, app, client):
+        """Test that summary metrics are included in /metrics endpoint."""
+        response = client.get("/metrics")
+        data = response.data.decode("utf-8")
+
+        # Check all summary metric HELP/TYPE definitions are present
+        assert "# HELP displays_total" in data
+        assert "# TYPE displays_total gauge" in data
+        assert "# HELP displays_online_total" in data
+        assert "# TYPE displays_online_total gauge" in data
+        assert "# HELP displays_active_total" in data
+        assert "# TYPE displays_active_total gauge" in data
+        assert "# HELP slideshows_total" in data
+        assert "# TYPE slideshows_total gauge" in data
+
+    def test_displays_total_metric(self, app, client, auth_client):
+        """Test displays_total metric counts correctly."""
+        # Create some displays
+        auth_client.post("/api/v1/displays", json={"name": "total-test-1"})
+        auth_client.post("/api/v1/displays", json={"name": "total-test-2"})
+        auth_client.post("/api/v1/displays", json={"name": "total-test-3"})
+
+        response = client.get("/metrics")
+        data = response.data.decode("utf-8")
+
+        # Find displays_total line
+        for line in data.split("\n"):
+            if line.startswith("displays_total "):
+                value = int(line.split(" ")[-1])
+                assert value >= 3  # At least our 3 displays
+                break
+        else:
+            raise AssertionError("displays_total metric not found")
+
+    def test_displays_online_total_metric(self, app, client, auth_client):
+        """Test displays_online_total metric counts online displays."""
+        from datetime import datetime, timedelta, timezone
+
+        from kiosk_show_replacement.models import Display, db
+
+        # Create displays with different online statuses
+        auth_client.post("/api/v1/displays", json={"name": "online-count-1"})
+        auth_client.post("/api/v1/displays", json={"name": "online-count-2"})
+        auth_client.post("/api/v1/displays", json={"name": "offline-count-1"})
+
+        with app.app_context():
+            # Make two online
+            d1 = Display.query.filter_by(name="online-count-1").first()
+            d1.last_seen_at = datetime.now(timezone.utc)
+            d2 = Display.query.filter_by(name="online-count-2").first()
+            d2.last_seen_at = datetime.now(timezone.utc)
+            # Keep one offline (no last_seen_at or old)
+            d3 = Display.query.filter_by(name="offline-count-1").first()
+            d3.last_seen_at = datetime.now(timezone.utc) - timedelta(hours=1)
+            db.session.commit()
+
+        response = client.get("/metrics")
+        data = response.data.decode("utf-8")
+
+        # Find displays_online_total line
+        for line in data.split("\n"):
+            if line.startswith("displays_online_total "):
+                value = int(line.split(" ")[-1])
+                assert value >= 2  # At least our 2 online displays
+                break
+        else:
+            raise AssertionError("displays_online_total metric not found")
+
+    def test_displays_active_total_metric(self, app, client, auth_client):
+        """Test displays_active_total metric counts active displays."""
+        from kiosk_show_replacement.models import Display, db
+
+        # Create displays with different active statuses
+        auth_client.post(
+            "/api/v1/displays", json={"name": "active-count-1", "is_active": True}
+        )
+        auth_client.post(
+            "/api/v1/displays", json={"name": "active-count-2", "is_active": True}
+        )
+        auth_client.post("/api/v1/displays", json={"name": "inactive-count-1"})
+
+        # Deactivate one display
+        with app.app_context():
+            d3 = Display.query.filter_by(name="inactive-count-1").first()
+            d3.is_active = False
+            db.session.commit()
+
+        response = client.get("/metrics")
+        data = response.data.decode("utf-8")
+
+        # Find displays_active_total line
+        for line in data.split("\n"):
+            if line.startswith("displays_active_total "):
+                value = int(line.split(" ")[-1])
+                assert value >= 2  # At least our 2 active displays
+                break
+        else:
+            raise AssertionError("displays_active_total metric not found")
+
+    def test_slideshows_total_metric(self, app, client, auth_client):
+        """Test slideshows_total metric counts correctly."""
+        # Create some slideshows
+        auth_client.post(
+            "/api/v1/slideshows",
+            json={"name": "slideshow-count-1", "description": "Test"},
+        )
+        auth_client.post(
+            "/api/v1/slideshows",
+            json={"name": "slideshow-count-2", "description": "Test"},
+        )
+
+        response = client.get("/metrics")
+        data = response.data.decode("utf-8")
+
+        # Find slideshows_total line
+        for line in data.split("\n"):
+            if line.startswith("slideshows_total "):
+                value = int(line.split(" ")[-1])
+                assert value >= 2  # At least our 2 slideshows
+                break
+        else:
+            raise AssertionError("slideshows_total metric not found")
+
+    def test_empty_database_returns_zero_counts(self, app, client):
+        """Test that with empty database, all counts are zero."""
+        response = client.get("/metrics")
+        data = response.data.decode("utf-8")
+
+        # All summary metrics should report 0
+        assert "displays_total 0" in data
+        assert "displays_online_total 0" in data
+        assert "displays_active_total 0" in data
+        assert "slideshows_total 0" in data

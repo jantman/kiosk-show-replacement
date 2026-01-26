@@ -107,6 +107,6 @@ All display metrics will include labels: `display_id`, `display_name`
 
 ## Progress
 
-- [ ] Milestone 1: Add Display Metrics Function
-- [ ] Milestone 2: Add Summary Metrics
+- [x] Milestone 1: Add Display Metrics Function (completed)
+- [x] Milestone 2: Add Summary Metrics (completed)
 - [ ] Milestone 3: Acceptance Criteria
