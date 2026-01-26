@@ -48,31 +48,31 @@ This field is always included (as `null` for non-URL types), but the tests weren
 
 ## Implementation Plan
 
-### Milestone 1 (FTF-M1): Fix Login.test.tsx
+### Milestone 1 (FTF-M1): Fix Login.test.tsx - COMPLETED
 
 **FTF-M1.1: Mock apiClient for Login tests**
-- Add a mock for `apiClient` that returns successful health check and login responses
-- Ensure `getHealthReady()` returns `{ success: true, status: 'ready' }` to allow the component to render the login form
-- Ensure `login()` returns appropriate response for form submission tests
+- Added mock for `apiClient` with `getHealthReady()`, `login()`, and `getCurrentUser()` methods
+- `getHealthReady()` returns `{ success: true, status: 'ready' }` by default
+- `login()` returns successful response for form submission tests
 
 **FTF-M1.2: Update loading state test**
-- The "shows loading state during authentication" test needs to check for the correct loading message
-- The component shows "Checking system status..." when `isCheckingSystem` is true
-- The component shows "Checking authentication..." when `isLoading` is true (and `isCheckingSystem` is false)
+- Added new test "shows loading state while checking system status" for `isCheckingSystem` state
+- Updated "shows loading state during authentication" to wait for health check to complete first
+- All tests now use `await waitFor()` to wait for health check to complete before asserting
 
-### Milestone 2 (FTF-M2): Fix SlideshowItemForm.test.tsx
+### Milestone 2 (FTF-M2): Fix SlideshowItemForm.test.tsx - COMPLETED
 
 **FTF-M2.1: Update test expectations to include scale_factor**
-- Add `scale_factor: null` to the expected JSON body in all failing tests:
+- Added `scale_factor: null` to expected JSON body in:
   - `handles form submission for create`
   - `handles form submission for edit`
   - `handles text content submission`
 
-### Milestone 3 (FTF-M3): Acceptance Criteria
+### Milestone 3 (FTF-M3): Acceptance Criteria - COMPLETED
 
 **FTF-M3.1: Test verification**
-- All frontend tests pass: `npm run test:run`
-- All nox sessions pass
+- All 117 frontend tests pass: `npm run test:run`
+- All nox sessions pass (format, lint, type_check, test-3.14)
 
 **FTF-M3.2: Complete feature**
-- Move this feature file to `docs/features/completed/`
+- Feature file moved to `docs/features/completed/`
