@@ -130,6 +130,7 @@ def create_slideshow() -> Tuple[Response, int]:
             default_item_duration=data.get(
                 "default_item_duration", 30
             ),  # Support custom duration
+            transition_type=data.get("transition_type", "fade"),
             owner_id=current_user.id,
             created_by_id=current_user.id,
             updated_by_id=current_user.id,
