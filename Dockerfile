@@ -20,7 +20,26 @@ COPY frontend/ ./
 RUN npm run build -- --outDir ./dist
 
 # =============================================================================
-# Stage 2: Python runtime
+# Stage 2: Export Python dependencies
+# Uses Python 3.12 because Poetry's dependencies (pbs-installer, zstandard)
+# don't have wheels available for Python 3.14 yet
+# =============================================================================
+FROM python:3.12-slim AS deps-export
+
+WORKDIR /app
+
+# Install Poetry for dependency export
+RUN pip install --no-cache-dir poetry==2.2.1 \
+    && poetry self add poetry-plugin-export
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock* ./
+
+# Export dependencies to requirements.txt
+RUN poetry export -f requirements.txt --without-hashes --only main > requirements.txt
+
+# =============================================================================
+# Stage 3: Python runtime
 # =============================================================================
 FROM python:3.14.2-slim-trixie AS runtime
 
@@ -50,17 +69,9 @@ RUN groupadd --gid 1000 appgroup \
 # Set working directory
 WORKDIR /app
 
-# Install Poetry for dependency management and the export plugin
-RUN pip install poetry==2.2.1 \
-    && poetry self add poetry-plugin-export
-
-# Copy dependency files
-COPY pyproject.toml poetry.lock* ./
-
-# Export dependencies to requirements.txt and install with pip
-# This is more efficient than using poetry in production
-RUN poetry export -f requirements.txt --without-hashes --only main > requirements.txt \
-    && pip install -r requirements.txt \
+# Copy requirements.txt from deps-export stage and install dependencies
+COPY --from=deps-export /app/requirements.txt ./
+RUN pip install -r requirements.txt \
     && rm -rf ~/.cache/pip
 
 # Copy application code
