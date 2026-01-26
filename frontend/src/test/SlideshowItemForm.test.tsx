@@ -137,7 +137,8 @@ describe('SlideshowItemForm', () => {
           content_text: null,
           content_file_path: null,
           display_duration: 15,
-          is_active: true
+          is_active: true,
+          scale_factor: null
         })
       });
     });
@@ -179,7 +180,8 @@ describe('SlideshowItemForm', () => {
           content_text: null,
           content_file_path: 'images/test.jpg',
           display_duration: 10,
-          is_active: true
+          is_active: true,
+          scale_factor: null
         })
       });
     });
@@ -225,7 +227,8 @@ describe('SlideshowItemForm', () => {
           content_text: 'Hello World',
           content_file_path: null,
           display_duration: null,
-          is_active: true
+          is_active: true,
+          scale_factor: null
         })
       });
     });
