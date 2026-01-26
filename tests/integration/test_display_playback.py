@@ -1727,6 +1727,425 @@ class TestDisplayPlayback:
                 headers=auth_headers,
             )
 
+    def test_slideshow_transition_type_fade_applies_correct_css_class(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that fade transition type applies fade-transition CSS class to slides.
+
+        This regression test verifies that when a slideshow is configured with
+        transition_type="fade", the display renders slides with the correct
+        CSS class for fade animations.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow with fade transition
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Fade Transition Test Slideshow",
+                "description": "Test slideshow for fade transition",
+                "default_item_duration": 30,
+                "transition_type": "fade",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Fade Test Slide",
+                    "content_type": "text",
+                    "content_text": "Testing fade transition",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-fade-transition-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for fade transition",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+                time.sleep(1)
+
+                # Verify slide has fade-transition class
+                slide_element = page.locator(".slide.active")
+                assert slide_element.is_visible(), "Active slide should be visible"
+
+                has_fade_class = page.evaluate(
+                    """() => {
+                        const slide = document.querySelector('.slide.active');
+                        return slide && slide.classList.contains('fade-transition');
+                    }"""
+                )
+                assert has_fade_class, (
+                    "Slide with transition_type='fade' should have 'fade-transition' class"
+                )
+
+            finally:
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_slideshow_transition_type_slide_applies_correct_css_class(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that slide transition type applies slide-transition CSS class.
+
+        This regression test verifies that when a slideshow is configured with
+        transition_type="slide", the display renders slides with the correct
+        CSS class for slide animations.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow with slide transition
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Slide Transition Test Slideshow",
+                "description": "Test slideshow for slide transition",
+                "default_item_duration": 30,
+                "transition_type": "slide",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Slide Test Slide",
+                    "content_type": "text",
+                    "content_text": "Testing slide transition",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-slide-transition-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for slide transition",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+                time.sleep(1)
+
+                # Verify slide has slide-transition class
+                slide_element = page.locator(".slide.active")
+                assert slide_element.is_visible(), "Active slide should be visible"
+
+                has_slide_class = page.evaluate(
+                    """() => {
+                        const slide = document.querySelector('.slide.active');
+                        return slide && slide.classList.contains('slide-transition');
+                    }"""
+                )
+                assert has_slide_class, (
+                    "Slide with transition_type='slide' should have 'slide-transition' "
+                    "class"
+                )
+
+            finally:
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_slideshow_transition_type_zoom_applies_correct_css_class(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that zoom transition type applies zoom-transition CSS class.
+
+        This regression test verifies that when a slideshow is configured with
+        transition_type="zoom", the display renders slides with the correct
+        CSS class for zoom animations.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow with zoom transition
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Zoom Transition Test Slideshow",
+                "description": "Test slideshow for zoom transition",
+                "default_item_duration": 30,
+                "transition_type": "zoom",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Zoom Test Slide",
+                    "content_type": "text",
+                    "content_text": "Testing zoom transition",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-zoom-transition-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for zoom transition",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+                time.sleep(1)
+
+                # Verify slide has zoom-transition class
+                slide_element = page.locator(".slide.active")
+                assert slide_element.is_visible(), "Active slide should be visible"
+
+                has_zoom_class = page.evaluate(
+                    """() => {
+                        const slide = document.querySelector('.slide.active');
+                        return slide && slide.classList.contains('zoom-transition');
+                    }"""
+                )
+                assert has_zoom_class, (
+                    "Slide with transition_type='zoom' should have 'zoom-transition' "
+                    "class"
+                )
+
+            finally:
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_slideshow_transition_type_none_applies_correct_css_class(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that none transition type applies none-transition CSS class.
+
+        This regression test verifies that when a slideshow is configured with
+        transition_type="none", the display renders slides with the correct
+        CSS class for no animation (immediate switch).
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow with no transition
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "None Transition Test Slideshow",
+                "description": "Test slideshow for no transition",
+                "default_item_duration": 30,
+                "transition_type": "none",
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "None Test Slide",
+                    "content_type": "text",
+                    "content_text": "Testing no transition",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-none-transition-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for no transition",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+                time.sleep(1)
+
+                # Verify slide has none-transition class
+                slide_element = page.locator(".slide.active")
+                assert slide_element.is_visible(), "Active slide should be visible"
+
+                has_none_class = page.evaluate(
+                    """() => {
+                        const slide = document.querySelector('.slide.active');
+                        return slide && slide.classList.contains('none-transition');
+                    }"""
+                )
+                assert has_none_class, (
+                    "Slide with transition_type='none' should have 'none-transition' "
+                    "class"
+                )
+
+            finally:
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
     def test_url_slide_without_scale_factor_has_no_transform(
         self,
         enhanced_page: Page,
