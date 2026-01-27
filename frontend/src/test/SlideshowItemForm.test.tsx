@@ -295,4 +295,199 @@ describe('SlideshowItemForm', () => {
     fireEvent.click(screen.getByText('Cancel'));
     expect(mockOnCancel).toHaveBeenCalled();
   });
+
+  describe('Video URL Validation', () => {
+    it('validates video URL on blur', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: {
+          valid: true,
+          duration_seconds: 120,
+          duration: 120.5,
+          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
+        }
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Change to video content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'video' }
+      });
+
+      // Enter a video URL and blur
+      const urlInput = screen.getByLabelText('Or use URL');
+      fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mp4' } });
+      fireEvent.blur(urlInput);
+
+      // Wait for validation to complete
+      await waitFor(() => {
+        expect(mockApiCall).toHaveBeenCalledWith('/api/v1/validate/video-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: 'https://example.com/video.mp4' })
+        });
+      });
+
+      // Should show validated badge
+      await waitFor(() => {
+        expect(screen.getByText('Video URL validated')).toBeInTheDocument();
+      });
+    });
+
+    it('shows error for invalid video codec', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: false,
+        error: "Video codec 'mpeg2video' is not supported by web browsers."
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Change to video content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'video' }
+      });
+
+      // Enter a video URL and blur
+      const urlInput = screen.getByLabelText('Or use URL');
+      fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mpeg' } });
+      fireEvent.blur(urlInput);
+
+      // Should show error message
+      await waitFor(() => {
+        expect(screen.getByText(/mpeg2video.*not supported/)).toBeInTheDocument();
+      });
+    });
+
+    it('auto-populates duration from validated video URL', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: {
+          valid: true,
+          duration_seconds: 60,
+          duration: 60.0,
+          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
+        }
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Change to video content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'video' }
+      });
+
+      // Enter a video URL and blur
+      const urlInput = screen.getByLabelText('Or use URL');
+      fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mp4' } });
+      fireEvent.blur(urlInput);
+
+      // Wait for duration to be auto-populated
+      await waitFor(() => {
+        const durationInput = screen.getByLabelText(/Video Duration/);
+        expect(durationInput).toHaveValue(60);
+      });
+    });
+
+    it('shows validating spinner while validation is in progress', async () => {
+      // Create a promise that we can control
+      let resolveValidation: (value: unknown) => void;
+      const validationPromise = new Promise((resolve) => {
+        resolveValidation = resolve;
+      });
+      mockApiCall.mockReturnValueOnce(validationPromise);
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Change to video content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'video' }
+      });
+
+      // Enter a video URL and blur
+      const urlInput = screen.getByLabelText('Or use URL');
+      fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mp4' } });
+      fireEvent.blur(urlInput);
+
+      // Should show validating message
+      await waitFor(() => {
+        expect(screen.getByText('Validating video URL...')).toBeInTheDocument();
+      });
+
+      // Resolve the validation
+      resolveValidation!({
+        success: true,
+        data: {
+          valid: true,
+          duration_seconds: 60,
+          duration: 60.0,
+          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
+        }
+      });
+
+      // Should show validated badge after completion
+      await waitFor(() => {
+        expect(screen.getByText('Video URL validated')).toBeInTheDocument();
+      });
+    });
+
+    it('does not validate when file is uploaded', async () => {
+      // Mock file upload response
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: { file_path: 'videos/uploaded.mp4', duration_seconds: 30 }
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Change to video content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'video' }
+      });
+
+      // Upload a file
+      const fileInput = screen.getByLabelText('Upload video *');
+      const file = new File(['test'], 'test.mp4', { type: 'video/mp4' });
+      fireEvent.change(fileInput, { target: { files: [file] } });
+
+      await waitFor(() => {
+        // Should call upload endpoint, not validation endpoint
+        expect(mockApiCall).toHaveBeenCalledWith('/api/v1/uploads/video', expect.anything());
+        expect(mockApiCall).not.toHaveBeenCalledWith(
+          '/api/v1/validate/video-url',
+          expect.anything()
+        );
+      });
+    });
+  });
 });

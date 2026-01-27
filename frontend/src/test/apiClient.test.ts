@@ -138,6 +138,73 @@ describe('API Client', () => {
     });
   });
 
+  describe('Video URL Validation', () => {
+    it('validates video URL successfully', async () => {
+      const mockValidationResult = {
+        valid: true,
+        duration_seconds: 120,
+        duration: 120.5,
+        codec_info: {
+          video_codec: 'h264',
+          audio_codec: 'aac',
+          container_format: 'mov,mp4,m4a,3gp,3g2,mj2'
+        }
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: mockValidationResult
+        })
+      });
+
+      const result = await apiClient.validateVideoUrl('https://example.com/video.mp4');
+
+      expect(mockFetch).toHaveBeenCalledWith('/api/v1/validate/video-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ url: 'https://example.com/video.mp4' }),
+        signal: expect.any(AbortSignal)
+      });
+      expect(result.success).toBe(true);
+      expect(result.data).toEqual(mockValidationResult);
+    });
+
+    it('handles invalid video codec error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          success: false,
+          error: "Video codec 'mpeg2video' is not supported by web browsers."
+        })
+      });
+
+      const result = await apiClient.validateVideoUrl('https://example.com/video.mpeg');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('mpeg2video');
+    });
+
+    it('handles inaccessible URL error', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({
+          success: false,
+          error: 'Could not retrieve video information from the URL.'
+        })
+      });
+
+      const result = await apiClient.validateVideoUrl('https://example.com/nonexistent.mp4');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('Could not retrieve');
+    });
+  });
+
   describe('Error Handling', () => {
     it('handles network errors', async () => {
       // Non-retryable network error (doesn't match retry patterns)
