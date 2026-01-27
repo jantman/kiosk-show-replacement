@@ -157,12 +157,6 @@ class TestDisplayDetail:
             # Cleanup
             http_client.delete(f"/api/v1/displays/{display_id}", headers=auth_headers)
 
-    @pytest.mark.xfail(
-        reason="Bug: Display API doesn't return assigned_slideshow object. "
-        "The frontend DisplayDetail component expects display.assigned_slideshow "
-        "but the API only returns current_slideshow_id. "
-        "See docs/features/fix-display-assigned-slideshow-api-bug.md for details."
-    )
     def test_quick_assign_slideshow_via_click(
         self,
         enhanced_page: Page,
@@ -238,12 +232,6 @@ class TestDisplayDetail:
             # Cleanup
             http_client.delete(f"/api/v1/displays/{display_id}", headers=auth_headers)
 
-    @pytest.mark.xfail(
-        reason="Bug: Display API doesn't return assigned_slideshow object. "
-        "The frontend DisplayDetail component expects display.assigned_slideshow "
-        "but the API only returns current_slideshow_id. "
-        "See docs/features/fix-display-assigned-slideshow-api-bug.md for details."
-    )
     def test_unassign_slideshow(
         self,
         enhanced_page: Page,
