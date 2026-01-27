@@ -248,6 +248,22 @@ const DisplayDetail: React.FC = () => {
     }
   };
 
+  const handleReloadDisplay = async () => {
+    if (!display) return;
+
+    try {
+      const response = await apiClient.reloadDisplay(display.id);
+
+      if (response.success) {
+        setMessage(`Reload command sent to display "${display.name}"`);
+      } else {
+        setError('Failed to send reload command');
+      }
+    } catch {
+      setError('Failed to send reload command');
+    }
+  };
+
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center" style={{ height: '200px' }}>
@@ -297,7 +313,7 @@ const DisplayDetail: React.FC = () => {
             </div>
             
             <div className="btn-group" role="group">
-              <a 
+              <a
                 href={`/display/${display.name}`}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -306,12 +322,19 @@ const DisplayDetail: React.FC = () => {
               >
                 <i className="bi bi-box-arrow-up-right"></i> View Display
               </a>
-              <button 
+              <button
+                className="btn btn-outline-warning"
+                onClick={handleReloadDisplay}
+                title="Send reload command to the display"
+              >
+                <i className="bi bi-arrow-clockwise"></i> Reload Display
+              </button>
+              <button
                 className="btn btn-outline-secondary"
                 onClick={() => window.location.reload()}
-                title="Refresh Status"
+                title="Refresh this page"
               >
-                <i className="bi bi-arrow-clockwise"></i> Refresh
+                <i className="bi bi-arrow-repeat"></i> Refresh Page
               </button>
             </div>
           </div>

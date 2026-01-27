@@ -352,6 +352,12 @@ class ApiClient {
     });
   }
 
+  async reloadDisplay(id: number): Promise<ApiResponse<{ display_id: number; connections_notified: number }>> {
+    return this.requestNoRetry<{ display_id: number; connections_notified: number }>(`/api/v1/displays/${id}/reload`, {
+      method: 'POST',
+    });
+  }
+
   // Assignment History methods
   async getAssignmentHistory(params?: {
     limit?: number;

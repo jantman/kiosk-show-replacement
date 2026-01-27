@@ -201,6 +201,26 @@ const Displays: React.FC = () => {
     }
   };
 
+  const handleReloadDisplay = async (display: Display) => {
+    try {
+      const response = await apiCall(`/api/v1/displays/${display.id}/reload`, {
+        method: 'POST'
+      });
+
+      if (response.success) {
+        // Show a temporary success message - we can use the error state with a different color
+        // or just log it. For simplicity, we'll use a console log and could add a toast later
+        console.log(`Reload command sent to display "${display.name}"`);
+        // Clear any existing error since the operation succeeded
+        setError(null);
+      } else {
+        throw new Error(response.error || 'Failed to send reload command');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send reload command');
+    }
+  };
+
   const formatLastSeen = (lastSeenAt: string | null) => {
     if (!lastSeenAt) return 'Never';
     
@@ -441,6 +461,14 @@ const Displays: React.FC = () => {
                               title="Assign Slideshow"
                             >
                               <i className="bi bi-collection"></i>
+                            </Button>
+                            <Button
+                              variant="outline-warning"
+                              size="sm"
+                              onClick={() => handleReloadDisplay(display)}
+                              title="Reload Display"
+                            >
+                              <i className="bi bi-arrow-clockwise"></i>
                             </Button>
                             <Button
                               variant="outline-info"
