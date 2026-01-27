@@ -34,16 +34,52 @@ When implementing this feature, we should implement it on top of a generic ICS c
 - Events can span multiple spaces (blocking all of them simultaneously)
 
 **Key Design Decisions:**
+
 1. **New content type**: Add `skedda` as a new content_type value (building on generic ICS infrastructure)
-2. **Backend caching**: ICS data will be fetched and cached on the backend with configurable refresh intervals
-3. **Database fields**: Add new fields to SlideshowItem for ICS configuration:
-   - `ical_url`: URL of the ICS feed
-   - `ical_refresh_minutes`: How often to refresh (default 15)
-   - `ical_cached_data`: JSON blob of parsed calendar data
-   - `ical_last_fetched`: Timestamp of last fetch
-4. **API endpoint**: New endpoint to get parsed/formatted calendar data for display
-5. **Frontend rendering**: Custom calendar grid component with auto-scrolling to current time
-6. **Python library**: Use `icalendar` library for ICS parsing
+
+2. **Normalized database schema**: Use three tables for efficient storage and querying:
+
+   ```
+   ICalFeed (new table)
+   ├── id: int (primary key)
+   ├── url: str (unique index) - the ICS feed URL
+   ├── last_fetched: datetime (optional) - last successful fetch
+   └── last_error: str (optional) - error message if last fetch failed
+
+   ICalEvent (new table)
+   ├── id: int (primary key)
+   ├── feed_id: int (foreign key to ICalFeed)
+   ├── uid: str - original ICS event UID for deduplication
+   ├── summary: str
+   ├── description: str (optional)
+   ├── start_time: datetime
+   ├── end_time: datetime
+   ├── resources: str - JSON array of space names
+   ├── attendee_name: str (optional)
+   └── attendee_email: str (optional)
+   │
+   ├── Unique constraint: (feed_id, uid)
+   └── Index: (feed_id, start_time) for efficient date queries
+
+   SlideshowItem (existing table, add fields)
+   ├── ical_feed_id: int (foreign key to ICalFeed, optional)
+   └── ical_refresh_minutes: int (optional, default 15)
+   ```
+
+3. **Benefits of normalized design**:
+   - Multiple slides using the same ICS URL share one set of events (no duplication)
+   - Efficient date-based queries via index on `(feed_id, start_time)`
+   - Incremental updates via upsert on `(feed_id, uid)`
+   - ICS feeds can contain thousands of events; we only query what we need
+   - Clean separation between feed metadata, events, and slide configuration
+
+4. **Refresh logic**: When fetching calendar data for a slide, check if `now - feed.last_fetched > slide.ical_refresh_minutes` and refresh if needed. Different slides can have different refresh preferences; the feed stays fresh for all consumers.
+
+5. **API endpoint**: New endpoint to get parsed/formatted calendar data for display
+
+6. **Frontend rendering**: Custom calendar grid component with auto-scrolling to current time
+
+7. **Python library**: Use `icalendar` library for ICS parsing
 
 ### Implementation Approach
 
@@ -55,30 +91,51 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
 
 ### Milestone 1: Backend ICS Infrastructure (ICAL-M1)
 
-**Goal:** Add ICS parsing capability and new database fields for calendar slides.
+**Goal:** Add ICS parsing capability and new database models for calendar data.
 
 #### Task 1.1 (ICAL-M1.1): Add icalendar dependency to pyproject.toml
 - Add `icalendar` package to dependencies
 - Run `poetry lock` to update lock file
 
-#### Task 1.2 (ICAL-M1.2): Add new fields to SlideshowItem model
-- Add `ical_url` (String, optional): URL of ICS feed
-- Add `ical_refresh_minutes` (Integer, optional): Refresh interval in minutes (default 15)
-- Add `ical_cached_data` (Text, optional): JSON-encoded parsed calendar data
-- Add `ical_last_fetched` (DateTime, optional): Last successful fetch timestamp
-- Add `skedda` to allowed content_type values
-- Update `to_dict()` method to include new fields
+#### Task 1.2 (ICAL-M1.2): Create new database models
+- Create `ICalFeed` model in `kiosk_show_replacement/models/__init__.py`:
+  - `id`: Integer, primary key
+  - `url`: String(500), unique index
+  - `last_fetched`: DateTime, optional
+  - `last_error`: Text, optional
+  - Relationship to events with cascade delete
+- Create `ICalEvent` model:
+  - `id`: Integer, primary key
+  - `feed_id`: Integer, foreign key to ICalFeed
+  - `uid`: String(500), ICS event UID
+  - `summary`: String(500)
+  - `description`: Text, optional
+  - `start_time`: DateTime
+  - `end_time`: DateTime
+  - `resources`: Text (JSON array of space names)
+  - `attendee_name`: String(200), optional
+  - `attendee_email`: String(200), optional
+  - Unique constraint on `(feed_id, uid)`
+  - Index on `(feed_id, start_time)`
+- Add to `SlideshowItem` model:
+  - `ical_feed_id`: Integer, foreign key to ICalFeed, optional
+  - `ical_refresh_minutes`: Integer, optional (default 15 in application logic)
+  - Add `skedda` to allowed content_type values
+  - Update `to_dict()` method to include new fields
+- Update `__all__` exports
 - Create database migration
 
 #### Task 1.3 (ICAL-M1.3): Create ICS parser module
 - Create `kiosk_show_replacement/ical_parser.py` module
-- Implement `parse_ics_data(ics_content: str) -> dict` function:
+- Implement `parse_ics_data(ics_content: str) -> list[dict]` function:
   - Parse ICS content using icalendar library
-  - Extract events with: uid, summary, start, end, resources (spaces), attendee name
-  - Return structured dict with events list and metadata
+  - Extract events with: uid, summary, description, start, end, resources (spaces), attendee name/email
+  - Return list of event dicts
 - Implement `parse_skedda_summary(summary: str) -> tuple[str, str, str]`:
   - Parse Skedda SUMMARY format to extract: person_name, description, space_name
   - Handle both single-space and multi-space formats
+- Implement `extract_resources_from_event(event) -> list[str]`:
+  - Extract space names from RESOURCES and/or DESCRIPTION fields
 - Add comprehensive unit tests for parsing functions
 
 #### Task 1.4 (ICAL-M1.4): Create ICS fetcher service
@@ -87,22 +144,27 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
   - Use requests library to fetch ICS content
   - Handle errors gracefully (timeout, network errors, invalid content)
   - Return ICS content as string or None on error
-- Implement `update_slide_ics_cache(slide: SlideshowItem) -> bool`:
-  - Check if cache needs refresh based on `ical_last_fetched` and `ical_refresh_minutes`
-  - Fetch ICS data if needed
-  - Parse and store in `ical_cached_data`
-  - Update `ical_last_fetched` timestamp
-  - Return True if cache was updated
+- Implement `get_or_create_feed(url: str) -> ICalFeed`:
+  - Return existing feed if URL already exists, otherwise create new
+- Implement `refresh_feed_if_needed(feed: ICalFeed, refresh_minutes: int) -> bool`:
+  - Check if `now - feed.last_fetched > refresh_minutes`
+  - If refresh needed: fetch ICS, parse events, upsert to database
+  - Update `feed.last_fetched` on success, `feed.last_error` on failure
+  - Return True if refresh was performed
+- Implement `sync_feed_events(feed: ICalFeed, events: list[dict]) -> None`:
+  - Upsert events by (feed_id, uid)
+  - Optionally delete events no longer in feed
 - Implement `get_skedda_calendar_data(slide: SlideshowItem, target_date: date | None = None) -> dict`:
-  - Get cached data (updating if needed)
-  - Filter events for the target date (default today)
-  - Group events by space (column) and time slot (row)
-  - Return formatted data structure for frontend rendering
+  - Get feed, refresh if needed based on slide's refresh_minutes
+  - Query events for the target date (default today) using indexed query
+  - Format for frontend rendering (group by space, calculate row spans)
+  - Return formatted data structure
 - Add unit tests with mocked HTTP responses
 
 **Milestone 1 Deliverables:**
 - icalendar dependency added
-- SlideshowItem model updated with new fields
+- ICalFeed and ICalEvent models created
+- SlideshowItem model updated with ical_feed_id and ical_refresh_minutes
 - Database migration created and applied
 - ICS parser module with unit tests
 - ICS service module with unit tests
@@ -116,18 +178,22 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
 
 #### Task 2.1 (ICAL-M2.1): Update slideshow item creation endpoint
 - Modify `POST /api/v1/slideshows/<id>/items` to accept `skedda` content type
-- Accept and validate new fields: `ical_url`, `ical_refresh_minutes`
-- Validate URL format and optionally test connectivity
-- Initial ICS fetch on creation to validate URL works
+- Accept new fields: `ical_url`, `ical_refresh_minutes`
+- On creation:
+  - Call `get_or_create_feed(ical_url)` to get/create feed
+  - Set `ical_feed_id` on the slideshow item
+  - Trigger initial fetch to validate URL works
+- Return appropriate error if URL is invalid or unreachable
 
 #### Task 2.2 (ICAL-M2.2): Update slideshow item update endpoint
 - Modify `PUT /api/v1/slideshow-items/<id>` to handle `skedda` type
-- Allow updating `ical_url` and `ical_refresh_minutes`
+- Allow updating `ical_url` (creates/links new feed) and `ical_refresh_minutes`
 - Re-fetch ICS data when URL changes
 
 #### Task 2.3 (ICAL-M2.3): Add calendar data API endpoint
 - Create `GET /api/v1/slideshow-items/<id>/skedda-data` endpoint:
-  - Fetch latest calendar data (refreshing cache if needed)
+  - Verify slide is skedda type
+  - Call `get_skedda_calendar_data()` to get formatted data
   - Accept optional `date` query parameter (default: today)
   - Return formatted data structure for frontend:
     ```json
@@ -170,7 +236,7 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
 
 #### Task 3.1 (ICAL-M3.1): Update TypeScript types
 - Add `skedda` to `content_type` union in `SlideshowItem` interface
-- Add new optional fields: `ical_url`, `ical_refresh_minutes`, `ical_cached_data`, `ical_last_fetched`
+- Add new optional fields: `ical_feed_id`, `ical_refresh_minutes`, `ical_url` (for display/editing)
 - Add `SkedddaCalendarData` interface for API response
 
 #### Task 3.2 (ICAL-M3.2): Update SlideshowItemForm component
@@ -259,6 +325,10 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
 ---
 
 ## Progress Log
+
+### 2026-01-27 - Planning Updated
+- Revised database design to use normalized three-table schema (ICalFeed, ICalEvent, SlideshowItem)
+- Benefits: no duplicate events for shared URLs, efficient date-based queries, scalable for large ICS feeds
 
 ### 2026-01-27 - Planning Complete
 - Implementation plan created and committed
