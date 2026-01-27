@@ -650,3 +650,82 @@ class TestSlideItemCRUDBroadcastToDisplays:
 
             finally:
                 sse_manager.remove_connection(connection.connection_id)
+
+    def test_update_scale_factor_broadcasts_slideshow_updated_to_display(
+        self, app, client, authenticated_user
+    ):
+        """Test that updating scale_factor broadcasts slideshow.updated event to displays.
+
+        Regression test for: Zoom slider changes not reaching displays.
+
+        When a slide's scale_factor is changed (zoom setting for URL slides),
+        the display should receive a slideshow.updated event so it can reload
+        and apply the new zoom level.
+        """
+        from kiosk_show_replacement.models import SlideshowItem
+        from kiosk_show_replacement.sse import sse_manager
+
+        with app.app_context():
+            # Create a slideshow with a URL slide (no scale_factor initially)
+            slideshow = Slideshow(
+                name="Test Slideshow for Scale Factor",
+                owner_id=authenticated_user.id,
+                is_active=True,
+            )
+            db.session.add(slideshow)
+            db.session.commit()
+
+            slide_item = SlideshowItem(
+                slideshow_id=slideshow.id,
+                title="URL Slide with Zoom",
+                content_type="url",
+                content_url="https://example.com",
+                display_duration=30,
+                order_index=1,
+                is_active=True,
+                scale_factor=None,  # No zoom initially
+            )
+            db.session.add(slide_item)
+            db.session.commit()
+            item_id = slide_item.id
+
+            # Create a display assigned to this slideshow
+            display = Display(
+                name="test-display-scale-factor",
+                owner_id=authenticated_user.id,
+                current_slideshow_id=slideshow.id,
+            )
+            db.session.add(display)
+            db.session.commit()
+
+            # Create a display SSE connection
+            connection = sse_manager.create_connection(
+                user_id=None, connection_type="display"
+            )
+            connection.display_name = display.name
+            connection.display_id = display.id
+
+            try:
+                # Update only the scale_factor via API
+                response = client.put(
+                    f"/api/v1/slideshow-items/{item_id}",
+                    data=json.dumps({"scale_factor": 50}),
+                    content_type="application/json",
+                )
+
+                assert response.status_code == 200
+
+                # Check what events the display received
+                events_in_queue = []
+                while not connection.event_queue.empty():
+                    events_in_queue.append(connection.event_queue.get_nowait())
+
+                # Display should receive slideshow.updated event
+                event_types = [e.event_type for e in events_in_queue]
+                assert any("slideshow.updated" in et for et in event_types), (
+                    f"Display should receive 'slideshow.updated' event when scale_factor "
+                    f"is changed, got: {event_types}"
+                )
+
+            finally:
+                sse_manager.remove_connection(connection.connection_id)

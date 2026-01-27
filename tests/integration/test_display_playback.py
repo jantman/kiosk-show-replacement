@@ -558,6 +558,152 @@ class TestDisplayPlayback:
                 headers=auth_headers,
             )
 
+    def test_display_reloads_on_zoom_change(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that display reloads and applies new scale_factor when zoom is changed.
+
+        Regression test for: Zoom slider changes not reaching displays.
+
+        This test:
+        1. Creates a slideshow with a URL slide (no scale_factor initially)
+        2. Creates a display and assigns the slideshow
+        3. Navigates to the display view
+        4. Verifies iframe has no transform or scale(1)
+        5. Updates scale_factor to 50 via API
+        6. Waits for SSE-triggered reload
+        7. Verifies iframe now has transform: scale(0.5) applied
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "Zoom Test Slideshow",
+                "description": "Test slideshow for zoom/scale changes",
+                "default_item_duration": 60,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Add a URL slide with NO scale_factor initially
+            item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "Test URL Slide for Zoom",
+                    "content_type": "url",
+                    "content_url": "https://example.com",
+                    "is_active": True,
+                    "scale_factor": None,  # No zoom initially
+                },
+                headers=auth_headers,
+            )
+            assert item_response.status_code in [200, 201]
+            item_data = item_response.json().get("data", item_response.json())
+            item_id = item_data["id"]
+
+            # Create a display
+            display_name = f"test-zoom-display-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for zoom change SSE",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait for slide to render and SSE connection to establish
+                time.sleep(2)
+
+                # Verify initial state: iframe should NOT have scale(0.5) transform
+                # (it should have no transform or scale(1))
+                iframe_locator = page.locator("iframe")
+                initial_style = iframe_locator.get_attribute("style") or ""
+                assert (
+                    "scale(0.5)" not in initial_style
+                ), f"Initial iframe should not have scale(0.5), got style: {initial_style}"
+
+                # Now update the scale_factor via API
+                update_response = http_client.put(
+                    f"/api/v1/slideshow-items/{item_id}",
+                    json={"scale_factor": 50},
+                    headers=auth_headers,
+                )
+                assert update_response.status_code == 200
+
+                # Wait for SSE event to trigger page reload and re-render
+                # The display should receive the slideshow.updated event and reload
+                max_wait = 15  # 15 seconds should be plenty for SSE
+                start_time = time.time()
+                scale_applied = False
+
+                while time.time() - start_time < max_wait and not scale_applied:
+                    try:
+                        # Re-find the iframe (page might have reloaded)
+                        iframe_locator = page.locator("iframe")
+                        if iframe_locator.count() > 0:
+                            new_style = iframe_locator.get_attribute("style") or ""
+                            if "scale(0.5)" in new_style:
+                                scale_applied = True
+                                break
+                    except Exception:
+                        # Page might be reloading
+                        pass
+                    time.sleep(0.5)
+
+                # Verify the display now shows the scaled iframe
+                assert scale_applied, (
+                    "Display should have automatically applied scale(0.5) transform "
+                    "via SSE after scale_factor change. "
+                    "If this fails, SSE events for zoom changes are not reaching the display."
+                )
+
+            finally:
+                # Cleanup display (test_display_reloads_on_zoom_change)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_display_reloads_on_zoom_change)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
     def test_text_slide_shows_only_content_not_title(
         self,
         enhanced_page: Page,

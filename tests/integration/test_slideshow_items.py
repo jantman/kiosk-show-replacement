@@ -1673,3 +1673,174 @@ class TestSlideshowItems:
             f"scale_factor not updated correctly: expected 25, "
             f"got {updated_item.get('scale_factor')}"
         )
+
+    def test_url_item_preview_appears_when_url_entered(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that preview iframe appears when URL is entered for URL content type.
+
+        The preview should:
+        1. Not appear when URL field is empty
+        2. Appear when a valid URL is entered
+        3. Apply the correct CSS transform based on scale_factor
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select URL type
+        page.locator("#content_type").select_option("url")
+
+        # Verify preview is NOT visible when URL is empty
+        preview_container = page.locator("[data-testid='url-preview-container']")
+        expect(preview_container).not_to_be_visible()
+
+        # Enter a URL
+        page.locator("#url").fill("https://example.com")
+
+        # Wait for preview container to appear
+        expect(preview_container).to_be_visible(timeout=5000)
+
+        # Verify iframe is present in the preview
+        preview_iframe = page.locator("[data-testid='url-preview-iframe']")
+        expect(preview_iframe).to_be_visible(timeout=5000)
+
+        # Verify iframe has the expected src
+        iframe_src = preview_iframe.get_attribute("src")
+        assert iframe_src == "https://example.com"
+
+    def test_url_item_preview_updates_on_zoom_change(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that preview iframe transform updates when zoom slider changes.
+
+        When the scale_factor is changed:
+        1. The iframe should have transform: scale(X) where X = scale_factor/100
+        2. The iframe width/height should be inverse scaled (100/scale_factor * 100%)
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select URL type and enter a URL
+        page.locator("#content_type").select_option("url")
+        page.locator("#url").fill("https://example.com")
+
+        # Wait for preview iframe to appear
+        preview_iframe = page.locator("[data-testid='url-preview-iframe']")
+        expect(preview_iframe).to_be_visible(timeout=5000)
+
+        # Initially at 100% zoom, iframe should have scale(1)
+        initial_style = preview_iframe.get_attribute("style") or ""
+        assert (
+            "scale(1)" in initial_style
+        ), f"Expected scale(1) at 100%, got: {initial_style}"
+
+        # Set zoom to 50% using JavaScript
+        page.evaluate("""() => {
+            const slider = document.querySelector('#scale_factor');
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value'
+            ).set;
+            nativeInputValueSetter.call(slider, '50');
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+        }""")
+
+        # Wait a moment for React to re-render
+        page.wait_for_timeout(500)
+
+        # Verify iframe transform updated to scale(0.5)
+        updated_style = preview_iframe.get_attribute("style") or ""
+        assert (
+            "scale(0.5)" in updated_style
+        ), f"Expected scale(0.5) at 50%, got: {updated_style}"
+
+        # Also verify the width is scaled up (200% for 50% zoom)
+        assert (
+            "200%" in updated_style
+        ), f"Expected 200% width/height at 50% zoom, got: {updated_style}"
+
+    def test_url_item_preview_not_visible_for_other_types(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that preview is not visible for non-URL content types.
+
+        The preview should only appear for URL (Web Page) content type,
+        not for image, video, or text types.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        preview_container = page.locator("[data-testid='url-preview-container']")
+
+        # Check image type - preview should NOT be visible
+        page.locator("#content_type").select_option("image")
+        expect(preview_container).not_to_be_visible()
+
+        # Check video type - preview should NOT be visible
+        page.locator("#content_type").select_option("video")
+        expect(preview_container).not_to_be_visible()
+
+        # Check text type - preview should NOT be visible
+        page.locator("#content_type").select_option("text")
+        expect(preview_container).not_to_be_visible()
+
+        # Check URL type with URL entered - preview SHOULD be visible
+        page.locator("#content_type").select_option("url")
+        page.locator("#url").fill("https://example.com")
+        expect(preview_container).to_be_visible(timeout=5000)

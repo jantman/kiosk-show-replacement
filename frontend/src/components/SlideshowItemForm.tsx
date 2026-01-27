@@ -89,6 +89,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   const [uploadingFile, setUploadingFile] = useState(false);
   // Track if duration was auto-detected from video (makes field read-only)
   const [videoDurationDetected, setVideoDurationDetected] = useState(false);
+  // Track preview iframe state for URL slides
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -305,7 +308,12 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                 id="url"
                 type="url"
                 value={formData.content_url}
-                onChange={(e) => handleInputChange('content_url', e.target.value)}
+                onChange={(e) => {
+                  handleInputChange('content_url', e.target.value);
+                  // Reset preview state when URL changes
+                  setPreviewLoading(true);
+                  setPreviewError(false);
+                }}
                 onBlur={(e) => handleUrlBlur(e.target.value)}
                 isInvalid={!!validationErrors.content_url}
                 placeholder="https://example.com"
@@ -334,6 +342,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   const value = parseInt(e.target.value);
                   // Treat 100 as null (no scaling)
                   handleInputChange('scale_factor', value === 100 ? null : value);
+                  // Reset preview state when zoom changes
+                  setPreviewLoading(true);
+                  setPreviewError(false);
                 }}
               />
               <div className="d-flex justify-content-between text-muted small">
@@ -346,6 +357,78 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   : 'Slide the zoom to the left to show more of the webpage content. Use this when the page is cut off.'}
               </Form.Text>
             </Form.Group>
+
+            {/* Preview iframe for URL slides */}
+            {formData.content_url.trim() && (
+              <Form.Group className="mb-3">
+                <Form.Label>Preview</Form.Label>
+                <div
+                  className="border rounded position-relative"
+                  style={{
+                    width: '100%',
+                    maxWidth: '400px',
+                    aspectRatio: '16 / 9',
+                    overflow: 'hidden',
+                    background: '#f8f9fa'
+                  }}
+                  data-testid="url-preview-container"
+                >
+                  {previewLoading && !previewError && (
+                    <div
+                      className="position-absolute top-50 start-50 translate-middle text-muted"
+                      data-testid="preview-loading"
+                    >
+                      <Spinner animation="border" size="sm" className="me-2" />
+                      Loading preview...
+                    </div>
+                  )}
+                  {previewError && (
+                    <div
+                      className="position-absolute top-50 start-50 translate-middle text-center text-muted"
+                      data-testid="preview-error"
+                    >
+                      <i className="bi bi-exclamation-triangle fs-4 d-block mb-1"></i>
+                      <small>Preview unavailable<br />(page may block embedding)</small>
+                    </div>
+                  )}
+                  {(() => {
+                    // Calculate iframe scaling to match display template behavior
+                    const scaleFactor = formData.scale_factor ?? 100;
+                    const scale = scaleFactor / 100;
+                    const inverseScale = 100 / scaleFactor;
+
+                    return (
+                      <iframe
+                        src={formData.content_url}
+                        title="URL Preview"
+                        style={{
+                          width: `${inverseScale * 100}%`,
+                          height: `${inverseScale * 100}%`,
+                          transform: `scale(${scale})`,
+                          transformOrigin: '0 0',
+                          border: 'none',
+                          opacity: previewLoading && !previewError ? 0 : 1,
+                          display: previewError ? 'none' : 'block'
+                        }}
+                        sandbox="allow-scripts allow-same-origin"
+                        onLoad={() => {
+                          setPreviewLoading(false);
+                          setPreviewError(false);
+                        }}
+                        onError={() => {
+                          setPreviewLoading(false);
+                          setPreviewError(true);
+                        }}
+                        data-testid="url-preview-iframe"
+                      />
+                    );
+                  })()}
+                </div>
+                <Form.Text className="text-muted">
+                  Preview shows how the zoomed webpage will appear on the display
+                </Form.Text>
+              </Form.Group>
+            )}
           </>
         );
 
