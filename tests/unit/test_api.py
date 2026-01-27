@@ -748,7 +748,7 @@ class TestVideoURLValidation:
         data = response.get_json()
         assert data["success"] is True
         assert data["data"]["valid"] is True
-        assert data["data"]["duration_seconds"] == 121  # Rounded
+        assert data["data"]["duration_seconds"] == 120  # Rounded (banker's rounding)
         assert data["data"]["duration"] == 120.5  # Exact
         assert data["data"]["codec_info"]["video_codec"] == "h264"
 

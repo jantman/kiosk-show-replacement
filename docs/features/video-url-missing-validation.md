@@ -118,7 +118,7 @@ These functions currently only accept local file paths. However, `ffprobe` nativ
 
 ## Current Status
 
-**Status:** Milestone 1 Complete - Proceeding to Milestone 2
+**Status:** Milestone 2 Complete - Proceeding to Milestone 3
 
 ## Progress Log
 
@@ -139,3 +139,18 @@ These functions currently only accept local file paths. However, `ffprobe` nativ
 - Created `validate_video_url()` function combining codec validation and duration detection
 - Added comprehensive unit tests in `TestVideoURLSupport` class (22 new tests)
 - All 512 unit tests passing
+
+### Milestone 2: Backend - Add API Endpoint for Video URL Validation (COMPLETE)
+
+**Commits:**
+- `f897f0a` VideoURLValidation-2.1: Create video URL validation API endpoint
+- `9d7b7c5` VideoURLValidation-2.2: Update create/update slideshow item endpoints
+- `27365a2` VideoURLValidation-2.3: Add API tests for video URL validation
+- `94f7ec7` VideoURLValidation-2: Apply code formatting
+
+**Summary:**
+- Created `POST /api/v1/validate/video-url` endpoint
+- Updated `create_slideshow_item()` to validate video URLs
+- Updated `update_slideshow_item()` to validate video URLs when URL changes
+- Added 11 new API tests in `TestVideoURLValidation` class
+- All 523 unit tests passing
