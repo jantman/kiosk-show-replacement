@@ -326,6 +326,83 @@ class StorageManager:
         )
         return True, ""
 
+    def validate_video_url(
+        self, url: str
+    ) -> Tuple[bool, Optional[float], Optional[Dict[str, Optional[str]]], str]:
+        """
+        Validate a video URL for browser compatibility and extract metadata.
+
+        This function combines codec validation and duration detection for video URLs.
+        It uses ffprobe to probe the remote URL directly.
+
+        Args:
+            url: The video URL to validate (must be http:// or https://)
+
+        Returns:
+            A tuple of (is_valid, duration_seconds, codec_info, error_message):
+            - is_valid: True if the video is valid and browser-compatible
+            - duration_seconds: Video duration in seconds, or None if not detected
+            - codec_info: Dict with video_codec, audio_codec, container_format
+            - error_message: Empty string if valid, otherwise describes the error
+        """
+        # Validate URL format
+        if not self._is_url(url):
+            return False, None, None, "Invalid URL format. URL must start with http:// or https://"
+
+        # Get codec info (this also validates the URL is accessible)
+        codec_info = self.get_video_codec_info(url)
+
+        if codec_info is None:
+            # Could be network error, invalid URL, or ffprobe unavailable
+            logger.warning(
+                f"Could not retrieve video information from URL: {url}. "
+                f"The URL may be inaccessible, invalid, or ffprobe may not be installed."
+            )
+            return False, None, None, (
+                "Could not retrieve video information from the URL. "
+                "Please verify the URL is accessible and points to a valid video file."
+            )
+
+        video_codec = codec_info.get("video_codec")
+        container_format = codec_info.get("container_format")
+
+        # Check for video stream
+        if video_codec is None:
+            logger.warning(
+                f"No video stream found at URL: {url}. "
+                f"Container format: {container_format}"
+            )
+            return False, None, codec_info, (
+                "No video stream found at the URL. "
+                "Please provide a URL to a valid video file."
+            )
+
+        # Check codec compatibility
+        if video_codec.lower() not in self.SUPPORTED_VIDEO_CODECS:
+            logger.warning(
+                f"Rejected video URL: unsupported codec. "
+                f"URL: '{url}', "
+                f"Video codec: '{video_codec}', "
+                f"Container format: '{container_format}'"
+            )
+
+            supported_list = ", ".join(sorted(self.SUPPORTED_VIDEO_CODECS))
+            return False, None, codec_info, (
+                f"Video codec '{video_codec}' is not supported by web browsers. "
+                f"Supported codecs: {supported_list}. "
+                f"Please use a video with MP4 (H.264) or WebM (VP8/VP9) format."
+            )
+
+        # Get duration (optional - video is still valid if duration can't be detected)
+        duration = self.get_video_duration(url)
+
+        logger.info(
+            f"Video URL validation passed: {url}, "
+            f"codec={video_codec}, duration={duration}s"
+        )
+
+        return True, duration, codec_info, ""
+
     def get_video_duration(self, source: Union[Path, str]) -> Optional[float]:
         """
         Extract video duration using ffprobe.
