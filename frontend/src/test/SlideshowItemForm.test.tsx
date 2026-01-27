@@ -32,6 +32,7 @@ describe('SlideshowItemForm', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockApiCall.mockReset();
   });
 
   it('renders create form correctly', () => {
@@ -298,15 +299,12 @@ describe('SlideshowItemForm', () => {
 
   describe('Video URL Validation', () => {
     it('validates video URL on blur', async () => {
-      mockApiCall.mockResolvedValueOnce({
-        success: true,
-        data: {
-          valid: true,
-          duration_seconds: 120,
-          duration: 120.5,
-          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
-        }
+      // Use a controlled promise to ensure proper async timing
+      let resolveValidation: (value: unknown) => void;
+      const validationPromise = new Promise((resolve) => {
+        resolveValidation = resolve;
       });
+      mockApiCall.mockReturnValueOnce(validationPromise);
 
       render(
         <SlideshowItemForm
@@ -326,7 +324,7 @@ describe('SlideshowItemForm', () => {
       fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mp4' } });
       fireEvent.blur(urlInput);
 
-      // Wait for validation to complete
+      // Wait for validation API call to be made
       await waitFor(() => {
         expect(mockApiCall).toHaveBeenCalledWith('/api/v1/validate/video-url', {
           method: 'POST',
@@ -335,17 +333,41 @@ describe('SlideshowItemForm', () => {
         });
       });
 
-      // Should show validated badge
+      // Resolve the validation with success response
+      resolveValidation!({
+        success: true,
+        data: {
+          valid: true,
+          duration_seconds: 120,
+          duration: 120.5,
+          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
+        }
+      });
+
+      // Wait for the validating spinner to disappear
       await waitFor(() => {
-        expect(screen.getByText('Video URL validated')).toBeInTheDocument();
+        expect(screen.queryByText('Validating video URL...')).not.toBeInTheDocument();
+      });
+
+      // Check the URL input's validity state and the success badge
+      // Note: The badge contains an icon, so the text might be after the icon
+      await waitFor(() => {
+        // Check for the success badge by looking for the bg-success class with the text
+        const successBadges = document.querySelectorAll('.badge.bg-success');
+        const validatedBadge = Array.from(successBadges).find(badge =>
+          badge.textContent?.includes('Video URL validated')
+        );
+        expect(validatedBadge).toBeTruthy();
       });
     });
 
     it('shows error for invalid video codec', async () => {
-      mockApiCall.mockResolvedValueOnce({
-        success: false,
-        error: "Video codec 'mpeg2video' is not supported by web browsers."
+      // Use a controlled promise to ensure proper async timing
+      let resolveValidation: (value: unknown) => void;
+      const validationPromise = new Promise((resolve) => {
+        resolveValidation = resolve;
       });
+      mockApiCall.mockReturnValueOnce(validationPromise);
 
       render(
         <SlideshowItemForm
@@ -365,22 +387,39 @@ describe('SlideshowItemForm', () => {
       fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mpeg' } });
       fireEvent.blur(urlInput);
 
-      // Should show error message
+      // Wait for validation API call to be made
       await waitFor(() => {
-        expect(screen.getByText(/mpeg2video.*not supported/)).toBeInTheDocument();
+        expect(mockApiCall).toHaveBeenCalledWith('/api/v1/validate/video-url', expect.anything());
+      });
+
+      // Resolve the validation with error response
+      resolveValidation!({
+        success: false,
+        error: "Video codec 'mpeg2video' is not supported by web browsers."
+      });
+
+      // Wait for the validating state to clear
+      await waitFor(() => {
+        expect(screen.queryByText('Validating video URL...')).not.toBeInTheDocument();
+      });
+
+      // Wait for error feedback to appear - look for it in the invalid-feedback div
+      await waitFor(() => {
+        const feedbacks = document.querySelectorAll('.invalid-feedback');
+        const errorFeedback = Array.from(feedbacks).find(el =>
+          el.textContent?.includes('mpeg2video')
+        );
+        expect(errorFeedback).toBeTruthy();
       });
     });
 
     it('auto-populates duration from validated video URL', async () => {
-      mockApiCall.mockResolvedValueOnce({
-        success: true,
-        data: {
-          valid: true,
-          duration_seconds: 60,
-          duration: 60.0,
-          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
-        }
+      // Use a controlled promise to ensure proper async timing
+      let resolveValidation: (value: unknown) => void;
+      const validationPromise = new Promise((resolve) => {
+        resolveValidation = resolve;
       });
+      mockApiCall.mockReturnValueOnce(validationPromise);
 
       render(
         <SlideshowItemForm
@@ -400,11 +439,40 @@ describe('SlideshowItemForm', () => {
       fireEvent.change(urlInput, { target: { value: 'https://example.com/video.mp4' } });
       fireEvent.blur(urlInput);
 
-      // Wait for duration to be auto-populated
+      // Wait for validation API call to be made
       await waitFor(() => {
-        const durationInput = screen.getByLabelText(/Video Duration/);
-        expect(durationInput).toHaveValue(60);
+        expect(mockApiCall).toHaveBeenCalledWith('/api/v1/validate/video-url', expect.anything());
       });
+
+      // Resolve the validation with success response including duration
+      resolveValidation!({
+        success: true,
+        data: {
+          valid: true,
+          duration_seconds: 60,
+          duration: 60.0,
+          codec_info: { video_codec: 'h264', audio_codec: 'aac', container_format: 'mp4' }
+        }
+      });
+
+      // Wait for the validating state to clear
+      await waitFor(() => {
+        expect(screen.queryByText('Validating video URL...')).not.toBeInTheDocument();
+      });
+
+      // Wait for the success badge to appear, confirming validation completed
+      await waitFor(() => {
+        const successBadges = document.querySelectorAll('.badge.bg-success');
+        const validatedBadge = Array.from(successBadges).find(badge =>
+          badge.textContent?.includes('Video URL validated')
+        );
+        expect(validatedBadge).toBeTruthy();
+      });
+
+      // Now check the duration input - it should be auto-populated
+      const durationInput = document.getElementById('duration') as HTMLInputElement;
+      expect(durationInput).not.toBeNull();
+      expect(durationInput.value).toBe('60');
     });
 
     it('shows validating spinner while validation is in progress', async () => {
