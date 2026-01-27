@@ -118,7 +118,7 @@ These functions currently only accept local file paths. However, `ffprobe` nativ
 
 ## Current Status
 
-**Status:** Milestone 2 Complete - Proceeding to Milestone 3
+**Status:** Milestone 3 Complete - Proceeding to Milestone 4
 
 ## Progress Log
 
@@ -154,3 +154,26 @@ These functions currently only accept local file paths. However, `ffprobe` nativ
 - Updated `update_slideshow_item()` to validate video URLs when URL changes
 - Added 11 new API tests in `TestVideoURLValidation` class
 - All 523 unit tests passing
+
+### Milestone 3: Frontend - Integrate URL Validation (COMPLETE)
+
+**Commits:**
+- `e91eaa9` VideoURLValidation-3.1: Add video URL validation hook/function
+- `b722c07` VideoURLValidation-3.2: Update SlideshowItemForm for video URL validation
+- `5b9b19b` VideoURLValidation-3.3: Add frontend tests for video URL validation
+- `4493e89` Fix frontend video URL validation tests for proper async timing
+
+**Summary:**
+- Added `VideoUrlValidationResult` TypeScript interface
+- Added `apiClient.validateVideoUrl()` method with extended 70s timeout
+- Added route handler in `useApi.ts` for `/api/v1/validate/video-url`
+- Updated `SlideshowItemForm` with validation state management:
+  - `validatingVideoUrl`, `videoUrlValidated`, `videoUrlError` state
+  - `validateVideoUrl()` async function
+  - `handleVideoUrlBlur()` event handler
+  - Shows spinner while validating, success badge when validated
+  - Auto-populates duration from validated URL
+  - Disables submit button during validation
+- Added 5 frontend tests for video URL validation flow
+- All 125 frontend tests passing
+- All 523 backend tests passing
