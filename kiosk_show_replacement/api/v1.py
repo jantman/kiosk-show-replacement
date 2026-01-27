@@ -393,6 +393,19 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
                     "Scale factor must be an integer between 10 and 100", 400
                 )
 
+        # Validate video URL if content_type is video and URL is provided (no file)
+        content_url = data.get("content_url", "").strip() if data.get("content_url") else ""
+        content_file_path = data.get("content_file_path", "").strip() if data.get("content_file_path") else ""
+
+        if content_type == "video" and content_url and not content_file_path:
+            # Validate the video URL format and codec
+            storage = get_storage_manager()
+            is_valid, duration, codec_info, error_message = storage.validate_video_url(
+                content_url
+            )
+            if not is_valid:
+                return api_error(error_message, 400)
+
         # Get the next order index
         max_order = (
             db.session.query(db.func.max(SlideshowItem.order_index))
@@ -487,6 +500,35 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
                         "Scale factor must be an integer between 10 and 100", 400
                     )
             item.scale_factor = scale_factor
+
+        # Validate video URL if updating to video type with URL (no file)
+        # Determine effective values (new value if provided, otherwise existing)
+        effective_content_type = data.get("content_type", item.content_type)
+        effective_content_url = data.get("content_url", item.content_url) or ""
+        effective_content_file_path = data.get("content_file_path", item.content_file_path) or ""
+
+        # Strip whitespace for comparison
+        if isinstance(effective_content_url, str):
+            effective_content_url = effective_content_url.strip()
+        if isinstance(effective_content_file_path, str):
+            effective_content_file_path = effective_content_file_path.strip()
+
+        # Only validate if:
+        # 1. Content type is video
+        # 2. URL is being set/changed (in the request data)
+        # 3. No file path is set
+        if (
+            effective_content_type == "video"
+            and "content_url" in data
+            and effective_content_url
+            and not effective_content_file_path
+        ):
+            storage = get_storage_manager()
+            is_valid, duration, codec_info, error_message = storage.validate_video_url(
+                effective_content_url
+            )
+            if not is_valid:
+                return api_error(error_message, 400)
 
         item.updated_by_id = current_user.id
         db.session.commit()
