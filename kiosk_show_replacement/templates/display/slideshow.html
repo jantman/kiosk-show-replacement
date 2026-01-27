@@ -137,6 +137,16 @@
             background: #fff;
             /* Width/height and transform scale set dynamically via inline styles */
         }
+
+        /* Placeholder for URL slides before iframe is loaded */
+        .url-slide-placeholder {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1a1a1a;
+        }
         
         .slide .text-content {
             padding: 3rem;
@@ -411,7 +421,9 @@
                                        </video>`;
                             break;
                         case 'url':
-                            content = this.createUrlSlideContent(slide, contentUrl);
+                            // Create placeholder - iframe will load when slide becomes active
+                            // This ensures auto-scroll JavaScript runs when page is visible
+                            content = this.createUrlSlidePlaceholder(slide, contentUrl);
                             break;
                         case 'text':
                             // Text slides only show content_text, not the title
@@ -485,6 +497,77 @@
             }
 
             /**
+             * Create a placeholder for URL slides that will be replaced with an iframe
+             * when the slide becomes active. This lazy-loading approach ensures that
+             * the embedded page's JavaScript (including auto-scroll) runs when the
+             * iframe is visible and has proper dimensions.
+             *
+             * @param {Object} slide - The slide object containing scale_factor
+             * @param {string} contentUrl - The URL to load in the iframe
+             * @returns {string} - HTML string for the placeholder
+             */
+            createUrlSlidePlaceholder(slide, contentUrl) {
+                const scaleFactor = slide.scale_factor || '';
+                return `<div class="url-slide-placeholder"
+                             data-url="${this.escapeHtml(contentUrl)}"
+                             data-scale-factor="${scaleFactor}"
+                             data-slide-id="${slide.id}">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                                <div>Loading webpage...</div>
+                            </div>
+                        </div>`;
+            }
+
+            /**
+             * Load the iframe for a URL slide by replacing the placeholder.
+             * Called when the slide becomes active to ensure the page loads
+             * with proper visibility and dimensions.
+             *
+             * @param {HTMLElement} placeholder - The placeholder element to replace
+             */
+            loadUrlSlideIframe(placeholder) {
+                const url = placeholder.dataset.url;
+                const scaleFactorStr = placeholder.dataset.scaleFactor;
+                const scaleFactor = scaleFactorStr ? parseInt(scaleFactorStr, 10) : null;
+
+                // Create the iframe HTML using the existing method
+                const iframeHtml = this.createUrlSlideContent(
+                    { scale_factor: scaleFactor },
+                    url
+                );
+
+                // Replace placeholder with iframe
+                placeholder.outerHTML = iframeHtml;
+            }
+
+            /**
+             * Reset a URL slide back to a placeholder by removing the iframe.
+             * Called when a slide becomes inactive to ensure fresh reload next time.
+             * This guarantees auto-scroll behavior works on every slide activation.
+             *
+             * @param {HTMLElement} slideElement - The slide container element
+             * @param {number} slideIndex - Index of the slide in the slides array
+             */
+            resetUrlSlideToPlaceholder(slideElement, slideIndex) {
+                const slide = this.slides[slideIndex];
+                if (!slide || slide.content_type !== 'url') return;
+
+                const contentUrl = slide.display_url || slide.content_url;
+                const placeholderHtml = this.createUrlSlidePlaceholder(slide, contentUrl);
+
+                // Find the iframe or scaled container and replace with placeholder
+                const scaledContainer = slideElement.querySelector('.scaled-iframe-container');
+                const iframe = slideElement.querySelector('iframe');
+
+                if (scaledContainer) {
+                    scaledContainer.outerHTML = placeholderHtml;
+                } else if (iframe) {
+                    iframe.outerHTML = placeholderHtml;
+                }
+            }
+
+            /**
              * Sanitize HTML content allowing only safe formatting tags.
              * Uses DOMPurify to prevent XSS attacks while allowing basic text formatting.
              *
@@ -519,8 +602,8 @@
             }
 
             showSlide(index) {
-                // Hide all slides
-                document.querySelectorAll('.slide').forEach(slide => {
+                // Hide all slides and reset URL slides to placeholders (except the one about to be shown)
+                document.querySelectorAll('.slide').forEach((slide, slideIndex) => {
                     slide.classList.remove('active');
                     // Pause any playing videos
                     const video = slide.querySelector('video');
@@ -528,13 +611,29 @@
                         video.pause();
                         video.currentTime = 0;
                     }
+                    // Reset URL slides to placeholder so they reload fresh next time
+                    // Skip the slide that's about to become active
+                    if (slideIndex !== index) {
+                        const iframe = slide.querySelector('iframe');
+                        const scaledContainer = slide.querySelector('.scaled-iframe-container');
+                        if (iframe || scaledContainer) {
+                            this.resetUrlSlideToPlaceholder(slide, slideIndex);
+                        }
+                    }
                 });
                 
                 // Show current slide
                 const currentSlide = document.getElementById(`slide-${index}`);
                 if (currentSlide) {
                     currentSlide.classList.add('active');
-                    
+
+                    // Handle URL slide lazy-loading: inject iframe when slide becomes active
+                    // This ensures the embedded page's auto-scroll JavaScript runs when visible
+                    const placeholder = currentSlide.querySelector('.url-slide-placeholder');
+                    if (placeholder) {
+                        this.loadUrlSlideIframe(placeholder);
+                    }
+
                     // Handle video playback with enhanced management
                     const video = currentSlide.querySelector('video');
                     if (video) {
