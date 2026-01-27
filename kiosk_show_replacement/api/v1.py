@@ -1867,6 +1867,85 @@ def upload_video() -> Tuple[Response, int]:
         return api_error("Failed to upload video", 500)
 
 
+@api_v1_bp.route("/validate/video-url", methods=["POST"])
+@api_auth_required
+def validate_video_url() -> Tuple[Response, int]:
+    """Validate a video URL for browser compatibility and extract metadata.
+
+    This endpoint probes a remote video URL using ffprobe to:
+    - Verify the URL is accessible and contains a video
+    - Check that the video codec is browser-compatible
+    - Extract the video duration
+
+    Request body:
+        {
+            "url": "https://example.com/video.mp4"
+        }
+
+    Response (success):
+        {
+            "success": true,
+            "data": {
+                "valid": true,
+                "duration_seconds": 120,
+                "codec_info": {
+                    "video_codec": "h264",
+                    "audio_codec": "aac",
+                    "container_format": "mov,mp4,m4a,3gp,3g2,mj2"
+                }
+            },
+            "message": "Video URL is valid"
+        }
+
+    Response (invalid video):
+        {
+            "success": false,
+            "error": "Video codec 'mpeg2video' is not supported..."
+        }
+    """
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        data = request.get_json()
+        if not data:
+            return api_error("No data provided", 400)
+
+        url = data.get("url", "").strip()
+        if not url:
+            return api_error("URL is required", 400)
+
+        # Basic URL format validation
+        if not url.startswith("http://") and not url.startswith("https://"):
+            return api_error("URL must start with http:// or https://", 400)
+
+        # Get storage manager and validate the URL
+        storage = get_storage_manager()
+        is_valid, duration, codec_info, error_message = storage.validate_video_url(url)
+
+        if not is_valid:
+            return api_error(error_message, 400)
+
+        # Build response data
+        response_data = {
+            "valid": True,
+            "duration_seconds": round(duration) if duration is not None else None,
+            "duration": duration,  # Exact duration as float
+            "codec_info": codec_info,
+        }
+
+        current_app.logger.info(
+            f"User {current_user.username} validated video URL: {url}"
+        )
+
+        return api_response(response_data, "Video URL is valid", 200)
+
+    except Exception as e:
+        current_app.logger.error(f"Error validating video URL: {e}")
+        return api_error("Failed to validate video URL", 500)
+
+
 @api_v1_bp.route("/uploads/stats", methods=["GET"])
 @api_auth_required
 def get_upload_stats() -> Tuple[Response, int]:
