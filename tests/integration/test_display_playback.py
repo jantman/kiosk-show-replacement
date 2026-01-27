@@ -2405,3 +2405,267 @@ class TestDisplayPlayback:
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
             )
+
+    def test_url_slide_lazy_loads_iframe_when_active(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that URL slides lazy-load iframes only when becoming active.
+
+        This test verifies the lazy-loading behavior implemented to fix auto-scroll
+        issues with embedded web pages. When a URL slide becomes active:
+        1. The placeholder is replaced with the actual iframe
+        2. The iframe loads when the slide is visible (proper dimensions)
+
+        This ensures auto-scroll JavaScript in embedded pages works correctly.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "URL Lazy Load Test Slideshow",
+                "description": "Test slideshow for URL lazy loading",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide first (so URL slide is not immediately active)
+            text_item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "First Text Slide",
+                    "content_type": "text",
+                    "content_text": "This is the first slide",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert text_item_response.status_code in [200, 201]
+
+            # Create a URL slide second
+            url_item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "URL Slide",
+                    "content_type": "url",
+                    "content_url": "https://example.com",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert url_item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-url-lazy-load-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for URL lazy loading",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # First slide (text) should be active
+                time.sleep(0.5)
+
+                # Verify first slide is active and is text content
+                first_slide = page.locator("#slide-0")
+                assert first_slide.get_attribute("class") is not None
+                assert "active" in (first_slide.get_attribute("class") or "")
+
+                # Second slide (URL) should have placeholder, not iframe
+                second_slide = page.locator("#slide-1")
+                placeholder = second_slide.locator(".url-slide-placeholder")
+                iframe_in_second = second_slide.locator("iframe")
+
+                # URL slide should have placeholder initially (not yet active)
+                assert (
+                    placeholder.count() > 0
+                ), "URL slide should have placeholder when not active"
+                assert (
+                    iframe_in_second.count() == 0
+                ), "URL slide should NOT have iframe when not active"
+
+            finally:
+                # Cleanup display (test_url_slide_lazy_loads_iframe_when_active)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_url_slide_lazy_loads_iframe_when_active)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+
+    def test_url_slide_iframe_loads_when_slide_becomes_active(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that URL slide iframe loads when the slide becomes active.
+
+        This test verifies:
+        1. URL slide starts with placeholder
+        2. When slide becomes active, placeholder is replaced with iframe
+        3. Iframe is properly visible and has correct src
+
+        This tests the core lazy-loading mechanism for URL slides.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+
+        # Create a slideshow with short duration for quick transition
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": "URL Active Load Test Slideshow",
+                "description": "Test slideshow for URL loading on active",
+                "default_item_duration": 3,  # Short duration for faster test
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201]
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        try:
+            # Create a text slide first
+            text_item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "First Slide",
+                    "content_type": "text",
+                    "content_text": "Wait for URL slide...",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert text_item_response.status_code in [200, 201]
+
+            # Create a URL slide second
+            url_item_response = http_client.post(
+                f"/api/v1/slideshows/{slideshow_id}/items",
+                json={
+                    "title": "URL Slide",
+                    "content_type": "url",
+                    "content_url": "https://example.com",
+                    "is_active": True,
+                },
+                headers=auth_headers,
+            )
+            assert url_item_response.status_code in [200, 201]
+
+            # Create a display
+            display_name = f"test-url-active-load-{int(time.time() * 1000)}"
+            display_response = http_client.post(
+                "/api/v1/displays",
+                json={
+                    "name": display_name,
+                    "description": "Test display for URL active loading",
+                },
+                headers=auth_headers,
+            )
+            assert display_response.status_code in [200, 201]
+            display_data = display_response.json().get("data", display_response.json())
+            display_id = display_data["id"]
+
+            try:
+                # Assign slideshow to display
+                assign_response = http_client.post(
+                    f"/api/v1/displays/{display_name}/assign-slideshow",
+                    json={"slideshow_id": slideshow_id},
+                    headers=auth_headers,
+                )
+                assert assign_response.status_code == 200
+
+                # Navigate to display view
+                page.goto(f"{flask_url}/display/{display_name}")
+                page.wait_for_load_state("domcontentloaded", timeout=15000)
+
+                # Wait for slideshow to initialize
+                page.wait_for_selector("#slideshowContainer", timeout=10000)
+
+                # Wait for transition to URL slide (3 second duration + buffer)
+                time.sleep(4)
+
+                # Now URL slide should be active with iframe loaded
+                second_slide = page.locator("#slide-1")
+                assert second_slide.get_attribute("class") is not None
+                assert "active" in (
+                    second_slide.get_attribute("class") or ""
+                ), "URL slide should be active after transition"
+
+                # Iframe should now exist (placeholder was replaced)
+                iframe = second_slide.locator("iframe")
+                assert iframe.count() > 0, "URL slide should have iframe when active"
+                assert iframe.is_visible(), "Iframe should be visible when active"
+
+                # Verify iframe has correct src
+                iframe_src = iframe.get_attribute("src")
+                assert (
+                    iframe_src == "https://example.com"
+                ), f"Iframe src should be https://example.com, got: {iframe_src}"
+
+                # Placeholder should no longer exist
+                placeholder = second_slide.locator(".url-slide-placeholder")
+                assert (
+                    placeholder.count() == 0
+                ), "Placeholder should be removed when iframe is loaded"
+
+            finally:
+                # Cleanup display (test_url_slide_iframe_loads_when_slide_becomes_active)
+                http_client.delete(
+                    f"/api/v1/displays/{display_id}",
+                    headers=auth_headers,
+                )
+
+        finally:
+            # Cleanup slideshow (test_url_slide_iframe_loads_when_slide_becomes_active)
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
