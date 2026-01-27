@@ -394,8 +394,14 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
                 )
 
         # Validate video URL if content_type is video and URL is provided (no file)
-        content_url = data.get("content_url", "").strip() if data.get("content_url") else ""
-        content_file_path = data.get("content_file_path", "").strip() if data.get("content_file_path") else ""
+        content_url = (
+            data.get("content_url", "").strip() if data.get("content_url") else ""
+        )
+        content_file_path = (
+            data.get("content_file_path", "").strip()
+            if data.get("content_file_path")
+            else ""
+        )
 
         if content_type == "video" and content_url and not content_file_path:
             # Validate the video URL format and codec
@@ -505,7 +511,9 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
         # Determine effective values (new value if provided, otherwise existing)
         effective_content_type = data.get("content_type", item.content_type)
         effective_content_url = data.get("content_url", item.content_url) or ""
-        effective_content_file_path = data.get("content_file_path", item.content_file_path) or ""
+        effective_content_file_path = (
+            data.get("content_file_path", item.content_file_path) or ""
+        )
 
         # Strip whitespace for comparison
         if isinstance(effective_content_url, str):

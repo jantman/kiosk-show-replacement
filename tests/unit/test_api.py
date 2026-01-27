@@ -788,7 +788,11 @@ class TestVideoURLValidation:
         mock_storage.validate_video_url.return_value = (
             False,
             None,
-            {"video_codec": "mpeg2video", "audio_codec": "mp2", "container_format": "mpeg"},
+            {
+                "video_codec": "mpeg2video",
+                "audio_codec": "mp2",
+                "container_format": "mpeg",
+            },
             "Video codec 'mpeg2video' is not supported by web browsers.",
         )
         mock_get_storage.return_value = mock_storage
