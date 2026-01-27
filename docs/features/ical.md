@@ -73,7 +73,9 @@ When implementing this feature, we should implement it on top of a generic ICS c
    - ICS feeds can contain thousands of events; we only query what we need
    - Clean separation between feed metadata, events, and slide configuration
 
-4. **Refresh logic**: When fetching calendar data for a slide, check if `now - feed.last_fetched > slide.ical_refresh_minutes` and refresh if needed. Different slides can have different refresh preferences; the feed stays fresh for all consumers.
+4. **Refresh logic**: Two complementary mechanisms:
+   - **Lazy refresh**: When fetching calendar data for a slide, check if `now - feed.last_fetched > slide.ical_refresh_minutes` and refresh if needed. Different slides can have different refresh preferences.
+   - **External scheduling**: API endpoint `POST /api/v1/ical-feeds/refresh` allows external tools (cron, systemd timer) to proactively refresh all feeds on a schedule.
 
 5. **API endpoint**: New endpoint to get parsed/formatted calendar data for display
 
@@ -98,6 +100,12 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
 - Run `poetry lock` to update lock file
 
 #### Task 1.2 (ICAL-M1.2): Create new database models
+
+**Prerequisite:** Before creating migrations, ensure database is properly initialized:
+- Run `poetry run flask cli init-db` if database doesn't exist
+- Run `poetry run flask db upgrade` to apply all existing migrations
+- Verify migration state matches current models
+
 - Create `ICalFeed` model in `kiosk_show_replacement/models/__init__.py`:
   - `id`: Integer, primary key
   - `url`: String(500), unique index
@@ -222,9 +230,27 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
     ```
 - Add unit tests for new endpoint
 
+#### Task 2.4 (ICAL-M2.4): Add refresh-all API endpoint
+- Create `POST /api/v1/ical-feeds/refresh` endpoint:
+  - Iterate through all ICalFeed records
+  - Refresh each feed (fetch ICS, parse, sync events)
+  - Return summary: feeds refreshed, errors encountered
+  - Example response:
+    ```json
+    {
+      "refreshed": 3,
+      "errors": [
+        {"feed_id": 2, "url": "https://...", "error": "Connection timeout"}
+      ]
+    }
+    ```
+- This endpoint enables external scheduling (cron, systemd timer, etc.)
+- Add unit tests for endpoint
+
 **Milestone 2 Deliverables:**
 - Updated slideshow item CRUD endpoints for skedda type
 - New skedda-data endpoint for frontend
+- New refresh-all endpoint for external scheduling
 - Unit tests for all API changes
 - All tests passing
 
@@ -326,7 +352,11 @@ The implementation will build a generic ICS calendar infrastructure with Skedda-
 
 ## Progress Log
 
-### 2026-01-27 - Planning Updated
+### 2026-01-27 - Planning Updated (v2)
+- Added `POST /api/v1/ical-feeds/refresh` endpoint for external scheduling (Task 2.4)
+- Added database initialization prerequisite to Task 1.2
+
+### 2026-01-27 - Planning Updated (v1)
 - Revised database design to use normalized three-table schema (ICalFeed, ICalEvent, SlideshowItem)
 - Benefits: no duplicate events for shared URLs, efficient date-based queries, scalable for large ICS feeds
 
