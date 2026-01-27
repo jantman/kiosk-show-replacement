@@ -12,7 +12,7 @@ import mimetypes
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 from flask import current_app
@@ -32,6 +32,29 @@ class StorageManager:
     Handles file validation, secure storage, directory creation,
     and cleanup operations.
     """
+
+    # Timeout for ffprobe when processing local files (seconds)
+    FFPROBE_LOCAL_TIMEOUT = 30
+    # Timeout for ffprobe when processing remote URLs (seconds)
+    # Longer timeout to account for network latency and buffering
+    FFPROBE_URL_TIMEOUT = 60
+
+    @staticmethod
+    def _is_url(source: Union[Path, str]) -> bool:
+        """
+        Check if a source is a URL (http:// or https://).
+
+        Args:
+            source: Either a Path object or a string (file path or URL)
+
+        Returns:
+            True if source is a URL, False if it's a file path
+        """
+        if isinstance(source, Path):
+            return False
+        return isinstance(source, str) and (
+            source.startswith("http://") or source.startswith("https://")
+        )
 
     def __init__(self, upload_folder: Optional[str] = None):
         """
@@ -296,16 +319,23 @@ class StorageManager:
         )
         return True, ""
 
-    def get_video_duration(self, file_path: Path) -> Optional[float]:
+    def get_video_duration(self, source: Union[Path, str]) -> Optional[float]:
         """
         Extract video duration using ffprobe.
 
+        Supports both local file paths and remote URLs (http/https).
+        ffprobe natively supports remote URLs.
+
         Args:
-            file_path: Path to the video file
+            source: Path to a local video file, or a URL string (http/https)
 
         Returns:
             Duration in seconds as a float, or None if extraction fails
         """
+        is_url = self._is_url(source)
+        timeout = self.FFPROBE_URL_TIMEOUT if is_url else self.FFPROBE_LOCAL_TIMEOUT
+        source_str = str(source)
+
         try:
             # Run ffprobe to get video duration
             result = subprocess.run(
@@ -316,15 +346,15 @@ class StorageManager:
                     "-print_format",
                     "json",
                     "-show_format",
-                    str(file_path),
+                    source_str,
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,  # 30 second timeout
+                timeout=timeout,
             )
 
             if result.returncode != 0:
-                logger.warning(f"ffprobe failed for {file_path}: {result.stderr}")
+                logger.warning(f"ffprobe failed for {source_str}: {result.stderr}")
                 return None
 
             # Parse JSON output
@@ -333,10 +363,10 @@ class StorageManager:
 
             if duration_str:
                 duration = float(duration_str)
-                logger.debug(f"Video duration for {file_path}: {duration} seconds")
+                logger.debug(f"Video duration for {source_str}: {duration} seconds")
                 return duration
 
-            logger.warning(f"No duration found in ffprobe output for {file_path}")
+            logger.warning(f"No duration found in ffprobe output for {source_str}")
             return None
 
         except FileNotFoundError:
@@ -346,13 +376,13 @@ class StorageManager:
             )
             return None
         except subprocess.TimeoutExpired:
-            logger.error(f"ffprobe timed out for {file_path}")
+            logger.error(f"ffprobe timed out for {source_str}")
             return None
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse ffprobe output for {file_path}: {e}")
+            logger.error(f"Failed to parse ffprobe output for {source_str}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error getting video duration for {file_path}: {e}")
+            logger.error(f"Error getting video duration for {source_str}: {e}")
             return None
 
     def generate_secure_filename(
