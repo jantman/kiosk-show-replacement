@@ -92,6 +92,10 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   // Track preview iframe state for URL slides
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState(false);
+  // Track video URL validation state
+  const [validatingVideoUrl, setValidatingVideoUrl] = useState(false);
+  const [videoUrlValidated, setVideoUrlValidated] = useState(false);
+  const [videoUrlError, setVideoUrlError] = useState<string | null>(null);
 
   useEffect(() => {
     if (item) {
@@ -134,6 +138,16 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       errors.content = `Please upload a ${formData.content_type} file or provide a URL`;
     }
 
+    // Check for video URL validation errors (when using URL, not file)
+    if (formData.content_type === 'video' && formData.content_url && !formData.content_file_path) {
+      if (videoUrlError) {
+        errors.content = videoUrlError;
+      } else if (!videoUrlValidated && !validatingVideoUrl) {
+        // URL entered but not validated yet
+        errors.content = 'Please wait for video URL validation to complete';
+      }
+    }
+
     if (formData.display_duration !== null && formData.display_duration <= 0) {
       errors.display_duration = 'Duration must be greater than 0';
     }
@@ -144,7 +158,12 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Block submission while validating video URL
+    if (validatingVideoUrl) {
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
@@ -294,6 +313,90 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       if (autoTitle) {
         setFormData(prev => ({ ...prev, title: autoTitle }));
       }
+    }
+  };
+
+  /**
+   * Validate a video URL - check format and codec compatibility, extract duration
+   */
+  const validateVideoUrl = async (url: string) => {
+    // Clear previous validation state
+    setVideoUrlValidated(false);
+    setVideoUrlError(null);
+
+    // Skip validation if URL is empty or not a valid URL format
+    if (!url.trim()) {
+      return;
+    }
+
+    try {
+      new URL(url);
+    } catch {
+      setVideoUrlError('Please enter a valid URL');
+      return;
+    }
+
+    // Must be http or https
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      setVideoUrlError('URL must start with http:// or https://');
+      return;
+    }
+
+    setValidatingVideoUrl(true);
+
+    try {
+      const response = await apiCall('/api/v1/validate/video-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      if (response.success && response.data) {
+        const data = response.data as {
+          valid: boolean;
+          duration_seconds: number | null;
+          duration: number | null;
+          codec_info: {
+            video_codec: string | null;
+            audio_codec: string | null;
+            container_format: string | null;
+          } | null;
+        };
+
+        setVideoUrlValidated(true);
+        setVideoUrlError(null);
+
+        // Auto-populate duration if detected and no duration is currently set
+        if (data.duration_seconds !== null && formData.display_duration === null) {
+          setFormData(prev => ({
+            ...prev,
+            display_duration: data.duration_seconds,
+          }));
+          setVideoDurationDetected(true);
+        }
+      } else {
+        setVideoUrlValidated(false);
+        setVideoUrlError(response.error || 'Video URL validation failed');
+      }
+    } catch (err) {
+      setVideoUrlValidated(false);
+      setVideoUrlError('Failed to validate video URL');
+      console.error('Error validating video URL:', err);
+    } finally {
+      setValidatingVideoUrl(false);
+    }
+  };
+
+  /**
+   * Handle video URL field blur - validate the URL
+   */
+  const handleVideoUrlBlur = (url: string) => {
+    // Auto-populate title first
+    handleUrlBlur(url);
+
+    // Then validate the video URL if content type is video and there's no uploaded file
+    if (formData.content_type === 'video' && !formData.content_file_path && url.trim()) {
+      validateVideoUrl(url);
     }
   };
 
@@ -465,6 +568,11 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   const file = (e.target as HTMLInputElement).files?.[0];
                   if (file) {
                     handleFileUpload(file);
+                    // Clear video URL validation state when file is uploaded
+                    if (formData.content_type === 'video') {
+                      setVideoUrlValidated(false);
+                      setVideoUrlError(null);
+                    }
                   }
                 }}
                 disabled={uploadingFile}
@@ -506,13 +614,47 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   if (e.target.value && formData.content_file_path) {
                     handleInputChange('content_file_path', '');
                   }
+                  // Reset video URL validation state when URL changes
+                  if (formData.content_type === 'video') {
+                    setVideoUrlValidated(false);
+                    setVideoUrlError(null);
+                  }
                 }}
-                onBlur={(e) => handleUrlBlur(e.target.value)}
-                placeholder={`https://example.com/${formData.content_type}.jpg`}
-                disabled={uploadingFile}
+                onBlur={(e) => {
+                  if (formData.content_type === 'video') {
+                    handleVideoUrlBlur(e.target.value);
+                  } else {
+                    handleUrlBlur(e.target.value);
+                  }
+                }}
+                placeholder={`https://example.com/${formData.content_type}.${formData.content_type === 'video' ? 'mp4' : 'jpg'}`}
+                disabled={uploadingFile || validatingVideoUrl}
+                isInvalid={formData.content_type === 'video' && !!videoUrlError}
+                isValid={formData.content_type === 'video' && videoUrlValidated && !formData.content_file_path}
               />
+              {formData.content_type === 'video' && validatingVideoUrl && (
+                <div className="mt-2">
+                  <Spinner animation="border" size="sm" className="me-2" />
+                  Validating video URL...
+                </div>
+              )}
+              {formData.content_type === 'video' && videoUrlValidated && !formData.content_file_path && (
+                <div className="mt-2">
+                  <span className="badge bg-success">
+                    <i className="bi bi-check-lg me-1"></i>
+                    Video URL validated
+                  </span>
+                </div>
+              )}
+              {formData.content_type === 'video' && videoUrlError && (
+                <Form.Control.Feedback type="invalid">
+                  {videoUrlError}
+                </Form.Control.Feedback>
+              )}
               <Form.Text className="text-muted">
-                Alternatively, provide a direct URL to the {formData.content_type}
+                {formData.content_type === 'video'
+                  ? 'Video URL will be validated for browser compatibility (H.264, VP8, VP9 codecs)'
+                  : `Alternatively, provide a direct URL to the ${formData.content_type}`}
               </Form.Text>
             </Form.Group>
           </div>
@@ -564,6 +706,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                 handleInputChange('scale_factor', null);
                 // Reset video duration detection flag (but keep user-entered duration)
                 setVideoDurationDetected(false);
+                // Reset video URL validation state
+                setVideoUrlValidated(false);
+                setVideoUrlError(null);
               }}
             >
               <option value="image">Image</option>
@@ -632,10 +777,10 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         >
           Cancel
         </Button>
-        <Button 
-          type="submit" 
-          variant="primary" 
-          disabled={loading || uploadingFile}
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={loading || uploadingFile || validatingVideoUrl}
         >
           {loading ? (
             <>
