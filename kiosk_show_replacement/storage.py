@@ -172,18 +172,25 @@ class StorageManager:
         return True, ""
 
     def get_video_codec_info(
-        self, file_path: Path
+        self, source: Union[Path, str]
     ) -> Optional[Dict[str, Optional[str]]]:
         """
         Extract video codec information using ffprobe.
 
+        Supports both local file paths and remote URLs (http/https).
+        ffprobe natively supports remote URLs.
+
         Args:
-            file_path: Path to the video file
+            source: Path to a local video file, or a URL string (http/https)
 
         Returns:
             Dictionary with 'video_codec', 'audio_codec', and 'container_format',
             or None if extraction fails. Individual values may be None if not found.
         """
+        is_url = self._is_url(source)
+        timeout = self.FFPROBE_URL_TIMEOUT if is_url else self.FFPROBE_LOCAL_TIMEOUT
+        source_str = str(source)
+
         try:
             # Run ffprobe to get stream and format information
             result = subprocess.run(
@@ -195,16 +202,16 @@ class StorageManager:
                     "json",
                     "-show_streams",
                     "-show_format",
-                    str(file_path),
+                    source_str,
                 ],
                 capture_output=True,
                 text=True,
-                timeout=30,  # 30 second timeout
+                timeout=timeout,
             )
 
             if result.returncode != 0:
                 logger.warning(
-                    f"ffprobe failed to get codec info for {file_path}: {result.stderr}"
+                    f"ffprobe failed to get codec info for {source_str}: {result.stderr}"
                 )
                 return None
 
@@ -233,7 +240,7 @@ class StorageManager:
                 "container_format": container_format,
             }
 
-            logger.debug(f"Video codec info for {file_path}: {codec_info}")
+            logger.debug(f"Video codec info for {source_str}: {codec_info}")
             return codec_info
 
         except FileNotFoundError:
@@ -243,13 +250,13 @@ class StorageManager:
             )
             return None
         except subprocess.TimeoutExpired:
-            logger.error(f"ffprobe timed out getting codec info for {file_path}")
+            logger.error(f"ffprobe timed out getting codec info for {source_str}")
             return None
         except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse ffprobe codec output for {file_path}: {e}")
+            logger.error(f"Failed to parse ffprobe codec output for {source_str}: {e}")
             return None
         except Exception as e:
-            logger.error(f"Error getting video codec info for {file_path}: {e}")
+            logger.error(f"Error getting video codec info for {source_str}: {e}")
             return None
 
     # Browser-compatible video codecs for HTML5 <video> element
