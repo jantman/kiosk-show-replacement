@@ -630,6 +630,99 @@ class TestDisplayManagement:
                 f"/api/v1/displays/{display_data['id']}", headers=auth_headers
             )
 
+    def test_reload_display_button_visible_in_table(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_display: dict,
+    ):
+        """Test that the reload button is visible in the displays table."""
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Login and navigate to displays page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/displays")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Wait for table to load
+        expect(page.locator("table")).to_be_visible(timeout=10000)
+
+        # Find the row for our test display
+        display_name = test_display["name"]
+        row = page.locator(f"tr:has-text('{display_name}')")
+        expect(row).to_be_visible(timeout=10000)
+
+        # Verify the reload button is visible
+        reload_button = row.locator("button[title='Reload Display']")
+        expect(reload_button).to_be_visible()
+
+        # Verify the button has the correct icon
+        icon = reload_button.locator("i.bi-arrow-clockwise")
+        expect(icon).to_be_visible()
+
+    def test_reload_display_button_triggers_api_call(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that clicking the reload button triggers the API call."""
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+
+        # Create a display to reload
+        response = http_client.post(
+            "/api/v1/displays",
+            json={"name": "Reload Test Display", "location": "Test"},
+            headers=auth_headers,
+        )
+        assert response.status_code in [200, 201]
+        display_data = response.json().get("data", response.json())
+
+        try:
+            # Login and navigate to displays page
+            self._login(page, vite_url, test_database)
+            page.goto(f"{vite_url}/admin/displays")
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+            # Wait for table to load
+            expect(page.locator("table")).to_be_visible(timeout=10000)
+
+            # Find the row for our display
+            row = page.locator("tr:has-text('Reload Test Display')")
+            expect(row).to_be_visible(timeout=10000)
+
+            # Set up request interception to verify the API call
+            reload_request_made = []
+
+            def handle_request(request):
+                if "/reload" in request.url and request.method == "POST":
+                    reload_request_made.append(request.url)
+
+            page.on("request", handle_request)
+
+            # Click the reload button
+            reload_button = row.locator("button[title='Reload Display']")
+            expect(reload_button).to_be_visible()
+            reload_button.click()
+
+            # Wait a moment for the API call to be made
+            page.wait_for_timeout(1000)
+
+            # Verify the API call was made
+            assert len(reload_request_made) > 0, "Reload API endpoint should be called"
+            assert f"/api/v1/displays/{display_data['id']}/reload" in reload_request_made[0]
+
+        finally:
+            # Cleanup
+            http_client.delete(
+                f"/api/v1/displays/{display_data['id']}", headers=auth_headers
+            )
+
     def _login(self, page: Page, vite_url: str, test_database: dict):
         """Helper method to log in to the admin interface."""
         page.goto(f"{vite_url}/admin/login")
