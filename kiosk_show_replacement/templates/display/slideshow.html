@@ -690,9 +690,15 @@
             // Performance optimization methods
             startContentPreloading() {
                 // Prepare preload queue based on strategy
+                // Note: Always exclude currentSlideIndex since that slide is already
+                // loading via the DOM element created in createSlideElements().
+                // Loading the same resource twice causes the browser to abort one
+                // request, which can trigger net::ERR_ABORTED errors.
                 if (this.preloadStrategy === 'aggressive') {
-                    // Preload all content
-                    this.preloadQueue = this.slides.map((_, index) => index);
+                    // Preload all content except current slide
+                    this.preloadQueue = this.slides
+                        .map((_, index) => index)
+                        .filter(i => i !== this.currentSlideIndex);
                 } else if (this.preloadStrategy === 'normal') {
                     // Preload next 3 slides
                     this.preloadQueue = this.getNextSlideIndices(3);
