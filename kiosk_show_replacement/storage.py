@@ -347,7 +347,12 @@ class StorageManager:
         """
         # Validate URL format
         if not self._is_url(url):
-            return False, None, None, "Invalid URL format. URL must start with http:// or https://"
+            return (
+                False,
+                None,
+                None,
+                "Invalid URL format. URL must start with http:// or https://",
+            )
 
         # Get codec info (this also validates the URL is accessible)
         codec_info = self.get_video_codec_info(url)
@@ -358,9 +363,14 @@ class StorageManager:
                 f"Could not retrieve video information from URL: {url}. "
                 f"The URL may be inaccessible, invalid, or ffprobe may not be installed."
             )
-            return False, None, None, (
-                "Could not retrieve video information from the URL. "
-                "Please verify the URL is accessible and points to a valid video file."
+            return (
+                False,
+                None,
+                None,
+                (
+                    "Could not retrieve video information from the URL. "
+                    "Please verify the URL is accessible and points to a valid video file."
+                ),
             )
 
         video_codec = codec_info.get("video_codec")
@@ -372,9 +382,14 @@ class StorageManager:
                 f"No video stream found at URL: {url}. "
                 f"Container format: {container_format}"
             )
-            return False, None, codec_info, (
-                "No video stream found at the URL. "
-                "Please provide a URL to a valid video file."
+            return (
+                False,
+                None,
+                codec_info,
+                (
+                    "No video stream found at the URL. "
+                    "Please provide a URL to a valid video file."
+                ),
             )
 
         # Check codec compatibility
@@ -387,10 +402,15 @@ class StorageManager:
             )
 
             supported_list = ", ".join(sorted(self.SUPPORTED_VIDEO_CODECS))
-            return False, None, codec_info, (
-                f"Video codec '{video_codec}' is not supported by web browsers. "
-                f"Supported codecs: {supported_list}. "
-                f"Please use a video with MP4 (H.264) or WebM (VP8/VP9) format."
+            return (
+                False,
+                None,
+                codec_info,
+                (
+                    f"Video codec '{video_codec}' is not supported by web browsers. "
+                    f"Supported codecs: {supported_list}. "
+                    f"Please use a video with MP4 (H.264) or WebM (VP8/VP9) format."
+                ),
             )
 
         # Get duration (optional - video is still valid if duration can't be detected)
