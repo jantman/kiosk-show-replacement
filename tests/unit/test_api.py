@@ -884,7 +884,9 @@ class TestDisplayAPI:
                 db.session.commit()
                 display_id = display.id
 
-            response = unauthenticated_client.post(f"/api/v1/displays/{display_id}/reload")
+            response = unauthenticated_client.post(
+                f"/api/v1/displays/{display_id}/reload"
+            )
             # Should redirect to login or return 401/302
             assert response.status_code in [302, 401]
 

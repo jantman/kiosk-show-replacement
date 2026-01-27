@@ -2190,7 +2190,11 @@ def broadcast_display_update(
     # Also send to the specific display connection for relevant event types
     # This allows the display to reload when its configuration or assignment changes
     display_count = 0
-    if event_type in ("assignment_changed", "configuration_changed", "reload_requested"):
+    if event_type in (
+        "assignment_changed",
+        "configuration_changed",
+        "reload_requested",
+    ):
         with sse_manager.connections_lock:
             for conn_id, conn in sse_manager.connections.items():
                 if hasattr(conn, "display_id") and conn.display_id == display.id:

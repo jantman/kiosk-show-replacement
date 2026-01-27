@@ -114,21 +114,21 @@ This feature requires adding:
 
 ## Progress
 
-- [ ] Milestone 1: Backend API and SSE Event
-  - [ ] Task 1.1: Add API endpoint for display reload
-  - [ ] Task 1.2: Update SSE broadcast for reload events
-  - [ ] Task 1.3: Add unit tests for the reload endpoint
-- [ ] Milestone 2: Display Client JavaScript
-  - [ ] Task 2.1: Add reload event listener to slideshow.html
-  - [ ] Task 2.2: Add reload event listener to no_content.html and configure.html
-- [ ] Milestone 3: React Admin Interface
-  - [ ] Task 3.1: Add reload button to Displays page
-  - [ ] Task 3.2: Add API client method
-  - [ ] Task 3.3: Add reload button to DisplayDetail page
-- [ ] Milestone 4: Integration Tests
-  - [ ] Task 4.1: Add integration tests for reload functionality
-- [ ] Milestone 5: Acceptance Criteria
-  - [ ] Task 5.1: Documentation review
-  - [ ] Task 5.2: Test coverage verification
-  - [ ] Task 5.3: Final test run
-  - [ ] Task 5.4: Move feature document to completed/
+- [x] Milestone 1: Backend API and SSE Event
+  - [x] Task 1.1: Add API endpoint for display reload
+  - [x] Task 1.2: Update SSE broadcast for reload events
+  - [x] Task 1.3: Add unit tests for the reload endpoint
+- [x] Milestone 2: Display Client JavaScript
+  - [x] Task 2.1: Add reload event listener to slideshow.html
+  - [x] Task 2.2: Add reload event listener to no_content.html and configure.html
+- [x] Milestone 3: React Admin Interface
+  - [x] Task 3.1: Add reload button to Displays page
+  - [x] Task 3.2: Add API client method
+  - [x] Task 3.3: Add reload button to DisplayDetail page
+- [x] Milestone 4: Integration Tests
+  - [x] Task 4.1: Add integration tests for reload functionality
+- [x] Milestone 5: Acceptance Criteria
+  - [x] Task 5.1: Documentation review (updated api.rst)
+  - [x] Task 5.2: Test coverage verification
+  - [x] Task 5.3: Final test run
+  - [x] Task 5.4: Move feature document to completed/

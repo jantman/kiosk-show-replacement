@@ -643,11 +643,11 @@ API v1 Displays
 
 ``POST /api/v1/displays/<string:display_name>/assign-slideshow``
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-**Purpose**: Assign slideshow to display by name  
-**Authentication**: Required  
-**Parameters**: 
+**Purpose**: Assign slideshow to display by name
+**Authentication**: Required
+**Parameters**:
   - ``display_name`` (path): Display name
-**Request Body**: 
+**Request Body**:
   .. code-block:: json
 
      {
@@ -657,6 +657,26 @@ API v1 Displays
 
 **Returns**: Success message
 **Side Effects**: Creates assignment history record
+
+``POST /api/v1/displays/<int:display_id>/reload``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Purpose**: Send reload command to display via SSE
+**Authentication**: Required
+**Parameters**:
+  - ``display_id`` (path): Display ID
+**Returns**:
+  .. code-block:: json
+
+     {
+       "success": true,
+       "data": {
+         "display_id": 1,
+         "connections_notified": 1
+       },
+       "message": "Reload command sent to display 'display-name'"
+     }
+
+**Side Effects**: Sends ``display.reload_requested`` SSE event to display
 
 API v1 Assignment History
 -------------------------

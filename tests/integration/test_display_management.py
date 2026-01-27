@@ -715,7 +715,10 @@ class TestDisplayManagement:
 
             # Verify the API call was made
             assert len(reload_request_made) > 0, "Reload API endpoint should be called"
-            assert f"/api/v1/displays/{display_data['id']}/reload" in reload_request_made[0]
+            assert (
+                f"/api/v1/displays/{display_data['id']}/reload"
+                in reload_request_made[0]
+            )
 
         finally:
             # Cleanup
