@@ -971,9 +971,20 @@
                     this.eventSource.addEventListener('display.configuration_changed', (event) => {
                         const data = JSON.parse(event.data);
                         console.log('Configuration changed:', data);
-                        
+
                         if (data.display_name === this.displayName || data.name === this.displayName) {
                             console.log('Display configuration changed, reloading...');
+                            window.location.reload();
+                        }
+                    });
+
+                    // Handle reload requests from admin interface
+                    this.eventSource.addEventListener('display.reload_requested', (event) => {
+                        const data = JSON.parse(event.data);
+                        console.log('Reload requested:', data);
+
+                        if (data.display_name === this.displayName || data.name === this.displayName) {
+                            console.log('Admin requested display reload, reloading...');
                             window.location.reload();
                         }
                     });
