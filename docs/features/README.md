@@ -6,10 +6,12 @@ The following guidelines MUST always be followed:
 
 * Features that are non-trivial in size (i.e. more than a few simple changes) should be broken down into Milestones and Tasks. Those will be given a prefix to be used in commit messages, formatted as `{Feature Name} - {Milestone number}.{Task number}`. Human approval must always be obtained to move from one Milestone to the next.
 * All features must include appropriate test additions or updates. All UI changes must have appropriate integration test coverage. All bug fixes must BEGIN with creating regression tests which should initially fail, and should pass after the bug is fixed.
+* Before beginning a feature, you must be on a git branch other than `main`. If you are not, start a new branch named after the feature.
 * At the end of every Milestone and Feature you must (in order):
   1. Update the feature markdown document to indicate what progress has been made on the relevant Milestone or Feature.
   2. Run all `nox` tests and ensure that ALL tests are passing. You MAY NOT consider a Milestone complete until ALL tests that were passing at the beginning of the Milestone are still passing, unless given explicit human approval to defer testing until later.
   3. Commit that along with all changes to git, using a commit message beginning with the Milestone/Task prefix and a one-sentence concise summary of the changes followed by a detailed explanation of the changes.
+  4. Open a GitHub PR to merge the feature branch to `main`. ALL GitHub Actions checks must pass before the work is complete.
 * Every feature must end with an "Acceptance Criteria" Milestone. This Milestone must include tasks to:
   1. Ensure that all appropriate documentation (`README.md`, `docs/*.rst`, and `CLAUDE.md`) is updated as needed for the work done as part of the feature. Documentation should be easily readable, concise, and a match to the style, tone, and verbosity of the existing documentation.
   2. All code changes have appropriate unit test coverage.
