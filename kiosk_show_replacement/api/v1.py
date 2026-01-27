@@ -1080,6 +1080,53 @@ def restore_display(display_id: int) -> Tuple[Response, int]:
         return api_error("Failed to restore display", 500)
 
 
+@api_v1_bp.route("/displays/<int:display_id>/reload", methods=["POST"])
+@api_auth_required
+def reload_display(display_id: int) -> Tuple[Response, int]:
+    """Send a reload command to a display via SSE.
+
+    This endpoint triggers an SSE event that instructs the target display
+    to reload its current slideshow. Useful when displays miss SSE event
+    notifications due to network issues.
+    """
+    try:
+        from datetime import datetime, timezone
+
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        display = db.session.get(Display, display_id)
+        if not display:
+            return api_error("Display not found", 404)
+
+        # Broadcast reload event to the display
+        event_count = broadcast_display_update(
+            display,
+            "reload_requested",
+            {
+                "display_id": display.id,
+                "display_name": display.name,
+                "requested_by": current_user.username,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+
+        current_app.logger.info(
+            f"User {current_user.username} requested reload for display "
+            f"{display.name} (ID: {display.id}), sent to {event_count} connections"
+        )
+
+        return api_response(
+            {"display_id": display.id, "connections_notified": event_count},
+            f"Reload command sent to display '{display.name}'",
+        )
+
+    except Exception as e:
+        current_app.logger.error(f"Error sending reload to display {display_id}: {e}")
+        return api_error("Failed to send reload command", 500)
+
+
 @api_v1_bp.route("/displays/archived", methods=["GET"])
 @api_auth_required
 def list_archived_displays() -> Tuple[Response, int]:
@@ -2143,7 +2190,7 @@ def broadcast_display_update(
     # Also send to the specific display connection for relevant event types
     # This allows the display to reload when its configuration or assignment changes
     display_count = 0
-    if event_type in ("assignment_changed", "configuration_changed"):
+    if event_type in ("assignment_changed", "configuration_changed", "reload_requested"):
         with sse_manager.connections_lock:
             for conn_id, conn in sse_manager.connections.items():
                 if hasattr(conn, "display_id") and conn.display_id == display.id:

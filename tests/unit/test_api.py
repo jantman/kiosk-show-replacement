@@ -844,6 +844,50 @@ class TestDisplayAPI:
         assert db.session.get(AssignmentHistory, history1_id) is None
         assert db.session.get(AssignmentHistory, history2_id) is None
 
+    def test_reload_display_success(self, client, authenticated_user):
+        """Test successfully sending reload command to a display."""
+        display = Display(name="test-display-reload", owner_id=authenticated_user.id)
+        db.session.add(display)
+        db.session.commit()
+
+        response = client.post(f"/api/v1/displays/{display.id}/reload")
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["display_id"] == display.id
+        assert "connections_notified" in data["data"]
+        assert "Reload command sent" in data["message"]
+
+    def test_reload_display_not_found(self, client, authenticated_user):
+        """Test reload command for non-existent display returns 404."""
+        response = client.post("/api/v1/displays/99999/reload")
+        assert response.status_code == 404
+
+        data = response.get_json()
+        assert data["success"] is False
+        assert "not found" in data["error"].lower()
+
+    def test_reload_display_requires_authentication(self, app):
+        """Test that reload endpoint requires authentication."""
+        # Create a fresh client without authentication
+        with app.test_client() as unauthenticated_client:
+            # Create a display for testing
+            with app.app_context():
+                user = User(username="test-reload-auth", email="reload@test.com")
+                user.set_password("password")
+                db.session.add(user)
+                db.session.commit()
+
+                display = Display(name="test-display-auth", owner_id=user.id)
+                db.session.add(display)
+                db.session.commit()
+                display_id = display.id
+
+            response = unauthenticated_client.post(f"/api/v1/displays/{display_id}/reload")
+            # Should redirect to login or return 401/302
+            assert response.status_code in [302, 401]
+
 
 class TestAPIAuthentication:
     """Test API authentication and authorization."""
