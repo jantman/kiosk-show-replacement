@@ -6,7 +6,8 @@ import type {
   SlideshowItem,
   SlideshowFormData,
   SlideshowItemFormData,
-  AssignmentHistory
+  AssignmentHistory,
+  VideoUrlValidationResult
 } from '../types';
 
 /**
@@ -423,6 +424,22 @@ class ApiClient {
       body: formData,
       headers: {}, // Don't set Content-Type for FormData
     });
+  }
+
+  // Video URL validation
+  async validateVideoUrl(url: string): Promise<ApiResponse<VideoUrlValidationResult>> {
+    // Use a longer timeout for video URL validation since ffprobe needs to probe the remote URL
+    const originalTimeout = this.timeout;
+    this.timeout = 70000; // 70 seconds to allow for 60s ffprobe timeout + overhead
+
+    try {
+      return await this.requestNoRetry<VideoUrlValidationResult>('/api/v1/validate/video-url', {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+      });
+    } finally {
+      this.timeout = originalTimeout;
+    }
   }
 
   // Health check (with retry for monitoring)

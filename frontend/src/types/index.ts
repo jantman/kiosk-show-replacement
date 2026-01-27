@@ -129,3 +129,15 @@ export interface SlideshowItemFormData {
   content_source: string;
   duration?: number;
 }
+
+// Video URL validation response
+export interface VideoUrlValidationResult {
+  valid: boolean;
+  duration_seconds: number | null;
+  duration: number | null;
+  codec_info: {
+    video_codec: string | null;
+    audio_codec: string | null;
+    container_format: string | null;
+  } | null;
+}

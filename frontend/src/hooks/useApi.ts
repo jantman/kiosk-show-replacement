@@ -105,6 +105,12 @@ export const useApi = (): UseApiResult => {
           return await apiClient.uploadVideo(file, slideshowId);
         }
       }
+
+      // Match /api/v1/validate/video-url for POST
+      if (url === '/api/v1/validate/video-url' && method === 'POST') {
+        const data = JSON.parse(options?.body as string);
+        return await apiClient.validateVideoUrl(data.url);
+      }
       
       if (url === '/api/v1/auth/user' && method === 'GET') {
         return await apiClient.getCurrentUser();
