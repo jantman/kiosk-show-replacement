@@ -760,6 +760,312 @@ class TestVideoFormatValidation:
         assert error == ""
 
 
+class TestVideoURLSupport:
+    """Test video URL support for duration extraction, codec info, and validation.
+
+    Tests verify that get_video_duration(), get_video_codec_info(), and
+    validate_video_url() work correctly with remote URLs (http/https).
+    """
+
+    @pytest.fixture
+    def temp_storage_dir(self):
+        """Create a temporary directory for testing."""
+        temp_dir = tempfile.mkdtemp()
+        yield temp_dir
+        shutil.rmtree(temp_dir)
+
+    @pytest.fixture
+    def storage_manager(self, temp_storage_dir):
+        """Create a StorageManager instance with temporary directory."""
+        return StorageManager(temp_storage_dir)
+
+    # Tests for _is_url() helper method
+
+    def test_is_url_with_https(self, storage_manager):
+        """Test _is_url returns True for https URLs."""
+        assert StorageManager._is_url("https://example.com/video.mp4") is True
+
+    def test_is_url_with_http(self, storage_manager):
+        """Test _is_url returns True for http URLs."""
+        assert StorageManager._is_url("http://example.com/video.mp4") is True
+
+    def test_is_url_with_path_object(self, storage_manager, temp_storage_dir):
+        """Test _is_url returns False for Path objects."""
+        video_path = Path(temp_storage_dir) / "video.mp4"
+        assert StorageManager._is_url(video_path) is False
+
+    def test_is_url_with_file_path_string(self, storage_manager):
+        """Test _is_url returns False for file path strings."""
+        assert StorageManager._is_url("/path/to/video.mp4") is False
+
+    def test_is_url_with_relative_path_string(self, storage_manager):
+        """Test _is_url returns False for relative path strings."""
+        assert StorageManager._is_url("video.mp4") is False
+
+    # Tests for get_video_duration() with URLs
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_url_success(self, mock_run, storage_manager):
+        """Test successful video duration extraction from URL."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"format": {"duration": "120.5"}}',
+            stderr="",
+        )
+
+        url = "https://example.com/video.mp4"
+        duration = storage_manager.get_video_duration(url)
+
+        assert duration is not None
+        assert abs(duration - 120.5) < 0.001
+        mock_run.assert_called_once()
+        # Verify URL was passed to ffprobe
+        call_args = mock_run.call_args[0][0]
+        assert url in call_args
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_url_uses_longer_timeout(
+        self, mock_run, storage_manager
+    ):
+        """Test that URL duration extraction uses the longer timeout."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"format": {"duration": "60.0"}}',
+            stderr="",
+        )
+
+        url = "https://example.com/video.mp4"
+        storage_manager.get_video_duration(url)
+
+        # Verify the longer timeout was used for URLs
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs["timeout"] == StorageManager.FFPROBE_URL_TIMEOUT
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_local_file_uses_shorter_timeout(
+        self, mock_run, storage_manager, temp_storage_dir
+    ):
+        """Test that local file duration extraction uses the shorter timeout."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"format": {"duration": "60.0"}}',
+            stderr="",
+        )
+
+        video_path = Path(temp_storage_dir) / "video.mp4"
+        video_path.write_bytes(b"fake data")
+        storage_manager.get_video_duration(video_path)
+
+        # Verify the shorter timeout was used for local files
+        mock_run.assert_called_once()
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs["timeout"] == StorageManager.FFPROBE_LOCAL_TIMEOUT
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_duration_url_failure(self, mock_run, storage_manager):
+        """Test handling when ffprobe fails for URL."""
+        mock_run.return_value = MagicMock(
+            returncode=1,
+            stdout="",
+            stderr="https://example.com/video.mp4: Server returned 404 Not Found",
+        )
+
+        url = "https://example.com/video.mp4"
+        duration = storage_manager.get_video_duration(url)
+
+        assert duration is None
+
+    # Tests for get_video_codec_info() with URLs
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_url_success(self, mock_run, storage_manager):
+        """Test successful codec info extraction from URL."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="""{
+                "streams": [
+                    {"codec_type": "video", "codec_name": "h264"},
+                    {"codec_type": "audio", "codec_name": "aac"}
+                ],
+                "format": {"format_name": "mov,mp4,m4a,3gp,3g2,mj2"}
+            }""",
+            stderr="",
+        )
+
+        url = "https://example.com/video.mp4"
+        codec_info = storage_manager.get_video_codec_info(url)
+
+        assert codec_info is not None
+        assert codec_info["video_codec"] == "h264"
+        assert codec_info["audio_codec"] == "aac"
+        # Verify URL was passed to ffprobe
+        call_args = mock_run.call_args[0][0]
+        assert url in call_args
+
+    @patch("kiosk_show_replacement.storage.subprocess.run")
+    def test_get_video_codec_info_url_uses_longer_timeout(
+        self, mock_run, storage_manager
+    ):
+        """Test that URL codec info extraction uses the longer timeout."""
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout='{"streams": [], "format": {}}',
+            stderr="",
+        )
+
+        url = "http://example.com/video.mp4"
+        storage_manager.get_video_codec_info(url)
+
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs["timeout"] == StorageManager.FFPROBE_URL_TIMEOUT
+
+    # Tests for validate_video_url()
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    @patch.object(StorageManager, "get_video_duration")
+    def test_validate_video_url_success(
+        self, mock_duration, mock_codec, storage_manager
+    ):
+        """Test successful video URL validation."""
+        mock_codec.return_value = {
+            "video_codec": "h264",
+            "audio_codec": "aac",
+            "container_format": "mov,mp4,m4a,3gp,3g2,mj2",
+        }
+        mock_duration.return_value = 120.5
+
+        url = "https://example.com/video.mp4"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is True
+        assert duration == 120.5
+        assert codec_info["video_codec"] == "h264"
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    @patch.object(StorageManager, "get_video_duration")
+    def test_validate_video_url_vp9_success(
+        self, mock_duration, mock_codec, storage_manager
+    ):
+        """Test validation passes for VP9 codec URL."""
+        mock_codec.return_value = {
+            "video_codec": "vp9",
+            "audio_codec": "opus",
+            "container_format": "webm",
+        }
+        mock_duration.return_value = 60.0
+
+        url = "https://example.com/video.webm"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is True
+        assert duration == 60.0
+        assert error == ""
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    @patch.object(StorageManager, "get_video_duration")
+    def test_validate_video_url_no_duration_still_valid(
+        self, mock_duration, mock_codec, storage_manager
+    ):
+        """Test URL validation succeeds even if duration can't be detected."""
+        mock_codec.return_value = {
+            "video_codec": "h264",
+            "audio_codec": None,
+            "container_format": "mp4",
+        }
+        mock_duration.return_value = None  # Duration not available
+
+        url = "https://example.com/video.mp4"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is True
+        assert duration is None
+        assert codec_info["video_codec"] == "h264"
+        assert error == ""
+
+    def test_validate_video_url_invalid_url_format(self, storage_manager):
+        """Test validation fails for invalid URL format."""
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(
+            "/path/to/video.mp4"
+        )
+
+        assert is_valid is False
+        assert duration is None
+        assert codec_info is None
+        assert "Invalid URL format" in error
+
+    def test_validate_video_url_relative_path_rejected(self, storage_manager):
+        """Test validation fails for relative file paths."""
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(
+            "video.mp4"
+        )
+
+        assert is_valid is False
+        assert "Invalid URL format" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_url_inaccessible(self, mock_codec, storage_manager):
+        """Test validation fails when URL is inaccessible."""
+        mock_codec.return_value = None  # ffprobe failed to access URL
+
+        url = "https://example.com/nonexistent.mp4"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is False
+        assert duration is None
+        assert codec_info is None
+        assert "Could not retrieve video information" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_url_no_video_stream(self, mock_codec, storage_manager):
+        """Test validation fails when URL has no video stream."""
+        mock_codec.return_value = {
+            "video_codec": None,  # No video stream
+            "audio_codec": "aac",
+            "container_format": "mp4",
+        }
+
+        url = "https://example.com/audio-only.mp4"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is False
+        assert codec_info is not None  # Codec info is returned even on failure
+        assert "No video stream found" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_url_unsupported_codec(self, mock_codec, storage_manager):
+        """Test validation fails for unsupported video codec."""
+        mock_codec.return_value = {
+            "video_codec": "mpeg2video",  # Not browser-compatible
+            "audio_codec": "mp2",
+            "container_format": "mpeg",
+        }
+
+        url = "https://example.com/video.mpeg"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is False
+        assert codec_info is not None
+        assert "mpeg2video" in error
+        assert "not supported by web browsers" in error
+
+    @patch.object(StorageManager, "get_video_codec_info")
+    def test_validate_video_url_wmv_rejected(self, mock_codec, storage_manager):
+        """Test validation fails for WMV codec."""
+        mock_codec.return_value = {
+            "video_codec": "wmv3",
+            "audio_codec": "wma",
+            "container_format": "asf",
+        }
+
+        url = "https://example.com/video.wmv"
+        is_valid, duration, codec_info, error = storage_manager.validate_video_url(url)
+
+        assert is_valid is False
+        assert "wmv3" in error
+
+
 class TestFileUploadAPI:
     """Test file upload API endpoints."""
 
