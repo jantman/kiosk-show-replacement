@@ -118,8 +118,24 @@ These functions currently only accept local file paths. However, `ffprobe` nativ
 
 ## Current Status
 
-**Status:** Planning Complete - Awaiting Human Approval
+**Status:** Milestone 1 Complete - Proceeding to Milestone 2
 
 ## Progress Log
 
-*(To be updated as milestones are completed)*
+### Milestone 1: Backend - Extend Storage Functions for URL Support (COMPLETE)
+
+**Commits:**
+- `c9eaf22` VideoURLValidation-1.1: Modify get_video_duration() to accept URLs
+- `a93662c` VideoURLValidation-1.2: Modify get_video_codec_info() to accept URLs
+- `4ebe199` VideoURLValidation-1.3: Create validate_video_url() function
+- `7869ef5` VideoURLValidation-1.4: Add unit tests for URL support
+- `c3b6b23` VideoURLValidation-1: Apply code formatting
+
+**Summary:**
+- Added `_is_url()` helper method to detect URL strings
+- Added class constants `FFPROBE_URL_TIMEOUT` (60s) and `FFPROBE_LOCAL_TIMEOUT` (30s)
+- Modified `get_video_duration()` to accept `Union[Path, str]` and use appropriate timeout
+- Modified `get_video_codec_info()` to accept `Union[Path, str]` and use appropriate timeout
+- Created `validate_video_url()` function combining codec validation and duration detection
+- Added comprehensive unit tests in `TestVideoURLSupport` class (22 new tests)
+- All 512 unit tests passing
