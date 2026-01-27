@@ -720,6 +720,278 @@ class TestSlideshowItemAPI:
         assert "Scale factor" in data["errors"][0]
 
 
+class TestVideoURLValidation:
+    """Test video URL validation API endpoint and slideshow item validation."""
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_validate_video_url_success(
+        self, mock_get_storage, client, authenticated_user
+    ):
+        """Test successful video URL validation."""
+        # Mock storage manager
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            True,  # is_valid
+            120.5,  # duration
+            {"video_codec": "h264", "audio_codec": "aac", "container_format": "mp4"},
+            "",  # error_message
+        )
+        mock_get_storage.return_value = mock_storage
+
+        response = client.post(
+            "/api/v1/validate/video-url",
+            data=json.dumps({"url": "https://example.com/video.mp4"}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["valid"] is True
+        assert data["data"]["duration_seconds"] == 121  # Rounded
+        assert data["data"]["duration"] == 120.5  # Exact
+        assert data["data"]["codec_info"]["video_codec"] == "h264"
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_validate_video_url_no_duration(
+        self, mock_get_storage, client, authenticated_user
+    ):
+        """Test video URL validation when duration cannot be detected."""
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            True,
+            None,  # No duration
+            {"video_codec": "vp9", "audio_codec": None, "container_format": "webm"},
+            "",
+        )
+        mock_get_storage.return_value = mock_storage
+
+        response = client.post(
+            "/api/v1/validate/video-url",
+            data=json.dumps({"url": "https://example.com/video.webm"}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["valid"] is True
+        assert data["data"]["duration_seconds"] is None
+        assert data["data"]["duration"] is None
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_validate_video_url_unsupported_codec(
+        self, mock_get_storage, client, authenticated_user
+    ):
+        """Test video URL validation with unsupported codec."""
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            False,
+            None,
+            {"video_codec": "mpeg2video", "audio_codec": "mp2", "container_format": "mpeg"},
+            "Video codec 'mpeg2video' is not supported by web browsers.",
+        )
+        mock_get_storage.return_value = mock_storage
+
+        response = client.post(
+            "/api/v1/validate/video-url",
+            data=json.dumps({"url": "https://example.com/video.mpeg"}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "mpeg2video" in data["errors"][0]
+
+    def test_validate_video_url_missing_url(self, client, authenticated_user):
+        """Test validation fails when URL is missing."""
+        response = client.post(
+            "/api/v1/validate/video-url",
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+
+    def test_validate_video_url_invalid_format(self, client, authenticated_user):
+        """Test validation fails for invalid URL format."""
+        response = client.post(
+            "/api/v1/validate/video-url",
+            data=json.dumps({"url": "/path/to/video.mp4"}),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+
+    def test_validate_video_url_requires_auth(self, client):
+        """Test validation endpoint requires authentication."""
+        response = client.post(
+            "/api/v1/validate/video-url",
+            data=json.dumps({"url": "https://example.com/video.mp4"}),
+            content_type="application/json",
+        )
+
+        # Should fail with 401 or redirect to login
+        assert response.status_code in [401, 302]
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_create_slideshow_item_video_url_valid(
+        self, mock_get_storage, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating video item with valid URL passes validation."""
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            True,
+            60.0,
+            {"video_codec": "h264", "audio_codec": "aac", "container_format": "mp4"},
+            "",
+        )
+        mock_get_storage.return_value = mock_storage
+
+        item_data = {
+            "title": "Video from URL",
+            "content_type": "video",
+            "content_url": "https://example.com/video.mp4",
+            "display_duration": 60,
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["content_type"] == "video"
+        assert data["data"]["content_url"] == "https://example.com/video.mp4"
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_create_slideshow_item_video_url_invalid_codec(
+        self, mock_get_storage, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating video item with unsupported codec is rejected."""
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            False,
+            None,
+            None,
+            "Video codec 'wmv3' is not supported by web browsers.",
+        )
+        mock_get_storage.return_value = mock_storage
+
+        item_data = {
+            "title": "WMV Video",
+            "content_type": "video",
+            "content_url": "https://example.com/video.wmv",
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "wmv3" in data["errors"][0]
+
+    def test_create_slideshow_item_video_with_file_skips_url_validation(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test creating video item with file path doesn't validate URL."""
+        # When file_path is provided, URL validation should be skipped
+        item_data = {
+            "title": "Uploaded Video",
+            "content_type": "video",
+            "content_file_path": "uploads/videos/1/1/video.mp4",
+            "display_duration": 30,
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        # Should succeed without trying to validate any URL
+        assert response.status_code == 201
+        data = response.get_json()
+        assert data["success"] is True
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_update_slideshow_item_video_url_valid(
+        self, mock_get_storage, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test updating video item to new URL validates the URL."""
+        slideshow, items = sample_slideshow_with_items
+        item = items[0]
+
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            True,
+            90.0,
+            {"video_codec": "vp9", "audio_codec": "opus", "container_format": "webm"},
+            "",
+        )
+        mock_get_storage.return_value = mock_storage
+
+        update_data = {
+            "content_type": "video",
+            "content_url": "https://example.com/new-video.webm",
+            "content_file_path": None,  # Clear file path
+        }
+
+        response = client.put(
+            f"/api/v1/slideshow-items/{item.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+
+    @patch("kiosk_show_replacement.api.v1.get_storage_manager")
+    def test_update_slideshow_item_video_url_invalid(
+        self, mock_get_storage, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test updating video item to invalid URL is rejected."""
+        slideshow, items = sample_slideshow_with_items
+        item = items[0]
+
+        mock_storage = MagicMock()
+        mock_storage.validate_video_url.return_value = (
+            False,
+            None,
+            None,
+            "Could not retrieve video information from the URL.",
+        )
+        mock_get_storage.return_value = mock_storage
+
+        update_data = {
+            "content_type": "video",
+            "content_url": "https://example.com/nonexistent.mp4",
+        }
+
+        response = client.put(
+            f"/api/v1/slideshow-items/{item.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+
+
 class TestDisplayAPI:
     """Test display management API endpoints."""
 
