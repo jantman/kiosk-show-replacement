@@ -714,6 +714,58 @@ API v1 Assignment History
 
 **Returns**: Created assignment history object (201)
 
+API v1 Video URL Validation
+---------------------------
+
+``POST /api/v1/validate/video-url``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Purpose**: Validate a video URL for browser compatibility and extract duration
+**Authentication**: Required
+**Request Body**:
+  .. code-block:: json
+
+     {
+       "url": "https://example.com/video.mp4"
+     }
+
+**Returns** (Success):
+  .. code-block:: json
+
+     {
+       "success": true,
+       "data": {
+         "valid": true,
+         "duration_seconds": 120,
+         "duration": 120.5,
+         "codec_info": {
+           "video_codec": "h264",
+           "audio_codec": "aac",
+           "container_format": "mp4"
+         }
+       }
+     }
+
+**Returns** (Invalid Codec):
+  .. code-block:: json
+
+     {
+       "success": false,
+       "error": "Video codec 'mpeg2video' is not supported by web browsers. Supported: h264, vp8, vp9, theora, av1"
+     }
+
+**Returns** (Inaccessible URL):
+  .. code-block:: json
+
+     {
+       "success": false,
+       "error": "Could not retrieve video information from the URL. The URL may be inaccessible."
+     }
+
+**Notes**:
+  - Uses ``ffprobe`` to validate the video URL
+  - Timeout is 60 seconds for remote URLs
+  - Browser-compatible video codecs: H.264, VP8, VP9, Theora, AV1
+
 API v1 File Uploads
 -------------------
 
