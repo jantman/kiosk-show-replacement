@@ -9,7 +9,7 @@ formatting calendar data for frontend display.
 import json
 import logging
 from datetime import date, datetime, time, timedelta, timezone
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 import requests
 from sqlalchemy import and_
@@ -66,7 +66,7 @@ def get_or_create_feed(url: str) -> ICalFeed:
     """
     feed = ICalFeed.query.filter_by(url=url).first()
     if feed:
-        return feed
+        return cast(ICalFeed, feed)
 
     feed = ICalFeed(url=url)
     db.session.add(feed)
@@ -229,7 +229,7 @@ def get_events_for_date(feed: ICalFeed, target_date: date) -> list[ICalEvent]:
         .all()
     )
 
-    return events
+    return cast(list[ICalEvent], events)
 
 
 def get_skedda_calendar_data(
@@ -293,15 +293,15 @@ def get_skedda_calendar_data(
     events = get_events_for_date(feed, target_date)
 
     # Collect unique spaces from all events
-    spaces = set()
+    spaces_set: set[str] = set()
     for event in events:
         try:
             resources = json.loads(event.resources) if event.resources else []
-            spaces.update(resources)
-        except json.JSONDecodeError, TypeError:
+            spaces_set.update(resources)
+        except (json.JSONDecodeError, TypeError):
             pass
 
-    spaces = sorted(spaces)
+    spaces: list[str] = sorted(spaces_set)
 
     # Generate time slots (30-minute intervals, 7 AM to 11 PM)
     time_slots = []
@@ -320,7 +320,7 @@ def get_skedda_calendar_data(
     for event in events:
         try:
             resources = json.loads(event.resources) if event.resources else []
-        except json.JSONDecodeError, TypeError:
+        except (json.JSONDecodeError, TypeError):
             resources = []
 
         # Parse Skedda summary for display info

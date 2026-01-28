@@ -1165,7 +1165,7 @@ class ICalEvent(db.Model):
         if self.resources:
             try:
                 resources_list = json.loads(self.resources)
-            except json.JSONDecodeError, TypeError:
+            except (json.JSONDecodeError, TypeError):
                 resources_list = []
 
         return {

@@ -10,7 +10,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Optional
 
-from icalendar import Calendar
+from icalendar import Calendar  # type: ignore[import-untyped]
 
 
 def parse_ics_data(ics_content: str) -> list[dict[str, Any]]:
