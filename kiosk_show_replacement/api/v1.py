@@ -2275,6 +2275,68 @@ def display_events_stream(display_name: str) -> Response | Tuple[Response, int]:
         return api_error("Failed to establish SSE connection", 500)
 
 
+@api_v1_bp.route(
+    "/display/<string:display_name>/skedda-data/<int:item_id>", methods=["GET"]
+)
+def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, int]:
+    """Get Skedda calendar data for a public display.
+
+    This endpoint does not require authentication - it's meant for public
+    kiosk displays. It validates that the item belongs to the display's
+    currently assigned slideshow.
+
+    Query parameters:
+        date (optional): Date to display in YYYY-MM-DD format, defaults to today
+    """
+    from datetime import datetime
+
+    from ..ical_service import get_skedda_calendar_data
+
+    try:
+        # Look up display by name
+        display = Display.query.filter_by(name=display_name).first()
+        if not display:
+            return api_error("Display not found", 404)
+
+        # Check that display has a slideshow assigned
+        if not display.current_slideshow_id:
+            return api_error("Display has no slideshow assigned", 400)
+
+        # Validate that the requested item belongs to this display's slideshow
+        # Use query.filter_by instead of session.get for better cross-process compatibility
+        item = SlideshowItem.query.filter_by(id=item_id).first()
+        if not item:
+            return api_error("Slideshow item not found", 404)
+
+        if item.slideshow_id != display.current_slideshow_id:
+            return api_error("Item does not belong to this display's slideshow", 403)
+
+        # Validate item is a skedda type
+        if item.content_type != "skedda":
+            return api_error("Item is not a Skedda calendar", 400)
+
+        # Get optional date parameter
+        date_str = request.args.get("date")
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return api_error("Invalid date format. Use YYYY-MM-DD", 400)
+        else:
+            target_date = datetime.now().date()
+
+        # Get the calendar data (pass the item, not just the feed_id)
+        calendar_data = get_skedda_calendar_data(item, target_date)
+
+        return api_response(calendar_data, "Skedda calendar data retrieved")
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Error getting display skedda data for {display_name}/{item_id}: {e}"
+        )
+        return api_error("Failed to retrieve calendar data", 500)
+
+
 @api_v1_bp.route("/events/stats", methods=["GET"])
 @api_auth_required
 def sse_stats() -> Tuple[Response, int]:

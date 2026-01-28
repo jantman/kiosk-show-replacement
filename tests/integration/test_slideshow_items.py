@@ -2265,9 +2265,7 @@ class TestSlideshowItems:
 
         # Verify validation error for wrong protocol
         # The message is "URL must start with http:// or https://"
-        error_feedback = page.locator(".invalid-feedback").filter(
-            has_text="http://"
-        )
+        error_feedback = page.locator(".invalid-feedback").filter(has_text="http://")
         expect(error_feedback).to_be_visible(timeout=5000)
 
         # Modal should still be open
