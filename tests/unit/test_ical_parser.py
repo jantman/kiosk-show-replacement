@@ -48,7 +48,9 @@ END:VCALENDAR"""
         event = events[0]
         assert event["uid"] == "test-uid-123"
         assert event["summary"] == "Test Event"
-        assert event["start_time"] == datetime(2026, 1, 28, 12, 0, 0, tzinfo=timezone.utc)
+        assert event["start_time"] == datetime(
+            2026, 1, 28, 12, 0, 0, tzinfo=timezone.utc
+        )
         assert event["end_time"] == datetime(2026, 1, 28, 14, 0, 0, tzinfo=timezone.utc)
         assert event["description"] is None
         assert event["resources"] == []
@@ -167,9 +169,7 @@ END:VCALENDAR"""
 
     def test_parse_skedda_ics_file(self) -> None:
         """Parse the actual Skedda ICS file from test assets."""
-        ics_path = os.path.join(
-            os.path.dirname(__file__), "..", "assets", "skedda.ics"
-        )
+        ics_path = os.path.join(os.path.dirname(__file__), "..", "assets", "skedda.ics")
 
         if not os.path.exists(ics_path):
             pytest.skip("Skedda ICS test file not found")
@@ -239,9 +239,7 @@ class TestParseSkedaSummary:
 
     def test_parse_simple_event(self) -> None:
         """Parse simple event format: 'Event (Space)'."""
-        person, desc, space = parse_skedda_summary(
-            "Cleaning (Glowforge Laser Cutter)"
-        )
+        person, desc, space = parse_skedda_summary("Cleaning (Glowforge Laser Cutter)")
         assert person == ""
         assert desc == "Cleaning"
         assert space == "Glowforge Laser Cutter"

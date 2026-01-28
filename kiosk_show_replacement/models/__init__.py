@@ -818,7 +818,9 @@ class SlideshowItem(db.Model):
 
         Refresh interval must be between 1 and 1440 minutes (1 day).
         """
-        if refresh_minutes is not None and (refresh_minutes < 1 or refresh_minutes > 1440):
+        if refresh_minutes is not None and (
+            refresh_minutes < 1 or refresh_minutes > 1440
+        ):
             raise ValueError("iCal refresh interval must be between 1 and 1440 minutes")
         return refresh_minutes
 
@@ -1163,7 +1165,7 @@ class ICalEvent(db.Model):
         if self.resources:
             try:
                 resources_list = json.loads(self.resources)
-            except (json.JSONDecodeError, TypeError):
+            except json.JSONDecodeError, TypeError:
                 resources_list = []
 
         return {

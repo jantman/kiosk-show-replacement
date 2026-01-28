@@ -370,6 +370,8 @@ def clean_test_data(app):
         AssignmentHistory,
         Display,
         DisplayConfigurationTemplate,
+        ICalEvent,
+        ICalFeed,
         Slideshow,
         SlideshowItem,
         User,
@@ -380,8 +382,11 @@ def clean_test_data(app):
         # Delete in order to respect foreign key constraints
         # Children first, then parents
         # Note: Display has current_slideshow_id FK, so delete Display before Slideshow
+        # Note: ICalEvent has FK to ICalFeed, SlideshowItem has FK to ICalFeed
         db.session.query(AssignmentHistory).delete()
+        db.session.query(ICalEvent).delete()
         db.session.query(SlideshowItem).delete()
+        db.session.query(ICalFeed).delete()
         db.session.query(
             Display
         ).delete()  # Has FK to Slideshow via current_slideshow_id
