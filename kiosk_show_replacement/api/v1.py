@@ -2288,7 +2288,7 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
     Query parameters:
         date (optional): Date to display in YYYY-MM-DD format, defaults to today
     """
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     from ..ical_service import get_skedda_calendar_data
 
@@ -2323,7 +2323,7 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
             except ValueError:
                 return api_error("Invalid date format. Use YYYY-MM-DD", 400)
         else:
-            target_date = datetime.now().date()
+            target_date = datetime.now(timezone.utc).date()
 
         # Get the calendar data (pass the item, not just the feed_id)
         calendar_data = get_skedda_calendar_data(item, target_date)

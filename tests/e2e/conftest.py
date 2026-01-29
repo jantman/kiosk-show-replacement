@@ -135,8 +135,10 @@ def _create_session_test_data(app):
     db.session.add(feed)
     db.session.flush()
 
-    # Create test events for today
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Create test events for today (use UTC to match API behavior)
+    today = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
     events = [
         ICalEvent(
             feed_id=feed.id,

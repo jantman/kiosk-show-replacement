@@ -905,7 +905,7 @@
                 if (slide.content_type === 'skedda') {
                     const containerId = `skedda-calendar-${index}`;
                     const slideId = slide.id;
-                    const displayName = '{{ display.name }}';
+                    const displayName = {{ display.name|tojson }};
 
                     // Get or create the calendar instance
                     let calendar = skedddaCalendars.get(containerId);

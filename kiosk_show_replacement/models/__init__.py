@@ -1160,12 +1160,19 @@ class ICalEvent(db.Model):
     def to_dict(self) -> dict:
         """Convert event to dictionary for JSON serialization."""
         import json
+        import logging
 
         resources_list = []
         if self.resources:
             try:
                 resources_list = json.loads(self.resources)
-            except (json.JSONDecodeError, TypeError):
+            except (json.JSONDecodeError, TypeError) as e:
+                logging.getLogger(__name__).warning(
+                    "Invalid resources JSON for ICalEvent %s (uid=%s): %s",
+                    self.id,
+                    self.uid,
+                    e,
+                )
                 resources_list = []
 
         return {

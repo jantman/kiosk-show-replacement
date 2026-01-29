@@ -13,6 +13,7 @@ from typing import Any, Optional, cast
 
 import requests
 from sqlalchemy import and_
+from sqlalchemy.exc import IntegrityError
 
 from .ical_parser import parse_ics_data, parse_skedda_summary
 from .models import ICalEvent, ICalFeed, SlideshowItem, db
@@ -64,13 +65,26 @@ def get_or_create_feed(url: str) -> ICalFeed:
     Returns:
         ICalFeed instance (existing or newly created)
     """
+    # Normalize URL to match model validator behavior
+    url = url.strip()
+
     feed = ICalFeed.query.filter_by(url=url).first()
     if feed:
         return cast(ICalFeed, feed)
 
+    # Create new feed, handling potential race condition
     feed = ICalFeed(url=url)
     db.session.add(feed)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Another request created the feed concurrently; rollback and fetch it
+        db.session.rollback()
+        feed = ICalFeed.query.filter_by(url=url).first()
+        if feed:
+            return cast(ICalFeed, feed)
+        # If still not found, re-raise the error
+        raise
     return feed
 
 
@@ -298,8 +312,13 @@ def get_skedda_calendar_data(
         try:
             resources = json.loads(event.resources) if event.resources else []
             spaces_set.update(resources)
-        except (json.JSONDecodeError, TypeError):
-            pass
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(
+                "Invalid resources JSON for event %s (uid=%s): %s",
+                event.id,
+                event.uid,
+                e,
+            )
 
     spaces: list[str] = sorted(spaces_set)
 
@@ -320,7 +339,13 @@ def get_skedda_calendar_data(
     for event in events:
         try:
             resources = json.loads(event.resources) if event.resources else []
-        except (json.JSONDecodeError, TypeError):
+        except (json.JSONDecodeError, TypeError) as e:
+            logger.warning(
+                "Invalid resources JSON for event %s (uid=%s): %s",
+                event.id,
+                event.uid,
+                e,
+            )
             resources = []
 
         # Parse Skedda summary for display info

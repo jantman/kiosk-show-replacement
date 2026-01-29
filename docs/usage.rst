@@ -158,11 +158,18 @@ slides are viewed), an API endpoint is available for external scheduling tools:
 
 .. code-block:: bash
 
-   # Refresh all ICS feeds
-   curl -X POST http://localhost:5000/api/v1/ical-feeds/refresh
+   # Refresh all ICS feeds (requires authentication)
+   # First, login to get a session cookie:
+   curl -c cookies.txt -X POST http://localhost:5000/api/v1/auth/login \
+        -H "Content-Type: application/json" \
+        -d '{"username": "admin", "password": "yourpassword"}'
 
-This endpoint can be called from cron jobs, systemd timers, or other scheduling
-systems to ensure calendar data is always current.
+   # Then use the cookie to call the refresh endpoint:
+   curl -b cookies.txt -X POST http://localhost:5000/api/v1/ical-feeds/refresh
+
+This endpoint requires authentication and can be called from cron jobs, systemd
+timers, or other scheduling systems to ensure calendar data is always current.
+Store credentials securely when automating these calls.
 
 Kiosk Display Mode
 ~~~~~~~~~~~~~~~~~~
