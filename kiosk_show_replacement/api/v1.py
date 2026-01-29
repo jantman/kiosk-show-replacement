@@ -474,6 +474,12 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
         db.session.add(item)
         db.session.commit()
 
+        # For skedda items, ensure the ical_feed relationship is loaded so to_dict()
+        # includes ical_url. We access it after commit to re-populate __dict__
+        # (commit expires objects, clearing __dict__).
+        if content_type == "skedda" and ical_feed_id:
+            _ = item.ical_feed  # Trigger lazy load after commit
+
         # Broadcast slideshow update to displays showing this slideshow
         broadcast_slideshow_update(
             slideshow,
@@ -630,6 +636,12 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
 
         item.updated_by_id = current_user.id
         db.session.commit()
+
+        # For skedda items, ensure the ical_feed relationship is loaded so to_dict()
+        # includes ical_url. We access it after commit to re-populate __dict__
+        # (commit expires objects, clearing __dict__).
+        if item.content_type == "skedda" and item.ical_feed_id:
+            _ = item.ical_feed  # Trigger lazy load after commit
 
         # Broadcast slideshow update to displays showing this slideshow
         broadcast_slideshow_update(
@@ -2314,6 +2326,10 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
         # Validate item is a skedda type
         if item.content_type != "skedda":
             return api_error("Item is not a Skedda calendar", 400)
+
+        # Validate item is active (don't serve data for disabled content)
+        if not item.is_active:
+            return api_error("Slideshow item is not active", 404)
 
         # Get optional date parameter
         date_str = request.args.get("date")

@@ -754,8 +754,11 @@ class SlideshowItem(db.Model):
         if self.content_type == "skedda":
             data["ical_feed_id"] = self.ical_feed_id
             data["ical_refresh_minutes"] = self.ical_refresh_minutes
-            # Include the URL from the feed for display/editing purposes
-            if self.ical_feed:
+            # Include the URL from the feed for display/editing purposes.
+            # Only access ical_feed if already eager-loaded to avoid N+1 queries
+            # when serializing lists of items. Check __dict__ to see if the
+            # relationship was loaded without triggering lazy-loading.
+            if "ical_feed" in self.__dict__ and self.ical_feed:
                 data["ical_url"] = self.ical_feed.url
         return data
 

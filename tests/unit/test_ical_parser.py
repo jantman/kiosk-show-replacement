@@ -171,9 +171,8 @@ END:VCALENDAR"""
         """Parse the actual Skedda ICS file from test assets."""
         ics_path = os.path.join(os.path.dirname(__file__), "..", "assets", "skedda.ics")
 
-        if not os.path.exists(ics_path):
-            pytest.skip("Skedda ICS test file not found")
-
+        # The skedda.ics file is checked into the repo - if it's missing,
+        # that's a packaging/checkout problem that should fail loudly
         with open(ics_path, "r", encoding="utf-8") as f:
             ics_content = f.read()
 
@@ -198,7 +197,7 @@ END:VCALENDAR"""
         assert len(resource_events) > 0
 
 
-class TestParseSkedaSummary:
+class TestParseSkeddaSummary:
     """Tests for parse_skedda_summary function."""
 
     def test_parse_personal_booking(self) -> None:

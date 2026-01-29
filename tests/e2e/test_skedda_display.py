@@ -10,7 +10,7 @@ from playwright.sync_api import Page, expect
 
 
 @pytest.mark.e2e
-class TestSkedddaCalendarDisplayE2E:
+class TestSkeddaCalendarDisplayE2E:
     """Test Skedda calendar display rendering on kiosk display page."""
 
     def test_skedda_calendar_renders_grid(

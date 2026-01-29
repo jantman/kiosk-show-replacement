@@ -826,6 +826,15 @@
                         video.pause();
                         video.currentTime = 0;
                     }
+                    // Stop skedda calendar time updates when switching away
+                    // This prevents background timers from accumulating
+                    if (slideIndex !== index) {
+                        const containerId = `skedda-calendar-${slideIndex}`;
+                        const calendar = skedddaCalendars.get(containerId);
+                        if (calendar) {
+                            calendar.stopTimeUpdates();
+                        }
+                    }
                     // Reset URL slides to placeholder so they reload fresh next time
                     // Skip the slide that's about to become active
                     if (slideIndex !== index) {
