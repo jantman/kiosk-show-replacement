@@ -75,7 +75,7 @@ export interface SlideshowItem {
   id: number;
   slideshow_id: number;
   title?: string;
-  content_type: 'image' | 'video' | 'url' | 'text';
+  content_type: 'image' | 'video' | 'url' | 'text' | 'skedda';
   content_url?: string;
   content_file_path?: string;
   content_text?: string;
@@ -88,8 +88,39 @@ export interface SlideshowItem {
   // URL slide scaling: zoom percentage (10-100). NULL or 100 = no scaling.
   // Lower values zoom out to show more content.
   scale_factor?: number | null;
+  // Skedda/iCal calendar fields
+  ical_feed_id?: number | null;
+  ical_refresh_minutes?: number | null;
+  ical_url?: string; // URL from linked feed, for display/editing
   created_at: string;
   updated_at: string;
+}
+
+// Skedda calendar data types (from /api/v1/slideshow-items/<id>/skedda-data)
+export interface SkeddaTimeSlot {
+  time: string; // "07:00", "07:30", etc.
+  display: string; // "7:00 AM", "7:30 AM", etc.
+}
+
+export interface SkeddaEvent {
+  id: number;
+  uid: string;
+  space: string;
+  person_name: string;
+  description: string;
+  start_time: string; // "12:00"
+  end_time: string; // "14:00"
+  start_slot: number;
+  row_span: number;
+}
+
+export interface SkeddaCalendarData {
+  date: string; // "2026-01-28"
+  date_display: string; // "Wednesday, January 28, 2026"
+  spaces: string[];
+  time_slots: SkeddaTimeSlot[];
+  events: SkeddaEvent[];
+  last_updated: string | null;
 }
 
 // Authentication context types
@@ -125,9 +156,12 @@ export interface SlideshowFormData {
 
 export interface SlideshowItemFormData {
   title: string;
-  content_type: 'image' | 'video' | 'url' | 'text';
+  content_type: 'image' | 'video' | 'url' | 'text' | 'skedda';
   content_source: string;
   duration?: number;
+  // Skedda-specific fields
+  ical_url?: string;
+  ical_refresh_minutes?: number;
 }
 
 // Video URL validation response

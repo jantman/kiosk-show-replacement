@@ -13,7 +13,7 @@ interface SlideshowItemFormProps {
 // Form state uses backend field names for consistency
 interface SlideshowItemFormState {
   title: string;
-  content_type: 'image' | 'video' | 'url' | 'text';
+  content_type: 'image' | 'video' | 'url' | 'text' | 'skedda';
   content_url: string;
   content_text: string;
   content_file_path: string;
@@ -21,6 +21,9 @@ interface SlideshowItemFormState {
   is_active: boolean;
   // URL slide scaling: zoom percentage (10-100). null = no scaling (100%)
   scale_factor: number | null;
+  // Skedda/iCal calendar fields
+  ical_url: string;
+  ical_refresh_minutes: number;
 }
 
 /**
@@ -81,6 +84,8 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     display_duration: null,
     is_active: true,
     scale_factor: null,
+    ical_url: '',
+    ical_refresh_minutes: 15,
   });
 
   const [loading, setLoading] = useState(false);
@@ -101,13 +106,15 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     if (item) {
       setFormData({
         title: item.title || '',
-        content_type: item.content_type as 'image' | 'video' | 'url' | 'text',
+        content_type: item.content_type as 'image' | 'video' | 'url' | 'text' | 'skedda',
         content_url: item.content_url || '',
         content_text: item.content_text || '',
         content_file_path: item.content_file_path || '',
         display_duration: item.display_duration ?? null,
         is_active: item.is_active,
         scale_factor: item.scale_factor ?? null,
+        ical_url: item.ical_url || '',
+        ical_refresh_minutes: item.ical_refresh_minutes ?? 15,
       });
     }
   }, [item]);
@@ -136,6 +143,22 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
     if ((formData.content_type === 'image' || formData.content_type === 'video') &&
         !formData.content_file_path && !formData.content_url) {
       errors.content = `Please upload a ${formData.content_type} file or provide a URL`;
+    }
+
+    // Skedda validation
+    if (formData.content_type === 'skedda') {
+      if (!formData.ical_url.trim()) {
+        errors.ical_url = 'iCal URL is required for Skedda calendar';
+      } else {
+        try {
+          const url = new URL(formData.ical_url);
+          if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+            errors.ical_url = 'URL must start with http:// or https://';
+          }
+        } catch {
+          errors.ical_url = 'Please enter a valid URL';
+        }
+      }
     }
 
     // Check for video URL validation errors (when using URL, not file)
@@ -190,7 +213,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         }
       };
 
-      const submitData = {
+      const submitData: Record<string, unknown> = {
         title: formData.title.trim(),
         content_type: formData.content_type,
         content_url: getContentUrl(),
@@ -201,6 +224,12 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         // Only include scale_factor for URL content type
         scale_factor: formData.content_type === 'url' ? formData.scale_factor : null,
       };
+
+      // Add skedda-specific fields
+      if (formData.content_type === 'skedda') {
+        submitData.ical_url = formData.ical_url.trim();
+        submitData.ical_refresh_minutes = formData.ical_refresh_minutes;
+      }
 
       let response;
       if (isEditing) {
@@ -660,6 +689,47 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
           </div>
         );
 
+      case 'skedda':
+        return (
+          <>
+            <Form.Group className="mb-3">
+              <Form.Label htmlFor="ical_url">iCal/ICS Feed URL *</Form.Label>
+              <Form.Control
+                id="ical_url"
+                type="url"
+                value={formData.ical_url}
+                onChange={(e) => handleInputChange('ical_url', e.target.value)}
+                isInvalid={!!validationErrors.ical_url}
+                placeholder="https://app.skedda.com/ical/..."
+              />
+              <Form.Control.Feedback type="invalid">
+                {validationErrors.ical_url}
+              </Form.Control.Feedback>
+              <Form.Text className="text-muted">
+                Enter the iCal/ICS feed URL from Skedda or another calendar system
+              </Form.Text>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label htmlFor="ical_refresh_minutes">Refresh Interval</Form.Label>
+              <Form.Select
+                id="ical_refresh_minutes"
+                value={formData.ical_refresh_minutes}
+                onChange={(e) => handleInputChange('ical_refresh_minutes', parseInt(e.target.value))}
+              >
+                <option value={5}>Every 5 minutes</option>
+                <option value={10}>Every 10 minutes</option>
+                <option value={15}>Every 15 minutes (default)</option>
+                <option value={30}>Every 30 minutes</option>
+                <option value={60}>Every hour</option>
+              </Form.Select>
+              <Form.Text className="text-muted">
+                How often to refresh the calendar data from the feed
+              </Form.Text>
+            </Form.Group>
+          </>
+        );
+
       default:
         return null;
     }
@@ -704,6 +774,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                 handleInputChange('content_file_path', '');
                 // Reset scale_factor when changing away from URL type
                 handleInputChange('scale_factor', null);
+                // Reset skedda fields when changing away from skedda type
+                handleInputChange('ical_url', '');
+                handleInputChange('ical_refresh_minutes', 15);
                 // Reset video duration detection flag (but keep user-entered duration)
                 setVideoDurationDetected(false);
                 // Reset video URL validation state
@@ -715,6 +788,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
               <option value="video">Video</option>
               <option value="url">Web Page</option>
               <option value="text">Text</option>
+              <option value="skedda">Skedda Calendar</option>
             </Form.Select>
           </Form.Group>
         </Col>
