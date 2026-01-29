@@ -235,6 +235,12 @@ def _create_session_test_data(app):
 
     db.session.commit()
 
+    # Force WAL checkpoint to ensure all data is written to the main database file
+    # This prevents intermittent cross-process visibility issues where direct queries
+    # (like SlideshowItem.query.filter_by(id=1)) might not see data that relationship
+    # access (like slideshow.items) can see.
+    db.session.execute(db.text("PRAGMA wal_checkpoint(FULL)"))
+
     # Store object data in app config to avoid re-querying (session isolation issues)
     # Store primitive values that survive context changes
     app.config["E2E_TEST_DATA"] = {
