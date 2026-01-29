@@ -16,6 +16,8 @@ from unittest.mock import MagicMock, patch
 from kiosk_show_replacement.models import (
     AssignmentHistory,
     Display,
+    ICalEvent,
+    ICalFeed,
     Slideshow,
     SlideshowItem,
     User,
@@ -994,6 +996,342 @@ class TestVideoURLValidation:
         assert response.status_code == 400
         data = response.get_json()
         assert data["success"] is False
+
+
+class TestSkeddaAPI:
+    """Test Skedda/iCal API endpoints."""
+
+    def test_create_skedda_item_success(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test successful skedda slideshow item creation."""
+        ics_content = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//Test//EN
+BEGIN:VEVENT
+UID:test-event-123
+SUMMARY:Test Event
+DTSTART:20260128T120000Z
+DTEND:20260128T140000Z
+END:VEVENT
+END:VCALENDAR"""
+
+        with patch(
+            "kiosk_show_replacement.ical_service.fetch_ics_from_url"
+        ) as mock_fetch:
+            mock_fetch.return_value = ics_content
+
+            item_data = {
+                "title": "Machine Schedule",
+                "content_type": "skedda",
+                "ical_url": "https://example.com/calendar.ics",
+                "ical_refresh_minutes": 30,
+            }
+
+            response = client.post(
+                f"/api/v1/slideshows/{sample_slideshow.id}/items",
+                data=json.dumps(item_data),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 201
+            data = response.get_json()
+            assert data["success"] is True
+            assert data["data"]["content_type"] == "skedda"
+            assert data["data"]["ical_url"] == "https://example.com/calendar.ics"
+            assert data["data"]["ical_refresh_minutes"] == 30
+
+    def test_create_skedda_item_missing_url(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test skedda item creation without iCal URL fails."""
+        item_data = {
+            "title": "Machine Schedule",
+            "content_type": "skedda",
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "iCal URL is required" in data["errors"][0]
+
+    def test_create_skedda_item_invalid_url(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test skedda item creation with invalid URL fails."""
+        item_data = {
+            "title": "Machine Schedule",
+            "content_type": "skedda",
+            "ical_url": "not-a-valid-url",
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "valid HTTP/HTTPS URL" in data["errors"][0]
+
+    def test_create_skedda_item_unreachable_url(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test skedda item creation with unreachable URL fails."""
+        with patch(
+            "kiosk_show_replacement.ical_service.fetch_ics_from_url"
+        ) as mock_fetch:
+            mock_fetch.return_value = None  # Simulate fetch failure
+
+            item_data = {
+                "title": "Machine Schedule",
+                "content_type": "skedda",
+                "ical_url": "https://example.com/calendar.ics",
+            }
+
+            response = client.post(
+                f"/api/v1/slideshows/{sample_slideshow.id}/items",
+                data=json.dumps(item_data),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data["success"] is False
+            assert "validation failed" in data["errors"][0]
+
+    def test_create_skedda_item_invalid_refresh_minutes(
+        self, client, authenticated_user, sample_slideshow
+    ):
+        """Test skedda item creation with invalid refresh interval fails."""
+        item_data = {
+            "title": "Machine Schedule",
+            "content_type": "skedda",
+            "ical_url": "https://example.com/calendar.ics",
+            "ical_refresh_minutes": 0,  # Must be >= 1
+        }
+
+        response = client.post(
+            f"/api/v1/slideshows/{sample_slideshow.id}/items",
+            data=json.dumps(item_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data["success"] is False
+        assert "Refresh interval" in data["errors"][0]
+
+    def test_update_skedda_item_refresh_minutes(
+        self, app, client, authenticated_user, sample_slideshow
+    ):
+        """Test updating skedda item refresh interval."""
+        with app.app_context():
+            # Create a feed and item first
+            feed = ICalFeed(
+                url="https://example.com/calendar.ics",
+                last_fetched=datetime.now(timezone.utc),
+            )
+            db.session.add(feed)
+            db.session.commit()
+
+            item = SlideshowItem(
+                slideshow_id=sample_slideshow.id,
+                title="Machine Schedule",
+                content_type="skedda",
+                ical_feed_id=feed.id,
+                ical_refresh_minutes=15,
+                order_index=1,
+                created_by_id=authenticated_user.id,
+                updated_by_id=authenticated_user.id,
+            )
+            db.session.add(item)
+            db.session.commit()
+            item_id = item.id
+
+            update_data = {"ical_refresh_minutes": 60}
+
+            response = client.put(
+                f"/api/v1/slideshow-items/{item_id}",
+                data=json.dumps(update_data),
+                content_type="application/json",
+            )
+
+            assert response.status_code == 200
+            data = response.get_json()
+            assert data["success"] is True
+            assert data["data"]["ical_refresh_minutes"] == 60
+
+    def test_get_skedda_data_success(
+        self, app, client, authenticated_user, sample_slideshow
+    ):
+        """Test getting skedda calendar data."""
+        with app.app_context():
+            # Create feed with event
+            feed = ICalFeed(
+                url="https://example.com/calendar.ics",
+                last_fetched=datetime.now(timezone.utc),
+            )
+            db.session.add(feed)
+            db.session.commit()
+
+            event = ICalEvent(
+                feed_id=feed.id,
+                uid="event-1",
+                summary="John Doe: Project (Laser Cutter)",
+                start_time=datetime(2026, 1, 28, 17, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 19, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter"]),
+            )
+            db.session.add(event)
+
+            item = SlideshowItem(
+                slideshow_id=sample_slideshow.id,
+                title="Machine Schedule",
+                content_type="skedda",
+                ical_feed_id=feed.id,
+                ical_refresh_minutes=15,
+                order_index=1,
+                created_by_id=authenticated_user.id,
+                updated_by_id=authenticated_user.id,
+            )
+            db.session.add(item)
+            db.session.commit()
+            item_id = item.id
+
+            with patch(
+                "kiosk_show_replacement.ical_service.refresh_feed_if_needed"
+            ) as mock_refresh:
+                mock_refresh.return_value = False
+
+                response = client.get(
+                    f"/api/v1/slideshow-items/{item_id}/skedda-data?date=2026-01-28"
+                )
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data["success"] is True
+                assert data["data"]["date"] == "2026-01-28"
+                assert "Laser Cutter" in data["data"]["spaces"]
+                assert len(data["data"]["events"]) == 1
+
+    def test_get_skedda_data_non_skedda_item(
+        self, app, client, authenticated_user, sample_slideshow
+    ):
+        """Test getting skedda data for non-skedda item fails."""
+        with app.app_context():
+            item = SlideshowItem(
+                slideshow_id=sample_slideshow.id,
+                title="Regular Image",
+                content_type="image",
+                content_url="https://example.com/image.jpg",
+                order_index=1,
+                created_by_id=authenticated_user.id,
+                updated_by_id=authenticated_user.id,
+            )
+            db.session.add(item)
+            db.session.commit()
+            item_id = item.id
+
+            response = client.get(f"/api/v1/slideshow-items/{item_id}/skedda-data")
+
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data["success"] is False
+            assert "not a Skedda calendar" in data["errors"][0]
+
+    def test_get_skedda_data_invalid_date(
+        self, app, client, authenticated_user, sample_slideshow
+    ):
+        """Test getting skedda data with invalid date format fails."""
+        with app.app_context():
+            feed = ICalFeed(
+                url="https://example.com/calendar.ics",
+                last_fetched=datetime.now(timezone.utc),
+            )
+            db.session.add(feed)
+            db.session.commit()
+
+            item = SlideshowItem(
+                slideshow_id=sample_slideshow.id,
+                title="Machine Schedule",
+                content_type="skedda",
+                ical_feed_id=feed.id,
+                order_index=1,
+                created_by_id=authenticated_user.id,
+                updated_by_id=authenticated_user.id,
+            )
+            db.session.add(item)
+            db.session.commit()
+            item_id = item.id
+
+            response = client.get(
+                f"/api/v1/slideshow-items/{item_id}/skedda-data?date=invalid"
+            )
+
+            assert response.status_code == 400
+            data = response.get_json()
+            assert data["success"] is False
+            assert "Invalid date format" in data["errors"][0]
+
+    def test_refresh_all_feeds_success(self, app, client, authenticated_user):
+        """Test refreshing all iCal feeds."""
+        with app.app_context():
+            feed1 = ICalFeed(url="https://example.com/cal1.ics")
+            feed2 = ICalFeed(url="https://example.com/cal2.ics")
+            db.session.add_all([feed1, feed2])
+            db.session.commit()
+
+            with patch(
+                "kiosk_show_replacement.api.v1.refresh_all_feeds"
+            ) as mock_refresh:
+                mock_refresh.return_value = {"refreshed": 2, "errors": []}
+
+                response = client.post("/api/v1/ical-feeds/refresh")
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data["success"] is True
+                assert data["data"]["refreshed"] == 2
+                assert data["data"]["errors"] == []
+
+    def test_refresh_all_feeds_with_errors(self, app, client, authenticated_user):
+        """Test refreshing feeds with some errors."""
+        with app.app_context():
+            feed = ICalFeed(url="https://example.com/cal.ics")
+            db.session.add(feed)
+            db.session.commit()
+            feed_id = feed.id
+
+            with patch(
+                "kiosk_show_replacement.api.v1.refresh_all_feeds"
+            ) as mock_refresh:
+                mock_refresh.return_value = {
+                    "refreshed": 0,
+                    "errors": [
+                        {
+                            "feed_id": feed_id,
+                            "url": "https://example.com/cal.ics",
+                            "error": "Connection timeout",
+                        }
+                    ],
+                }
+
+                response = client.post("/api/v1/ical-feeds/refresh")
+
+                assert response.status_code == 200
+                data = response.get_json()
+                assert data["success"] is True
+                assert data["data"]["refreshed"] == 0
+                assert len(data["data"]["errors"]) == 1
 
 
 class TestDisplayAPI:

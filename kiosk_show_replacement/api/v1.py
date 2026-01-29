@@ -21,6 +21,7 @@ from ..exceptions import (
     NotFoundError,
     ValidationError,
 )
+from ..ical_service import get_or_create_feed, refresh_all_feeds, refresh_feed
 from ..models import (
     AssignmentHistory,
     Display,
@@ -378,7 +379,7 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
         if not content_type:
             return api_error("Content type is required", 400)
 
-        if content_type not in ["image", "video", "url", "text"]:
+        if content_type not in ["image", "video", "url", "text", "skedda"]:
             return api_error("Invalid content type", 400)
 
         # Validate scale_factor if provided (only meaningful for URL slides)
@@ -412,6 +413,39 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
             if not is_valid:
                 return api_error(error_message, 400)
 
+        # Handle skedda (iCal) content type
+        ical_feed_id = None
+        ical_refresh_minutes = None
+        if content_type == "skedda":
+            ical_url = data.get("ical_url", "").strip() if data.get("ical_url") else ""
+            if not ical_url:
+                return api_error("iCal URL is required for skedda content type", 400)
+
+            # Validate URL format
+            if not ical_url.startswith(("http://", "https://")):
+                return api_error("iCal URL must be a valid HTTP/HTTPS URL", 400)
+
+            # Get or create the feed
+            feed = get_or_create_feed(ical_url)
+            ical_feed_id = feed.id
+
+            # Get refresh interval (optional, defaults to 15 minutes in service layer)
+            ical_refresh_minutes = data.get("ical_refresh_minutes")
+            if ical_refresh_minutes is not None:
+                if (
+                    not isinstance(ical_refresh_minutes, int)
+                    or ical_refresh_minutes < 1
+                    or ical_refresh_minutes > 1440
+                ):
+                    return api_error(
+                        "Refresh interval must be between 1 and 1440 minutes", 400
+                    )
+
+            # Trigger initial fetch to validate URL works
+            if not refresh_feed(feed):
+                error_msg = feed.last_error or "Failed to fetch iCal data from URL"
+                return api_error(f"iCal URL validation failed: {error_msg}", 400)
+
         # Get the next order index
         max_order = (
             db.session.query(db.func.max(SlideshowItem.order_index))
@@ -433,10 +467,18 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
             updated_by_id=current_user.id,
             is_active=data.get("is_active", True),
             scale_factor=scale_factor,
+            ical_feed_id=ical_feed_id,
+            ical_refresh_minutes=ical_refresh_minutes,
         )
 
         db.session.add(item)
         db.session.commit()
+
+        # For skedda items, ensure the ical_feed relationship is loaded so to_dict()
+        # includes ical_url. We access it after commit to re-populate __dict__
+        # (commit expires objects, clearing __dict__).
+        if content_type == "skedda" and ical_feed_id:
+            _ = item.ical_feed  # Trigger lazy load after commit
 
         # Broadcast slideshow update to displays showing this slideshow
         broadcast_slideshow_update(
@@ -538,8 +580,68 @@ def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
             if not is_valid:
                 return api_error(error_message, 400)
 
+        # Handle skedda (iCal) content type updates
+        if effective_content_type == "skedda":
+            # Update ical_url if provided
+            if "ical_url" in data:
+                ical_url = (
+                    data.get("ical_url", "").strip() if data.get("ical_url") else ""
+                )
+                if not ical_url:
+                    return api_error(
+                        "iCal URL is required for skedda content type", 400
+                    )
+
+                # Validate URL format
+                if not ical_url.startswith(("http://", "https://")):
+                    return api_error("iCal URL must be a valid HTTP/HTTPS URL", 400)
+
+                # Check if URL is changing
+                current_url = item.ical_feed.url if item.ical_feed else None
+                if ical_url != current_url:
+                    # Get or create the new feed
+                    feed = get_or_create_feed(ical_url)
+                    item.ical_feed_id = feed.id
+
+                    # Trigger fetch to validate URL works
+                    if not refresh_feed(feed):
+                        error_msg = (
+                            feed.last_error or "Failed to fetch iCal data from URL"
+                        )
+                        return api_error(
+                            f"iCal URL validation failed: {error_msg}", 400
+                        )
+
+            # Update refresh interval if provided
+            if "ical_refresh_minutes" in data:
+                ical_refresh_minutes = data.get("ical_refresh_minutes")
+                if ical_refresh_minutes is not None:
+                    if (
+                        not isinstance(ical_refresh_minutes, int)
+                        or ical_refresh_minutes < 1
+                        or ical_refresh_minutes > 1440
+                    ):
+                        return api_error(
+                            "Refresh interval must be between 1 and 1440 minutes", 400
+                        )
+                item.ical_refresh_minutes = ical_refresh_minutes
+
+            # Validate required feed exists if changing to skedda type
+            if (
+                "content_type" in data
+                and item.content_type == "skedda"
+                and not item.ical_feed_id
+            ):
+                return api_error("iCal URL is required for skedda content type", 400)
+
         item.updated_by_id = current_user.id
         db.session.commit()
+
+        # For skedda items, ensure the ical_feed relationship is loaded so to_dict()
+        # includes ical_url. We access it after commit to re-populate __dict__
+        # (commit expires objects, clearing __dict__).
+        if item.content_type == "skedda" and item.ical_feed_id:
+            _ = item.ical_feed  # Trigger lazy load after commit
 
         # Broadcast slideshow update to displays showing this slideshow
         broadcast_slideshow_update(
@@ -675,6 +777,91 @@ def reorder_slideshow_item(item_id: int) -> Tuple[Response, int]:
         db.session.rollback()
         current_app.logger.error(f"Error reordering slideshow item {item_id}: {e}")
         return api_error("Failed to reorder slideshow item", 500)
+
+
+@api_v1_bp.route("/slideshow-items/<int:item_id>/skedda-data", methods=["GET"])
+@api_auth_required
+def get_slideshow_item_skedda_data(item_id: int) -> Tuple[Response, int]:
+    """Get formatted Skedda calendar data for a slideshow item.
+
+    Query parameters:
+        date (optional): Date to display in YYYY-MM-DD format, defaults to today
+    """
+    from datetime import datetime
+
+    from ..ical_service import get_skedda_calendar_data
+
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        item = db.session.get(SlideshowItem, item_id)
+        if not item or not item.is_active:
+            return api_error("Slideshow item not found", 404)
+
+        if item.content_type != "skedda":
+            return api_error("This item is not a Skedda calendar", 400)
+
+        # Parse optional date parameter
+        target_date = None
+        date_str = request.args.get("date")
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return api_error("Invalid date format. Use YYYY-MM-DD", 400)
+
+        # Get formatted calendar data
+        data = get_skedda_calendar_data(item, target_date=target_date)
+
+        return api_response(data, "Skedda calendar data retrieved successfully")
+
+    except ValueError as e:
+        return api_error(str(e), 400)
+    except Exception as e:
+        current_app.logger.error(f"Error getting skedda data for item {item_id}: {e}")
+        return api_error("Failed to retrieve calendar data", 500)
+
+
+@api_v1_bp.route("/ical-feeds/refresh", methods=["POST"])
+@api_auth_required
+def refresh_all_ical_feeds() -> Tuple[Response, int]:
+    """Refresh all iCal feeds in the database.
+
+    This endpoint can be called by external schedulers (cron, systemd timer, etc.)
+    to proactively refresh all calendar data.
+
+    Returns:
+        JSON with refresh results:
+        {
+            "refreshed": 3,
+            "errors": [
+                {"feed_id": 2, "url": "...", "error": "Connection timeout"}
+            ]
+        }
+    """
+    try:
+        current_user = get_current_user()
+        if not current_user:
+            return api_error("Authentication required", 401)
+
+        result = refresh_all_feeds()
+
+        if result["errors"]:
+            current_app.logger.warning(
+                f"iCal feed refresh completed with {len(result['errors'])} errors"
+            )
+        else:
+            current_app.logger.info(
+                f"iCal feed refresh completed: {result['refreshed']} feeds refreshed"
+            )
+
+        return api_response(result, "iCal feeds refresh completed")
+
+    except Exception as e:
+        current_app.logger.error(f"Error refreshing iCal feeds: {e}")
+        return api_error("Failed to refresh iCal feeds", 500)
 
 
 # =============================================================================
@@ -2098,6 +2285,72 @@ def display_events_stream(display_name: str) -> Response | Tuple[Response, int]:
     except Exception as e:
         current_app.logger.error(f"Error creating display SSE connection: {e}")
         return api_error("Failed to establish SSE connection", 500)
+
+
+@api_v1_bp.route(
+    "/display/<string:display_name>/skedda-data/<int:item_id>", methods=["GET"]
+)
+def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, int]:
+    """Get Skedda calendar data for a public display.
+
+    This endpoint does not require authentication - it's meant for public
+    kiosk displays. It validates that the item belongs to the display's
+    currently assigned slideshow.
+
+    Query parameters:
+        date (optional): Date to display in YYYY-MM-DD format, defaults to today
+    """
+    from datetime import datetime, timezone
+
+    from ..ical_service import get_skedda_calendar_data
+
+    try:
+        # Look up display by name
+        display = Display.query.filter_by(name=display_name).first()
+        if not display:
+            return api_error("Display not found", 404)
+
+        # Check that display has a slideshow assigned
+        if not display.current_slideshow_id:
+            return api_error("Display has no slideshow assigned", 400)
+
+        # Validate that the requested item belongs to this display's slideshow
+        # Use query.filter_by instead of session.get for better cross-process compatibility
+        item = SlideshowItem.query.filter_by(id=item_id).first()
+        if not item:
+            return api_error("Slideshow item not found", 404)
+
+        if item.slideshow_id != display.current_slideshow_id:
+            return api_error("Item does not belong to this display's slideshow", 403)
+
+        # Validate item is a skedda type
+        if item.content_type != "skedda":
+            return api_error("Item is not a Skedda calendar", 400)
+
+        # Validate item is active (don't serve data for disabled content)
+        if not item.is_active:
+            return api_error("Slideshow item is not active", 404)
+
+        # Get optional date parameter
+        date_str = request.args.get("date")
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            except ValueError:
+                return api_error("Invalid date format. Use YYYY-MM-DD", 400)
+        else:
+            target_date = datetime.now(timezone.utc).date()
+
+        # Get the calendar data (pass the item, not just the feed_id)
+        calendar_data = get_skedda_calendar_data(item, target_date)
+
+        return api_response(calendar_data, "Skedda calendar data retrieved")
+
+    except Exception as e:
+        current_app.logger.error(
+            f"Error getting display skedda data for {display_name}/{item_id}: {e}"
+        )
+        return api_error("Failed to retrieve calendar data", 500)
 
 
 @api_v1_bp.route("/events/stats", methods=["GET"])

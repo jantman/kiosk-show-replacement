@@ -97,6 +97,213 @@
             height: 100vh;
             font-size: 2rem;
         }
+
+        /* Skedda Calendar Styles */
+        .skedda-calendar {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f5f5f5;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+        }
+
+        .skedda-date-header {
+            background: #4caf50;
+            color: white;
+            padding: 12px 20px;
+            font-size: 1.3rem;
+            font-weight: 500;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .skedda-grid-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .skedda-time-column {
+            width: 80px;
+            flex-shrink: 0;
+            background: #fff;
+            border-right: 1px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .skedda-time-header {
+            height: 50px;
+            background: #4caf50;
+            flex-shrink: 0;
+        }
+
+        .skedda-time-slots {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .skedda-time-slot {
+            height: 30px;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-end;
+            padding-right: 8px;
+            font-size: 0.75rem;
+            color: #666;
+            box-sizing: border-box;
+        }
+
+        .skedda-time-slot:nth-child(odd) {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .skedda-time-slot-label {
+            margin-top: -8px;
+        }
+
+        .skedda-spaces-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .skedda-space-headers {
+            display: flex;
+            height: 50px;
+            background: #4caf50;
+            flex-shrink: 0;
+        }
+
+        .skedda-space-header {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-left: 1px solid rgba(255,255,255,0.2);
+            padding: 0 8px;
+            text-align: center;
+        }
+
+        .skedda-space-header:first-child {
+            border-left: none;
+        }
+
+        .skedda-grid-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .skedda-space-column {
+            flex: 1;
+            border-left: 1px solid #e0e0e0;
+            position: relative;
+            background: #fff;
+        }
+
+        .skedda-space-column:first-child {
+            border-left: none;
+        }
+
+        .skedda-grid-cell {
+            height: 30px;
+            border-bottom: 1px solid #e8e8e8;
+            box-sizing: border-box;
+        }
+
+        .skedda-grid-cell:nth-child(odd) {
+            border-bottom-color: #e0e0e0;
+        }
+
+        .skedda-event {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            background: linear-gradient(135deg, #26a69a 0%, #4db6ac 100%);
+            color: white;
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 0.85rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+
+        .skedda-event-recurring {
+            background: linear-gradient(135deg, #78909c 0%, #90a4ae 100%);
+        }
+
+        .skedda-event-person {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .skedda-event-description {
+            font-weight: 400;
+            opacity: 0.9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .skedda-current-time-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #f44336;
+            z-index: 10;
+        }
+
+        .skedda-current-time-line::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: -4px;
+            width: 10px;
+            height: 10px;
+            background: #f44336;
+            border-radius: 50%;
+        }
+
+        .skedda-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 1.5rem;
+            color: #666;
+        }
+
+        .skedda-error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            font-size: 1.2rem;
+            color: #d32f2f;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .skedda-last-updated {
+            position: absolute;
+            bottom: 8px;
+            right: 12px;
+            font-size: 0.7rem;
+            color: rgba(0,0,0,0.4);
+        }
     </style>
 </head>
 <body>
@@ -168,6 +375,14 @@
                                 </div>
                             `;
                             break;
+                        case 'skedda':
+                            // Skedda calendar container - will be populated dynamically
+                            content = `
+                                <div class="skedda-calendar" id="skedda-calendar-${index}" data-slide-id="${slide.id}">
+                                    <div class="skedda-loading">Loading calendar...</div>
+                                </div>
+                            `;
+                            break;
                     }
                     
                     slideElement.innerHTML = content;
@@ -180,18 +395,35 @@
                 document.querySelectorAll('.slide').forEach(slide => {
                     slide.classList.remove('active');
                 });
-                
+
                 // Show current slide
                 const currentSlide = document.getElementById(`slide-${index}`);
                 if (currentSlide) {
                     currentSlide.classList.add('active');
                 }
-                
+
                 // Update counter
                 this.slideCounter.textContent = `${index + 1} / ${this.slides.length}`;
-                
+
                 // Start progress bar animation
                 this.animateProgressBar(this.slides[index].display_duration * 1000);
+
+                // Handle Skedda calendar slides - refresh data when slide becomes active
+                const slide = this.slides[index];
+                if (slide.content_type === 'skedda') {
+                    const containerId = `skedda-calendar-${index}`;
+                    const slideId = slide.id;
+
+                    // Get or create the calendar instance
+                    let calendar = skedddaCalendars.get(containerId);
+                    if (!calendar) {
+                        calendar = new SkedddaCalendar(containerId, slideId);
+                        skedddaCalendars.set(containerId, calendar);
+                    }
+
+                    // Refresh the calendar data each time the slide is shown
+                    calendar.render();
+                }
             }
             
             nextSlide() {
@@ -230,7 +462,227 @@
                 `;
             }
         }
-        
+
+        /**
+         * SkedddaCalendar - Renders a day view calendar grid from Skedda/iCal data
+         */
+        class SkedddaCalendar {
+            constructor(containerId, slideId) {
+                this.container = document.getElementById(containerId);
+                this.slideId = slideId;
+                this.data = null;
+                this.timeUpdateInterval = null;
+            }
+
+            async fetchData() {
+                try {
+                    const response = await fetch(`/api/v1/slideshow-items/${this.slideId}/skedda-data`);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                    const json = await response.json();
+                    if (json.success === false) {
+                        throw new Error(json.error || 'Failed to fetch calendar data');
+                    }
+                    this.data = json.data || json;
+                    return true;
+                } catch (error) {
+                    console.error('Failed to fetch Skedda data:', error);
+                    this.showError(`Failed to load calendar: ${error.message}`);
+                    return false;
+                }
+            }
+
+            async render() {
+                if (!await this.fetchData()) {
+                    return;
+                }
+
+                const { date_display, spaces, time_slots, events, last_updated } = this.data;
+
+                // Build the calendar HTML
+                let html = `
+                    <div class="skedda-date-header">${date_display}</div>
+                    <div class="skedda-grid-container">
+                        <div class="skedda-time-column">
+                            <div class="skedda-time-header"></div>
+                            <div class="skedda-time-slots" id="skedda-time-slots-${this.slideId}">
+                                ${this.renderTimeSlots(time_slots)}
+                            </div>
+                        </div>
+                        <div class="skedda-spaces-container">
+                            <div class="skedda-space-headers">
+                                ${spaces.map(space => `<div class="skedda-space-header">${this.escapeHtml(space)}</div>`).join('')}
+                            </div>
+                            <div class="skedda-grid-body" id="skedda-grid-body-${this.slideId}">
+                                ${this.renderSpaceColumns(spaces, time_slots, events)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                if (last_updated) {
+                    const updatedDate = new Date(last_updated);
+                    html += `<div class="skedda-last-updated">Updated: ${updatedDate.toLocaleTimeString()}</div>`;
+                }
+
+                this.container.innerHTML = html;
+
+                // Scroll to current time
+                this.scrollToCurrentTime(time_slots);
+
+                // Start time update interval
+                this.startTimeUpdates(time_slots);
+            }
+
+            renderTimeSlots(timeSlots) {
+                return timeSlots.map((slot, index) => {
+                    // Only show label for even slots (on the hour and half hour starting from first)
+                    const showLabel = index % 2 === 0;
+                    return `
+                        <div class="skedda-time-slot">
+                            ${showLabel ? `<span class="skedda-time-slot-label">${slot.display}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            renderSpaceColumns(spaces, timeSlots, events) {
+                return spaces.map((space, spaceIndex) => {
+                    // Get events for this space
+                    const spaceEvents = events.filter(e => e.space === space);
+
+                    // Create cells
+                    const cells = timeSlots.map((_, i) => `<div class="skedda-grid-cell"></div>`).join('');
+
+                    // Create events
+                    const eventElements = spaceEvents.map(event => {
+                        const top = event.start_slot * 30; // 30px per slot
+                        const height = event.row_span * 30;
+                        const isRecurring = !event.person_name || event.person_name === '';
+
+                        return `
+                            <div class="skedda-event ${isRecurring ? 'skedda-event-recurring' : ''}"
+                                 style="top: ${top}px; height: ${height}px;">
+                                <div class="skedda-event-person">${this.escapeHtml(event.person_name || event.description)}</div>
+                                ${event.person_name ? `<div class="skedda-event-description">${this.escapeHtml(event.description)}</div>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+
+                    return `
+                        <div class="skedda-space-column">
+                            ${cells}
+                            ${eventElements}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            scrollToCurrentTime(timeSlots) {
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinute = now.getMinutes();
+                const currentTimeMinutes = currentHour * 60 + currentMinute;
+
+                // Find the slot closest to current time
+                let targetSlotIndex = 0;
+                for (let i = 0; i < timeSlots.length; i++) {
+                    const [hours, minutes] = timeSlots[i].time.split(':').map(Number);
+                    const slotMinutes = hours * 60 + minutes;
+                    if (slotMinutes <= currentTimeMinutes) {
+                        targetSlotIndex = i;
+                    } else {
+                        break;
+                    }
+                }
+
+                // Scroll the grid body to show current time near the top
+                const gridBody = document.getElementById(`skedda-grid-body-${this.slideId}`);
+                const timeSlotContainer = document.getElementById(`skedda-time-slots-${this.slideId}`);
+                if (gridBody && timeSlotContainer) {
+                    // Calculate scroll position (show current time 1/4 from top)
+                    const scrollTarget = Math.max(0, (targetSlotIndex - 2) * 30);
+                    gridBody.scrollTop = scrollTarget;
+                    timeSlotContainer.scrollTop = scrollTarget;
+
+                    // Add current time line
+                    this.updateCurrentTimeLine(timeSlots, currentTimeMinutes);
+
+                    // Sync scroll between time slots and grid
+                    gridBody.addEventListener('scroll', () => {
+                        timeSlotContainer.scrollTop = gridBody.scrollTop;
+                    });
+                }
+            }
+
+            updateCurrentTimeLine(timeSlots, currentTimeMinutes) {
+                // Remove existing time line
+                const existingLine = this.container.querySelector('.skedda-current-time-line');
+                if (existingLine) {
+                    existingLine.remove();
+                }
+
+                // Find position within the grid
+                if (timeSlots.length === 0) return;
+
+                const firstSlotTime = timeSlots[0].time.split(':').map(Number);
+                const firstSlotMinutes = firstSlotTime[0] * 60 + firstSlotTime[1];
+                const lastSlotTime = timeSlots[timeSlots.length - 1].time.split(':').map(Number);
+                const lastSlotMinutes = lastSlotTime[0] * 60 + lastSlotTime[1] + 30; // +30 for slot duration
+
+                // Only show line if current time is within the grid
+                if (currentTimeMinutes >= firstSlotMinutes && currentTimeMinutes <= lastSlotMinutes) {
+                    const minutesFromStart = currentTimeMinutes - firstSlotMinutes;
+                    const pixelsPerMinute = 30 / 30; // 30px per 30-minute slot
+                    const topPosition = minutesFromStart * pixelsPerMinute;
+
+                    const gridBody = document.getElementById(`skedda-grid-body-${this.slideId}`);
+                    if (gridBody) {
+                        const timeLine = document.createElement('div');
+                        timeLine.className = 'skedda-current-time-line';
+                        timeLine.style.top = `${topPosition}px`;
+                        gridBody.appendChild(timeLine);
+                    }
+                }
+            }
+
+            startTimeUpdates(timeSlots) {
+                // Update time line every minute
+                this.stopTimeUpdates();
+                this.timeUpdateInterval = setInterval(() => {
+                    const now = new Date();
+                    const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
+                    this.updateCurrentTimeLine(timeSlots, currentTimeMinutes);
+                }, 60000); // Every minute
+            }
+
+            stopTimeUpdates() {
+                if (this.timeUpdateInterval) {
+                    clearInterval(this.timeUpdateInterval);
+                    this.timeUpdateInterval = null;
+                }
+            }
+
+            showError(message) {
+                this.container.innerHTML = `<div class="skedda-error">${this.escapeHtml(message)}</div>`;
+            }
+
+            escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            destroy() {
+                this.stopTimeUpdates();
+            }
+        }
+
+        // Map to store Skedda calendar instances
+        const skedddaCalendars = new Map();
+
         // Start the slideshow when page loads
         document.addEventListener('DOMContentLoaded', () => {
             new SlideshowPlayer();

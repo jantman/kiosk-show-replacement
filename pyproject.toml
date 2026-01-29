@@ -54,6 +54,8 @@ gunicorn = "^23.0.0"
 pymysql = "^1.1.0"
 # APM monitoring (optional, activated via NEW_RELIC_LICENSE_KEY env var)
 newrelic = "^11.0.0"
+# iCal/ICS calendar parsing
+icalendar = "^6.0.0"
 
 [tool.poetry.group.dev.dependencies]
 # Testing framework

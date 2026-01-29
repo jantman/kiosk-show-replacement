@@ -19,6 +19,8 @@ __all__ = [
     "SlideshowItem",
     "AssignmentHistory",
     "DisplayConfigurationTemplate",
+    "ICalFeed",
+    "ICalEvent",
 ]
 
 from datetime import datetime, timezone
@@ -28,6 +30,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -651,6 +654,14 @@ class SlideshowItem(db.Model):
     # NULL or 100 = no scaling (normal). Lower values zoom out to show more.
     scale_factor: Mapped[Optional[int]] = mapped_column(Integer)
 
+    # iCal/Skedda calendar settings (only for content_type='skedda')
+    ical_feed_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("ical_feeds.id")
+    )
+    ical_refresh_minutes: Mapped[Optional[int]] = mapped_column(
+        Integer
+    )  # Refresh interval in minutes, default 15 in application logic
+
     # Audit fields
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(timezone.utc)
@@ -674,6 +685,9 @@ class SlideshowItem(db.Model):
     )
     updated_by: Mapped[Optional["User"]] = relationship(
         "User", foreign_keys=[updated_by_id]
+    )
+    ical_feed: Mapped[Optional["ICalFeed"]] = relationship(
+        "ICalFeed", back_populates="slideshow_items"
     )
 
     def __repr__(self) -> str:
@@ -718,7 +732,7 @@ class SlideshowItem(db.Model):
 
     def to_dict(self) -> dict:
         """Convert slideshow item to dictionary for JSON serialization."""
-        return {
+        data = {
             "id": self.id,
             "slideshow_id": self.slideshow_id,
             "title": self.title,
@@ -736,11 +750,22 @@ class SlideshowItem(db.Model):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }
+        # Include iCal fields for skedda content type
+        if self.content_type == "skedda":
+            data["ical_feed_id"] = self.ical_feed_id
+            data["ical_refresh_minutes"] = self.ical_refresh_minutes
+            # Include the URL from the feed for display/editing purposes.
+            # Only access ical_feed if already eager-loaded to avoid N+1 queries
+            # when serializing lists of items. Check __dict__ to see if the
+            # relationship was loaded without triggering lazy-loading.
+            if "ical_feed" in self.__dict__ and self.ical_feed:
+                data["ical_url"] = self.ical_feed.url
+        return data
 
     @validates("content_type")
     def validate_content_type(self, key: str, content_type: str) -> str:
         """Validate content type."""
-        allowed_types = ["image", "video", "url", "text"]
+        allowed_types = ["image", "video", "url", "text", "skedda"]
         if content_type not in allowed_types:
             raise ValueError(f"Content type must be one of: {', '.join(allowed_types)}")
         return content_type
@@ -787,6 +812,20 @@ class SlideshowItem(db.Model):
         if scale_factor is not None and (scale_factor < 10 or scale_factor > 100):
             raise ValueError("Scale factor must be between 10 and 100")
         return scale_factor
+
+    @validates("ical_refresh_minutes")
+    def validate_ical_refresh_minutes(
+        self, key: str, refresh_minutes: Optional[int]
+    ) -> Optional[int]:
+        """Validate iCal refresh interval.
+
+        Refresh interval must be between 1 and 1440 minutes (1 day).
+        """
+        if refresh_minutes is not None and (
+            refresh_minutes < 1 or refresh_minutes > 1440
+        ):
+            raise ValueError("iCal refresh interval must be between 1 and 1440 minutes")
+        return refresh_minutes
 
 
 class AssignmentHistory(db.Model):
@@ -1011,3 +1050,165 @@ class DisplayConfigurationTemplate(db.Model):
         if value is not None and (value < 1 or value > 10000):
             raise ValueError(f"{key} must be between 1 and 10000 pixels")
         return value
+
+
+class ICalFeed(db.Model):
+    """Model representing an iCal/ICS feed URL.
+
+    Stores the feed URL and metadata about the last fetch.
+    Multiple SlideshowItems can reference the same feed to avoid
+    duplicate fetches and event storage.
+    """
+
+    __tablename__ = "ical_feeds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    url: Mapped[str] = mapped_column(String(500), unique=True, index=True)
+    last_fetched: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    last_error: Mapped[Optional[str]] = mapped_column(Text)
+
+    # Audit fields
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationships
+    events: Mapped[List["ICalEvent"]] = relationship(
+        "ICalEvent",
+        back_populates="feed",
+        cascade="all, delete-orphan",
+    )
+    slideshow_items: Mapped[List["SlideshowItem"]] = relationship(
+        "SlideshowItem",
+        back_populates="ical_feed",
+    )
+
+    def __repr__(self) -> str:
+        return f"<ICalFeed {self.url[:50]}...>"
+
+    def to_dict(self) -> dict:
+        """Convert feed to dictionary for JSON serialization."""
+        return {
+            "id": self.id,
+            "url": self.url,
+            "last_fetched": (
+                self.last_fetched.isoformat() if self.last_fetched else None
+            ),
+            "last_error": self.last_error,
+            "event_count": len(self.events) if self.events else 0,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    @validates("url")
+    def validate_url(self, key: str, url: str) -> str:
+        """Validate feed URL format."""
+        if not url or not url.strip():
+            raise ValueError("Feed URL is required")
+        url = url.strip()
+        if not (url.startswith("http://") or url.startswith("https://")):
+            raise ValueError("Feed URL must start with http:// or https://")
+        if len(url) > 500:
+            raise ValueError("Feed URL must be 500 characters or less")
+        return url
+
+
+class ICalEvent(db.Model):
+    """Model representing an individual event from an iCal feed.
+
+    Events are stored with their original ICS UID to allow for
+    efficient upserts when refreshing the feed.
+    """
+
+    __tablename__ = "ical_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    feed_id: Mapped[int] = mapped_column(Integer, ForeignKey("ical_feeds.id"))
+    uid: Mapped[str] = mapped_column(String(500))  # Original ICS event UID
+    summary: Mapped[str] = mapped_column(String(500))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    start_time: Mapped[datetime] = mapped_column(DateTime, index=True)
+    end_time: Mapped[datetime] = mapped_column(DateTime)
+    resources: Mapped[Optional[str]] = mapped_column(Text)  # JSON array of space names
+    attendee_name: Mapped[Optional[str]] = mapped_column(String(200))
+    attendee_email: Mapped[Optional[str]] = mapped_column(String(200))
+
+    # Audit fields
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    # Relationships
+    feed: Mapped["ICalFeed"] = relationship("ICalFeed", back_populates="events")
+
+    # Constraints and indexes
+    __table_args__ = (
+        UniqueConstraint("feed_id", "uid", name="unique_event_per_feed"),
+        Index("ix_ical_events_feed_start", "feed_id", "start_time"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ICalEvent {self.summary[:30]}...>"
+
+    def to_dict(self) -> dict:
+        """Convert event to dictionary for JSON serialization."""
+        import json
+        import logging
+
+        resources_list = []
+        if self.resources:
+            try:
+                resources_list = json.loads(self.resources)
+            except (json.JSONDecodeError, TypeError) as e:
+                logging.getLogger(__name__).warning(
+                    "Invalid resources JSON for ICalEvent %s (uid=%s): %s",
+                    self.id,
+                    self.uid,
+                    e,
+                )
+                resources_list = []
+
+        return {
+            "id": self.id,
+            "feed_id": self.feed_id,
+            "uid": self.uid,
+            "summary": self.summary,
+            "description": self.description,
+            "start_time": self.start_time.isoformat() if self.start_time else None,
+            "end_time": self.end_time.isoformat() if self.end_time else None,
+            "resources": resources_list,
+            "attendee_name": self.attendee_name,
+            "attendee_email": self.attendee_email,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    @validates("summary")
+    def validate_summary(self, key: str, summary: str) -> str:
+        """Validate event summary."""
+        if not summary or not summary.strip():
+            raise ValueError("Event summary is required")
+        summary = summary.strip()
+        if len(summary) > 500:
+            raise ValueError("Event summary must be 500 characters or less")
+        return summary
+
+    @validates("uid")
+    def validate_uid(self, key: str, uid: str) -> str:
+        """Validate event UID."""
+        if not uid or not uid.strip():
+            raise ValueError("Event UID is required")
+        uid = uid.strip()
+        if len(uid) > 500:
+            raise ValueError("Event UID must be 500 characters or less")
+        return uid

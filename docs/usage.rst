@@ -121,6 +121,56 @@ Text slides support basic HTML formatting for enhanced presentation:
 to prevent XSS attacks. Plain text without HTML tags will have newlines
 preserved as line breaks.
 
+Skedda Calendar Slides
+~~~~~~~~~~~~~~~~~~~~~~
+
+The Skedda calendar slide type displays reservations from a Skedda booking system
+(or any compatible iCal/ICS feed) in a visual grid format.
+
+**Setting Up a Skedda Calendar Slide:**
+
+1. Create or edit a slideshow
+2. Click "Add Slide"
+3. Select "Skedda Calendar" as the content type
+4. Enter your Skedda ICS feed URL (e.g., ``https://yourspace.skedda.com/ical/...``)
+5. Configure the refresh interval (how often to fetch updated booking data)
+6. Save the slide
+
+**Configuration Options:**
+
+* **ICS Feed URL** (required): The URL of your Skedda iCal feed. Find this in your
+  Skedda account under Settings > Integrations > iCal.
+* **Refresh Interval**: How often to fetch updated booking data from the ICS feed.
+  Options: 5, 10, 15 (default), 30, or 60 minutes.
+
+**Calendar Display Features:**
+
+* Grid view showing time slots (rows) and spaces/resources (columns)
+* Events displayed with the person's name and booking description
+* Current time indicator with auto-scroll to keep current time visible
+* Auto-refresh: calendar data is refreshed each time the slide becomes active
+* Visual distinction between regular and recurring events (gray background)
+
+**External Refresh Scheduling:**
+
+For environments requiring proactive feed updates (rather than lazy refresh when
+slides are viewed), an API endpoint is available for external scheduling tools:
+
+.. code-block:: bash
+
+   # Refresh all ICS feeds (requires authentication)
+   # First, login to get a session cookie:
+   curl -c cookies.txt -X POST http://localhost:5000/api/v1/auth/login \
+        -H "Content-Type: application/json" \
+        -d '{"username": "admin", "password": "yourpassword"}'
+
+   # Then use the cookie to call the refresh endpoint:
+   curl -b cookies.txt -X POST http://localhost:5000/api/v1/ical-feeds/refresh
+
+This endpoint requires authentication and can be called from cron jobs, systemd
+timers, or other scheduling systems to ensure calendar data is always current.
+Store credentials securely when automating these calls.
+
 Kiosk Display Mode
 ~~~~~~~~~~~~~~~~~~
 
