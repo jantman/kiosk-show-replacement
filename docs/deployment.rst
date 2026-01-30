@@ -49,7 +49,7 @@ Quick Start
 
    .. code-block:: bash
 
-      docker-compose -f docker-compose.prod.yml up -d
+      docker-compose -f docker-compose.prod.yml --env-file .envup -d
 
 5. Access the application at http://localhost:5000/admin
 
