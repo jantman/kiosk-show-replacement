@@ -61,6 +61,10 @@ services:
 
   db:
     image: mariadb:11
+    # Run as UID:GID 1000:1000 to match typical host user and avoid permission
+    # issues with bind-mounted volumes. The host data directory must be owned
+    # by this UID:GID before first run.
+    user: "1000:1000"
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD is required}
       - MYSQL_DATABASE=${MYSQL_DATABASE:-kiosk_show}

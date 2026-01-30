@@ -45,13 +45,29 @@ Quick Start
       MYSQL_PASSWORD=<strong-password>
       KIOSK_ADMIN_PASSWORD=<strong-password>
 
-4. Start the application:
+4. Create data directories with correct ownership:
 
    .. code-block:: bash
 
-      docker-compose -f docker-compose.prod.yml --env-file .envup -d
+      mkdir -p .docker-data/prod/uploads .docker-data/prod/mariadb
+      sudo chown -R 1000:1000 .docker-data/prod/uploads .docker-data/prod/mariadb
+      chmod 750 .docker-data/prod/mariadb
 
-5. Access the application at http://localhost:5000/admin
+   .. important::
+
+      The MariaDB container runs as UID:GID 1000:1000 to avoid permission issues
+      with bind-mounted volumes. The data directories **must** be owned by this
+      UID:GID before starting the containers for the first time. If you need to
+      use a different UID:GID, edit the ``user:`` directive in
+      ``docker-compose.prod.yml``.
+
+5. Start the application:
+
+   .. code-block:: bash
+
+      docker-compose -f docker-compose.prod.yml --env-file .env up -d
+
+6. Access the application at http://localhost:5000/admin
 
 Development with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -382,6 +398,47 @@ The container runs as non-root user (UID 1000). Ensure volume permissions:
 
    # Fix permissions on host
    sudo chown -R 1000:1000 ./data/uploads
+
+MariaDB healthcheck failing
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If the MariaDB container shows repeated "Access denied for user 'root'@'localhost'
+(using password: NO)" errors and never becomes healthy, this is typically a
+permission issue with the healthcheck credentials file.
+
+**Cause:** MariaDB creates a ``.my-healthcheck.cnf`` file in the data directory
+during initialization. If the data directory has overly permissive permissions
+(e.g., 777), MariaDB will ignore the config file as a security measure.
+
+**Solution:**
+
+1. Stop the containers:
+
+   .. code-block:: bash
+
+      docker-compose -f docker-compose.prod.yml down
+
+2. Fix the permissions on the healthcheck file:
+
+   .. code-block:: bash
+
+      sudo chmod 600 .docker-data/prod/mariadb/.my-healthcheck.cnf
+
+3. Ensure the data directory has correct ownership and permissions:
+
+   .. code-block:: bash
+
+      sudo chown -R 1000:1000 .docker-data/prod/mariadb
+      chmod 750 .docker-data/prod/mariadb
+
+4. Restart the containers:
+
+   .. code-block:: bash
+
+      docker-compose -f docker-compose.prod.yml up -d
+
+**Prevention:** Always create the data directories with correct ownership before
+first run (see Quick Start step 4).
 
 Health check failing
 ~~~~~~~~~~~~~~~~~~~~
