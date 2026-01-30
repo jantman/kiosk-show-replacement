@@ -597,12 +597,12 @@
                     }
                 }
 
-                // Scroll the grid body to show current time near the top
+                // Scroll the grid body to show current time at the top
                 const gridBody = document.getElementById(`skedda-grid-body-${this.slideId}`);
                 const timeSlotContainer = document.getElementById(`skedda-time-slots-${this.slideId}`);
                 if (gridBody && timeSlotContainer) {
-                    // Calculate scroll position (show current time 1/4 from top)
-                    const scrollTarget = Math.max(0, (targetSlotIndex - 2) * 30);
+                    // Calculate scroll position (show current time at the top of viewable area)
+                    const scrollTarget = Math.max(0, targetSlotIndex * 30);
                     gridBody.scrollTop = scrollTarget;
                     timeSlotContainer.scrollTop = scrollTarget;
 

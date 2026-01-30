@@ -383,7 +383,11 @@ def get_skedda_calendar_data(
         "spaces": spaces,
         "time_slots": time_slots,
         "events": formatted_events,
-        "last_updated": (feed.last_fetched.isoformat() if feed.last_fetched else None),
+        "last_updated": (
+            feed.last_fetched.replace(tzinfo=timezone.utc).isoformat()
+            if feed.last_fetched
+            else None
+        ),
     }
 
 
