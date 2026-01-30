@@ -1,6 +1,7 @@
 # Git
 .git/
 .gitignore
+.gitattributes
 
 # Python
 __pycache__/
@@ -20,11 +21,16 @@ build/
 .mypy_cache/
 .pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .nox/
+.ruff_cache/
+.hypothesis/
+.tox/
 
 # Node.js (frontend node_modules - we rebuild in Docker)
 frontend/node_modules/
+node_modules/
 
 # Environment files (secrets)
 .env
@@ -35,30 +41,41 @@ frontend/node_modules/
 # Instance data (local database and uploads)
 instance/
 
+# Docker data directories (bind mounts for local development)
+.docker-data/
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+.cursorignore
+.cursorindexingignore
 
 # Documentation source (not needed in container)
 docs/
 
 # Tests (not needed in production container)
 tests/
+test-results/
 noxfile.py
 pytest.ini
 .pre-commit-config.yaml
 
-# Development files
+# Development/project files not needed in container
 *.md
-!README.md
+CLAUDE.md
 Makefile
 scripts/
+docker-compose*.yml
 
 # Misc
 *.log
 *.bak
 .DS_Store
 Thumbs.db
+tmp/
+temp/
+*.tgz
+/test*.txt
