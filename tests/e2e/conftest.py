@@ -241,7 +241,7 @@ def _create_session_test_data(app):
     # access (like slideshow.items) can see.
     db.session.execute(db.text("PRAGMA wal_checkpoint(FULL)"))
 
-    # Store object data in app config to avoid re-querying (session isolation issues)
+    # Store object data in app config BEFORE closing session (while objects are still bound)
     # Store primitive values that survive context changes
     app.config["E2E_TEST_DATA"] = {
         "user": {"id": test_user.id, "username": test_user.username},
@@ -253,6 +253,15 @@ def _create_session_test_data(app):
         "test_display": {"id": test_display.id, "name": test_display.name},
         "test_slideshow": {"id": test_slideshow.id, "name": test_slideshow.name},
     }
+
+    # Complete session cleanup to ensure the forked live_server process sees committed data.
+    # Without this cleanup, SQLite cross-process visibility issues can cause flaky tests
+    # where direct ID queries (SlideshowItem.query.filter_by(id=X)) return None even though
+    # the data was committed and checkpointed. This happens because the forked process may
+    # inherit stale connection state from the parent process.
+    db.session.close()
+    db.session.remove()
+    db.engine.dispose()
 
 
 @pytest.fixture(scope="function")
