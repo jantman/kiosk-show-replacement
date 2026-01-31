@@ -616,6 +616,32 @@ class TestSlideshowItemAPI:
         assert data["data"]["title"] == "Updated Item"
         assert data["data"]["display_duration"] == 20
 
+    def test_update_inactive_slideshow_item(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test that inactive slideshow items can be updated (e.g., reactivated)."""
+        slideshow, items = sample_slideshow_with_items
+        item = items[0]
+
+        # Mark the item as inactive first
+        item.is_active = False
+        db.session.commit()
+
+        # Should still be able to update the inactive item
+        update_data = {"is_active": True, "title": "Reactivated Item"}
+
+        response = client.put(
+            f"/api/v1/slideshow-items/{item.id}",
+            data=json.dumps(update_data),
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["is_active"] is True
+        assert data["data"]["title"] == "Reactivated Item"
+
     def test_delete_slideshow_item(
         self, client, authenticated_user, sample_slideshow_with_items
     ):

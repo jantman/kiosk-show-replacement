@@ -527,14 +527,18 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
 @api_v1_bp.route("/slideshow-items/<int:item_id>", methods=["PUT"])
 @api_auth_required
 def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
-    """Update a slideshow item - all users can update all items."""
+    """Update a slideshow item - all users can update all items.
+
+    Note: This endpoint allows updating inactive items so they can be reactivated
+    via the admin UI. The item's is_active status can be changed via this endpoint.
+    """
     try:
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
 
         item = db.session.get(SlideshowItem, item_id)
-        if not item or not item.is_active:
+        if not item:
             return api_error("Slideshow item not found", 404)
 
         slideshow = item.slideshow
