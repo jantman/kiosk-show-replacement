@@ -343,7 +343,7 @@ const SlideshowDetail: React.FC = () => {
                               {item.order_index}
                             </span>
                             <div className="btn-group-vertical btn-group-sm">
-                              {index > 0 && (
+                              {index > 0 && item.is_active && (
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
@@ -353,7 +353,7 @@ const SlideshowDetail: React.FC = () => {
                                   <i className="bi bi-arrow-up"></i>
                                 </Button>
                               )}
-                              {index < items.length - 1 && (
+                              {index < items.length - 1 && item.is_active && (
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
