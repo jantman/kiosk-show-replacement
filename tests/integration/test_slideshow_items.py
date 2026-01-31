@@ -498,7 +498,7 @@ class TestSlideshowItems:
                 route.continue_()
 
         page.route(
-            f"**/api/v1/slideshows/{slideshow_id}/items",
+            f"**/api/v1/slideshows/{slideshow_id}/items**",
             lambda route: handle_create_item(route, route.request),
         )
 
@@ -692,7 +692,7 @@ class TestSlideshowItems:
                 route.continue_()
 
         page.route(
-            f"**/api/v1/slideshows/{slideshow_id}/items",
+            f"**/api/v1/slideshows/{slideshow_id}/items**",
             lambda route: handle_create_item(route, route.request),
         )
 
@@ -1138,8 +1138,15 @@ class TestSlideshowItems:
         # Click Delete button
         row.locator("button[title='Delete']").click()
 
-        # Wait for the item to be removed from the list
-        expect(page.locator("text=Item To Delete")).to_be_hidden(timeout=10000)
+        # Wait for the page to update - the item should now show as Inactive
+        # (soft delete sets is_active=False, and admin UI shows inactive items)
+        page.wait_for_timeout(1000)  # Allow time for API call and UI refresh
+
+        # Verify the item is still visible but now marked as Inactive
+        row = page.locator("tr:has-text('Item To Delete')")
+        expect(row).to_be_visible(timeout=10000)
+        inactive_badge = row.locator(".badge", has_text="Inactive")
+        expect(inactive_badge).to_be_visible(timeout=5000)
 
     def test_reorder_items_move_up(
         self,
@@ -2170,7 +2177,7 @@ class TestSlideshowItems:
                 route.continue_()
 
         page.route(
-            f"**/api/v1/slideshows/{slideshow_id}/items",
+            f"**/api/v1/slideshows/{slideshow_id}/items**",
             lambda route: handle_create_item(route, route.request),
         )
 
@@ -2352,7 +2359,7 @@ class TestSlideshowItems:
             )
 
         page.route(
-            f"**/api/v1/slideshows/{slideshow_id}/items",
+            f"**/api/v1/slideshows/{slideshow_id}/items**",
             handle_get_items,
         )
         page.route(

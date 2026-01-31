@@ -29,10 +29,10 @@ const SlideshowDetail: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      // Fetch slideshow details
+      // Fetch slideshow details - include inactive items so they can be viewed/reactivated
       const [slideshowResponse, itemsResponse] = await Promise.all([
-        apiCall(`/api/v1/slideshows/${slideshowId}`),
-        apiCall(`/api/v1/slideshows/${slideshowId}/items`)
+        apiCall(`/api/v1/slideshows/${slideshowId}?include_inactive=true`),
+        apiCall(`/api/v1/slideshows/${slideshowId}/items?include_inactive=true`)
       ]);
 
       if (slideshowResponse.success) {
@@ -240,8 +240,16 @@ const SlideshowDetail: React.FC = () => {
         <Col md={3}>
           <Card>
             <Card.Body className="text-center">
-              <h3 className="text-primary">{items.length}</h3>
-              <p className="text-muted mb-0">Total Items</p>
+              <h3 className="text-primary">
+                {items.filter(i => i.is_active).length}
+                {items.some(i => !i.is_active) && (
+                  <span className="text-muted small"> / {items.length}</span>
+                )}
+              </h3>
+              <p className="text-muted mb-0">
+                Active Items
+                {items.some(i => !i.is_active) && ' / Total'}
+              </p>
             </Card.Body>
           </Card>
         </Col>
@@ -282,7 +290,10 @@ const SlideshowDetail: React.FC = () => {
           <Card>
             <Card.Header>
               <div className="d-flex justify-content-between align-items-center">
-                <h5 className="mb-0">Slideshow Items ({items.length})</h5>
+                <h5 className="mb-0">
+                  Slideshow Items ({items.filter(i => i.is_active).length}
+                  {items.some(i => !i.is_active) && ` / ${items.length} total`})
+                </h5>
                 <Button 
                   variant="primary" 
                   size="sm"
@@ -322,14 +333,17 @@ const SlideshowDetail: React.FC = () => {
                   </thead>
                   <tbody>
                     {items.map((item, index) => (
-                      <tr key={item.id}>
+                      <tr
+                        key={item.id}
+                        style={!item.is_active ? { opacity: 0.6, backgroundColor: '#f8f9fa' } : undefined}
+                      >
                         <td>
                           <div className="d-flex flex-column gap-1">
                             <span className="badge bg-light text-dark">
                               {item.order_index}
                             </span>
                             <div className="btn-group-vertical btn-group-sm">
-                              {index > 0 && (
+                              {index > 0 && item.is_active && (
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
@@ -339,7 +353,7 @@ const SlideshowDetail: React.FC = () => {
                                   <i className="bi bi-arrow-up"></i>
                                 </Button>
                               )}
-                              {index < items.length - 1 && (
+                              {index < items.length - 1 && item.is_active && (
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"

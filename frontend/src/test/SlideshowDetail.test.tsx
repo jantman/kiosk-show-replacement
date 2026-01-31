@@ -141,7 +141,7 @@ describe('SlideshowDetail', () => {
     expect(screen.getAllByText('Active')).toHaveLength(4); // 1 slideshow + 3 active items
     
     // Check for stats specifically
-    expect(screen.getByText('Total Items')).toBeInTheDocument();
+    expect(screen.getByText('Active Items')).toBeInTheDocument();
     expect(screen.getByText('Total Duration')).toBeInTheDocument();
     expect(screen.getByText('1m')).toBeInTheDocument(); // total duration
   });

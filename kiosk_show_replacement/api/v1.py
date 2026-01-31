@@ -155,16 +155,27 @@ def create_slideshow() -> Tuple[Response, int]:
 @api_v1_bp.route("/slideshows/<int:slideshow_id>", methods=["GET"])
 @api_auth_required
 def get_slideshow_by_id(slideshow_id: int) -> Tuple[Response, int]:
-    """Get a specific slideshow with its items - all users can view all slideshows."""
+    """Get a specific slideshow with its items - all users can view all slideshows.
+
+    Query Parameters:
+        include_inactive: If 'true', include inactive items in the response.
+                          Defaults to 'false' (only active items returned).
+    """
     slideshow = db.session.get(Slideshow, slideshow_id)
     if not slideshow or not slideshow.is_active:
         raise NotFoundError(
             "Slideshow not found", resource_type="slideshow", resource_id=slideshow_id
         )
 
+    # Check if inactive items should be included
+    include_inactive = request.args.get("include_inactive", "false").lower() == "true"
+
     # Get slideshow data with items
     result = slideshow.to_dict()
-    result["items"] = [item.to_dict() for item in slideshow.items if item.is_active]
+    if include_inactive:
+        result["items"] = [item.to_dict() for item in slideshow.items]
+    else:
+        result["items"] = [item.to_dict() for item in slideshow.items if item.is_active]
 
     return api_response(result, "Slideshow retrieved successfully")
 
@@ -334,7 +345,12 @@ def set_default_slideshow(slideshow_id: int) -> Tuple[Response, int]:
 @api_v1_bp.route("/slideshows/<int:slideshow_id>/items", methods=["GET"])
 @api_auth_required
 def list_slideshow_items(slideshow_id: int) -> Tuple[Response, int]:
-    """List all items in a slideshow - all users can view all slideshow items."""
+    """List all items in a slideshow - all users can view all slideshow items.
+
+    Query Parameters:
+        include_inactive: If 'true', include inactive items in the response.
+                          Defaults to 'false' (only active items returned).
+    """
     try:
         current_user = get_current_user()
         if not current_user:
@@ -347,7 +363,15 @@ def list_slideshow_items(slideshow_id: int) -> Tuple[Response, int]:
         if not slideshow.is_active:
             return api_error("Slideshow not found", 404)
 
-        items = [item.to_dict() for item in slideshow.items if item.is_active]
+        # Check if inactive items should be included
+        include_inactive = (
+            request.args.get("include_inactive", "false").lower() == "true"
+        )
+
+        if include_inactive:
+            items = [item.to_dict() for item in slideshow.items]
+        else:
+            items = [item.to_dict() for item in slideshow.items if item.is_active]
 
         return api_response(items, "Slideshow items retrieved successfully")
 
@@ -503,14 +527,18 @@ def create_slideshow_item(slideshow_id: int) -> Tuple[Response, int]:
 @api_v1_bp.route("/slideshow-items/<int:item_id>", methods=["PUT"])
 @api_auth_required
 def update_slideshow_item(item_id: int) -> Tuple[Response, int]:
-    """Update a slideshow item - all users can update all items."""
+    """Update a slideshow item - all users can update all items.
+
+    Note: This endpoint allows updating inactive items so they can be reactivated
+    via the admin UI. The item's is_active status can be changed via this endpoint.
+    """
     try:
         current_user = get_current_user()
         if not current_user:
             return api_error("Authentication required", 401)
 
         item = db.session.get(SlideshowItem, item_id)
-        if not item or not item.is_active:
+        if not item:
             return api_error("Slideshow item not found", 404)
 
         slideshow = item.slideshow
