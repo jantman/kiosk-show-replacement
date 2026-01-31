@@ -125,10 +125,10 @@ The issue is that `SlideshowItem.query.filter_by(id=item_id)` in the forked serv
 - [x] Milestone 1: Improve Database Synchronization (FST-1)
   - [x] Task 1.1: Modify conftest.py for complete session cleanup
   - [x] Task 1.2: Verify fix with multiple local test runs (10/10 passed)
-- [ ] Milestone 2: Acceptance Criteria (FST-2)
+- [x] Milestone 2: Acceptance Criteria (FST-2)
   - [x] Task 2.1: All nox sessions pass
-  - [ ] Task 2.2: CI passes
-  - [ ] Task 2.3: Move feature file to completed
+  - [x] Task 2.2: CI passes (PR #9)
+  - [x] Task 2.3: Move feature file to completed
 
 ### Implementation Notes
 
