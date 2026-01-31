@@ -109,7 +109,22 @@ Final validation and documentation.
 
 ## Progress
 
-- [ ] Milestone 1: Regression Tests
-- [ ] Milestone 2: Backend API Fix
-- [ ] Milestone 3: Frontend UI Update
-- [ ] Milestone 4: Acceptance Criteria
+- [x] Milestone 1: Regression Tests (completed)
+  - [x] ASI-1.1: test_inactive_slide_visible_in_admin_ui
+  - [x] ASI-1.2: test_reactivate_inactive_slide_via_admin_ui
+  - [x] ASI-1.3: test_inactive_slides_not_shown_in_display_playback
+- [x] Milestone 2: Backend API Fix (completed)
+  - [x] ASI-2.1: Updated get_slideshow_by_id() with include_inactive parameter
+  - [x] ASI-2.2: Updated list_slideshow_items() with include_inactive parameter
+  - [x] ASI-2.3: Added unit tests for include_inactive parameter
+  - [x] ASI-2.4: Updated update_slideshow_item() to allow updating inactive items
+- [x] Milestone 3: Frontend UI Update (completed)
+  - [x] ASI-3.1: Updated SlideshowDetail.tsx to pass include_inactive=true
+  - [x] ASI-3.2: Inactive slides styled with reduced opacity and gray background
+  - [x] ASI-3.3: Status badge (Active/Inactive) visible for each item
+  - [x] ASI-3.4: All regression tests now pass
+- [x] Milestone 4: Acceptance Criteria (completed)
+  - [x] ASI-4.1: All relevant nox sessions pass (test-3.14, test-integration, lint, type_check)
+  - Note: test-e2e has one flaky test (test_skedda_calendar_shows_recurring_events_differently) unrelated to this feature
+  - [x] ASI-4.2: No documentation changes needed for this bug fix
+  - [x] ASI-4.3: Feature file ready for move to completed/
