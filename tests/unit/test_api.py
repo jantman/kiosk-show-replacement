@@ -135,6 +135,55 @@ class TestSlideshowAPI:
         data = response.get_json()
         assert data["success"] is False
 
+    def test_get_slideshow_filters_inactive_items_by_default(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test that inactive items are filtered out by default."""
+        slideshow, items = sample_slideshow_with_items
+
+        # Mark one item as inactive
+        items[0].is_active = False
+        db.session.commit()
+
+        response = client.get(f"/api/v1/slideshows/{slideshow.id}")
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+        # Should only return active items
+        assert len(data["data"]["items"]) == len(items) - 1
+
+        # Verify the inactive item is not in the response
+        item_ids = [item["id"] for item in data["data"]["items"]]
+        assert items[0].id not in item_ids
+
+    def test_get_slideshow_include_inactive_items(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test that inactive items are included when include_inactive=true."""
+        slideshow, items = sample_slideshow_with_items
+
+        # Mark one item as inactive
+        items[0].is_active = False
+        db.session.commit()
+
+        response = client.get(
+            f"/api/v1/slideshows/{slideshow.id}?include_inactive=true"
+        )
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+        # Should return all items including inactive
+        assert len(data["data"]["items"]) == len(items)
+
+        # Verify the inactive item is in the response with is_active=False
+        item_ids = [item["id"] for item in data["data"]["items"]]
+        assert items[0].id in item_ids
+
+        inactive_item = next(i for i in data["data"]["items"] if i["id"] == items[0].id)
+        assert inactive_item["is_active"] is False
+
     def test_update_slideshow_success(
         self, client, authenticated_user, sample_slideshow
     ):
@@ -437,6 +486,55 @@ class TestSlideshowItemAPI:
         data = response.get_json()
         assert data["success"] is True
         assert len(data["data"]) == len(items)
+
+    def test_list_slideshow_items_filters_inactive_by_default(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test that inactive items are filtered out by default."""
+        slideshow, items = sample_slideshow_with_items
+
+        # Mark one item as inactive
+        items[0].is_active = False
+        db.session.commit()
+
+        response = client.get(f"/api/v1/slideshows/{slideshow.id}/items")
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+        # Should only return active items (all except the one we marked inactive)
+        assert len(data["data"]) == len(items) - 1
+
+        # Verify the inactive item is not in the response
+        item_ids = [item["id"] for item in data["data"]]
+        assert items[0].id not in item_ids
+
+    def test_list_slideshow_items_include_inactive(
+        self, client, authenticated_user, sample_slideshow_with_items
+    ):
+        """Test that inactive items are included when include_inactive=true."""
+        slideshow, items = sample_slideshow_with_items
+
+        # Mark one item as inactive
+        items[0].is_active = False
+        db.session.commit()
+
+        response = client.get(
+            f"/api/v1/slideshows/{slideshow.id}/items?include_inactive=true"
+        )
+        assert response.status_code == 200
+
+        data = response.get_json()
+        assert data["success"] is True
+        # Should return all items including inactive
+        assert len(data["data"]) == len(items)
+
+        # Verify the inactive item is in the response with is_active=False
+        item_ids = [item["id"] for item in data["data"]]
+        assert items[0].id in item_ids
+
+        inactive_item = next(i for i in data["data"] if i["id"] == items[0].id)
+        assert inactive_item["is_active"] is False
 
     def test_create_slideshow_item_success(
         self, client, authenticated_user, sample_slideshow
