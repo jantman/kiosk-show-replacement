@@ -2333,8 +2333,23 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
     from ..ical_service import get_skedda_calendar_data
 
     try:
+        # Expire all cached objects in the session to ensure fresh reads from database.
+        # This helps with cross-process visibility issues in SQLite WAL mode,
+        # particularly during E2E tests with forked server processes.
+        db.session.expire_all()
+
         # Look up display by name
+        # Note: In rare cases with SQLite WAL mode and forked processes, filter_by
+        # queries can have visibility issues. If the initial query fails, fall back
+        # to querying all records and searching manually.
         display = Display.query.filter_by(name=display_name).first()
+        if not display:
+            # Fallback: Query all displays and search manually
+            all_displays = Display.query.all()
+            for d in all_displays:
+                if d.name == display_name:
+                    display = d
+                    break
         if not display:
             return api_error("Display not found", 404)
 
@@ -2342,9 +2357,25 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
         if not display.current_slideshow_id:
             return api_error("Display has no slideshow assigned", 400)
 
-        # Validate that the requested item belongs to this display's slideshow
-        # Use query.filter_by instead of session.get for better cross-process compatibility
+        # Get the slideshow with fallback
+        slideshow = Slideshow.query.get(display.current_slideshow_id)
+        if not slideshow:
+            all_slideshows = Slideshow.query.all()
+            for s in all_slideshows:
+                if s.id == display.current_slideshow_id:
+                    slideshow = s
+                    break
+        if not slideshow:
+            return api_error("Slideshow not found", 404)
+
+        # Get the slideshow item with fallback
         item = SlideshowItem.query.filter_by(id=item_id).first()
+        if not item:
+            all_items = SlideshowItem.query.all()
+            for i in all_items:
+                if i.id == item_id:
+                    item = i
+                    break
         if not item:
             return api_error("Slideshow item not found", 404)
 

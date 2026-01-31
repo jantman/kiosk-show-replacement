@@ -54,6 +54,11 @@ def e2e_app(tmp_path_factory):
     db_file = tmp_path / "e2e_test.db"
 
     # Configure for E2E testing
+    # Use NullPool to disable connection pooling - this ensures each request gets
+    # a fresh database connection. This prevents cross-process visibility issues
+    # where forked server processes might have stale connection state.
+    from sqlalchemy.pool import NullPool
+
     app.config.update(
         {
             "TESTING": True,
@@ -61,7 +66,7 @@ def e2e_app(tmp_path_factory):
             "SECRET_KEY": "e2e-test-secret-key",
             "WTF_CSRF_ENABLED": False,
             "SQLALCHEMY_ENGINE_OPTIONS": {
-                "pool_recycle": -1,
+                "poolclass": NullPool,
                 "pool_pre_ping": True,
                 "connect_args": {
                     "check_same_thread": False,
@@ -239,9 +244,13 @@ def _create_session_test_data(app):
     # This prevents intermittent cross-process visibility issues where direct queries
     # (like SlideshowItem.query.filter_by(id=1)) might not see data that relationship
     # access (like slideshow.items) can see.
-    db.session.execute(db.text("PRAGMA wal_checkpoint(FULL)"))
+    #
+    # Use TRUNCATE mode instead of FULL to reset the WAL file after checkpointing.
+    # This helps ensure that newly forked processes start with a clean view of the
+    # database rather than potentially reading stale data from WAL file caches.
+    db.session.execute(db.text("PRAGMA wal_checkpoint(TRUNCATE)"))
 
-    # Store object data in app config to avoid re-querying (session isolation issues)
+    # Store object data in app config BEFORE closing session (while objects are still bound)
     # Store primitive values that survive context changes
     app.config["E2E_TEST_DATA"] = {
         "user": {"id": test_user.id, "username": test_user.username},
@@ -253,6 +262,13 @@ def _create_session_test_data(app):
         "test_display": {"id": test_display.id, "name": test_display.name},
         "test_slideshow": {"id": test_slideshow.id, "name": test_slideshow.name},
     }
+
+    # Close and remove the session to release all connections.
+    # This ensures that when the live_server fork happens, no stale connection
+    # state is inherited. New connections will be created when needed, and they
+    # will see the fully committed and checkpointed data.
+    db.session.close()
+    db.session.remove()
 
 
 @pytest.fixture(scope="function")
