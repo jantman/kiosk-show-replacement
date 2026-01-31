@@ -109,8 +109,9 @@ class TestAdminInactiveSlides:
             slide_row = page.locator("tr", has_text="Inactive Test Slide")
             expect(slide_row).to_be_visible(timeout=5000)
 
-            # Additionally verify it shows as "Inactive"
-            inactive_badge = slide_row.locator("text=Inactive")
+            # Additionally verify it shows as "Inactive" badge
+            # Use a more specific selector to target the badge element
+            inactive_badge = slide_row.locator(".badge", has_text="Inactive")
             expect(inactive_badge).to_be_visible()
 
         finally:
@@ -195,41 +196,43 @@ class TestAdminInactiveSlides:
             modal = page.locator(".modal")
             expect(modal).to_be_visible(timeout=10000)
 
-            # Find and check the "Active" checkbox/toggle to reactivate
-            # The form should have an is_active field
-            active_checkbox = modal.locator(
-                "input[name='is_active'], input[type='checkbox']"
-            ).first
+            # Find and check the "Active" checkbox to reactivate
+            # The checkbox has id="is_active"
+            active_checkbox = modal.locator("#is_active")
             expect(active_checkbox).to_be_visible()
 
             # If it's unchecked (inactive), check it to activate
             if not active_checkbox.is_checked():
                 active_checkbox.check()
 
-            # Submit the form
-            submit_button = modal.locator(
-                "button[type='submit'], button:has-text('Save')"
-            ).first
+            # Submit the form - the button says "Update Item" when editing
+            submit_button = modal.locator("button[type='submit']")
             submit_button.click()
 
-            # Wait for modal to close
-            expect(modal).to_be_hidden(timeout=10000)
+            # Wait for modal to close - it closes after successful save
+            expect(modal).to_be_hidden(timeout=15000)
 
-            # Wait for the data to refresh after save
-            page.wait_for_timeout(500)  # Brief wait for API response
+            # Wait for the page to refresh with new data
+            page.wait_for_timeout(1000)
 
             # Verify the slide now shows as "Active"
             slide_row = page.locator("tr", has_text="Slide To Reactivate")
-            active_badge = slide_row.locator(".badge", has_text="Active")
+            expect(slide_row).to_be_visible(timeout=5000)
+            active_badge = slide_row.locator(".badge.bg-success", has_text="Active")
             expect(active_badge).to_be_visible()
 
             # Also verify via API that the slide is now active
-            get_response = http_client.get(
-                f"/api/v1/slideshow-items/{slide_id}",
+            # We need to get all items from the slideshow and find our item
+            items_response = http_client.get(
+                f"/api/v1/slideshows/{slideshow_id}/items?include_inactive=true",
                 headers=auth_headers,
             )
-            assert get_response.status_code == 200
-            updated_slide = get_response.json().get("data", get_response.json())
+            assert items_response.status_code == 200
+            items_data = items_response.json().get("data", items_response.json())
+            updated_slide = next(
+                (item for item in items_data if item["id"] == slide_id), None
+            )
+            assert updated_slide is not None
             assert updated_slide["is_active"] is True
 
         finally:
