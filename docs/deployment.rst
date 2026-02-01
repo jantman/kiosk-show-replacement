@@ -10,6 +10,17 @@ using Docker.
 
    For local development setup without Docker, see :doc:`development`.
 
+System Requirements
+-------------------
+
+* Docker Engine 20.10 or higher
+* Docker Compose 2.0 or higher
+* 512MB+ RAM (1GB+ recommended)
+* 1GB+ disk space
+
+The application supports both x86_64 and ARM64 architectures, including
+Raspberry Pi 4 and newer.
+
 Docker Deployment
 -----------------
 
@@ -68,6 +79,27 @@ Quick Start
       docker-compose -f docker-compose.prod.yml --env-file .env up -d
 
 6. Access the application at http://localhost:5000/admin
+
+Verifying Installation
+~~~~~~~~~~~~~~~~~~~~~~
+
+Check the application health:
+
+.. code-block:: bash
+
+   curl http://localhost:5000/health
+
+Check container status:
+
+.. code-block:: bash
+
+   docker-compose -f docker-compose.prod.yml ps
+
+View logs:
+
+.. code-block:: bash
+
+   docker-compose -f docker-compose.prod.yml logs -f app
 
 Development with Docker
 ~~~~~~~~~~~~~~~~~~~~~~~
