@@ -2729,9 +2729,10 @@ class TestSkeddaCalendarDisplay:
             },
             headers=auth_headers,
         )
-        assert slideshow_response.status_code in [200, 201], (
-            f"Failed to create slideshow: {slideshow_response.text}"
-        )
+        assert slideshow_response.status_code in [
+            200,
+            201,
+        ], f"Failed to create slideshow: {slideshow_response.text}"
         slideshow_data = slideshow_response.json().get(
             "data", slideshow_response.json()
         )
@@ -2746,9 +2747,10 @@ class TestSkeddaCalendarDisplay:
             },
             headers=auth_headers,
         )
-        assert display_response.status_code in [200, 201], (
-            f"Failed to create display: {display_response.text}"
-        )
+        assert display_response.status_code in [
+            200,
+            201,
+        ], f"Failed to create display: {display_response.text}"
         display_data = display_response.json().get("data", display_response.json())
         display_id = display_data["id"]
 
@@ -2827,9 +2829,9 @@ class TestSkeddaCalendarDisplay:
             json={"slideshow_id": slideshow_id},
             headers=auth_headers,
         )
-        assert assign_response.status_code == 200, (
-            f"Failed to assign slideshow: {assign_response.text}"
-        )
+        assert (
+            assign_response.status_code == 200
+        ), f"Failed to assign slideshow: {assign_response.text}"
 
         yield {
             "feed": feed,
