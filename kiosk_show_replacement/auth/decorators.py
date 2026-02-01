@@ -11,7 +11,7 @@ This module provides decorators and utilities for:
 from functools import wraps
 from typing import Any, Callable, Optional, cast
 
-from flask import current_app, g, redirect, request, session
+from flask import current_app, g, redirect, request, session, url_for
 
 from ..app import db
 from ..models import User
@@ -31,7 +31,7 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not is_authenticated():
-            return redirect("/admin/")
+            return redirect(url_for("serve_admin"))
         return f(*args, **kwargs)
 
     return decorated_function
@@ -51,7 +51,7 @@ def admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not is_authenticated():
-            return redirect("/admin/")
+            return redirect(url_for("serve_admin"))
 
         if not is_admin():
             current_app.logger.warning(
