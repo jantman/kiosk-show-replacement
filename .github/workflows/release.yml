@@ -123,6 +123,11 @@ jobs:
             org.opencontainers.image.version=${{ needs.check-version.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=MIT
+            com.github.actions.workflow=${{ github.workflow }}
+            com.github.actions.run-id=${{ github.run_id }}
+            com.github.actions.run-number=${{ github.run_number }}
+            com.github.actions.run-attempt=${{ github.run_attempt }}
+            com.github.actions.run-url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.check-version.outputs.version }}
             ghcr.io/${{ github.repository }}:latest
