@@ -23,14 +23,11 @@ def index() -> Any:
     Application home page.
 
     Returns:
-        Response: Redirect to dashboard if authenticated, otherwise login
+        Response: Redirect to React admin interface
     """
-    from ..auth.decorators import is_authenticated
-
-    if is_authenticated():
-        return redirect(url_for("main.dashboard"))
-    else:
-        return redirect(url_for("auth.login"))
+    # Always redirect to React admin interface
+    # React handles authentication state and shows login if needed
+    return redirect(url_for("serve_admin"))
 
 
 @bp.route("/dashboard")
