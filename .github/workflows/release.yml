@@ -8,6 +8,7 @@
 #    and reusable workflows" is selected.
 # 2. Under "Workflow permissions", ensure "Read and write permissions" is checked
 #    to allow creating releases and pushing to ghcr.io.
+# 3. In repository Settings -> Pages, set "Source" to "GitHub Actions".
 
 name: Release
 
@@ -20,6 +21,8 @@ on:
 permissions:
   contents: write
   packages: write
+  pages: write
+  id-token: write
 
 jobs:
   check-version:
@@ -154,3 +157,44 @@ jobs:
             See the [Docker image on GitHub Packages](https://github.com/${{ github.repository }}/pkgs/container/kiosk-show-replacement).
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docs:
+    name: Build and Deploy Documentation
+    runs-on: ubuntu-latest
+    # Deploy docs on every push to main, not just releases
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: |
+          poetry install
+          poetry run pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints
+
+      - name: Build Sphinx documentation
+        run: |
+          cd docs
+          poetry run sphinx-build -b html . _build/html
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/_build/html
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
