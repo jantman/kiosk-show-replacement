@@ -85,8 +85,8 @@ describe('Login', () => {
       expect(screen.getByRole('heading', { name: /kiosk show replacement/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByPlaceholderText(/enter any username/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/enter any password/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter your username/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
@@ -101,11 +101,11 @@ describe('Login', () => {
 
     // Wait for health check to complete
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/enter any username/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/enter your username/i)).toBeInTheDocument();
     });
 
-    const usernameInput = screen.getByPlaceholderText(/enter any username/i);
-    const passwordInput = screen.getByPlaceholderText(/enter any password/i);
+    const usernameInput = screen.getByPlaceholderText(/enter your username/i);
+    const passwordInput = screen.getByPlaceholderText(/enter your password/i);
     const submitButton = screen.getByRole('button', { name: /sign in/i });
 
     await user.type(usernameInput, 'testuser');
