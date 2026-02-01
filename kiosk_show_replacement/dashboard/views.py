@@ -14,6 +14,7 @@ from flask import (
     flash,
     redirect,
     render_template,
+    url_for,
 )
 from sqlalchemy import text
 from sqlalchemy.orm import joinedload
@@ -45,7 +46,7 @@ def index() -> Union[str, Response]:
     """
     current_user = get_current_user()
     if not current_user:
-        return redirect("/admin/")
+        return redirect(url_for("serve_admin"))
 
     # Get dashboard statistics
     try:
