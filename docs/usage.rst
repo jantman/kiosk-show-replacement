@@ -53,15 +53,10 @@ After logging in as admin, you should:
 * Update email address
 * Change password (requires current password)
 
-Management Interface (Legacy)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The legacy management interface is available at the root URL (e.g., ``http://localhost:5000``).
-
 Creating Slideshows
-~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~
 
-1. Navigate to the main page
+1. Navigate to the admin interface at ``/admin``
 2. Click "Create New Slideshow"
 3. Enter a name and description
 4. Add slides with images, videos, or web content
@@ -111,10 +106,6 @@ older codecs), you can convert it using FFmpeg:
 
    # Convert to WebM (VP9)
    ffmpeg -i input.avi -c:v libvpx-vp9 -c:a libopus output.webm
-
-**Note:** The server requires ``ffprobe`` (part of FFmpeg) to be installed for
-video codec validation. If ffprobe is not available, the server will allow
-uploads but cannot guarantee browser compatibility.
 
 Text Slide Formatting
 ~~~~~~~~~~~~~~~~~~~~~
@@ -171,153 +162,19 @@ The Skedda calendar slide type displays reservations from a Skedda booking syste
 * Auto-refresh: calendar data is refreshed each time the slide becomes active
 * Visual distinction between regular and recurring events (gray background)
 
-**External Refresh Scheduling:**
-
-For environments requiring proactive feed updates (rather than lazy refresh when
-slides are viewed), an API endpoint is available for external scheduling tools:
-
-.. code-block:: bash
-
-   # Refresh all ICS feeds (requires authentication)
-   # First, login to get a session cookie:
-   curl -c cookies.txt -X POST http://localhost:5000/api/v1/auth/login \
-        -H "Content-Type: application/json" \
-        -d '{"username": "admin", "password": "yourpassword"}'
-
-   # Then use the cookie to call the refresh endpoint:
-   curl -b cookies.txt -X POST http://localhost:5000/api/v1/ical-feeds/refresh
-
-This endpoint requires authentication and can be called from cron jobs, systemd
-timers, or other scheduling systems to ensure calendar data is always current.
-Store credentials securely when automating these calls.
-
 Kiosk Display Mode
 ~~~~~~~~~~~~~~~~~~
 
-Access the full-screen kiosk display at ``/display/<slideshow_id>``:
+Access the full-screen kiosk display at ``/display/<display-name>``:
 
 * Full-screen slideshow display
 * Automatic slide transitions
 * Touch/click navigation
 * Keyboard controls (space bar, arrow keys)
 
-REST API
---------
+Programmatic Access
+-------------------
 
-The application provides a complete REST API for programmatic access.
-
-Slideshow Endpoints
-~~~~~~~~~~~~~~~~~~~
-
-.. http:get:: /api/slideshows
-
-   Get all slideshows
-
-   **Response:**
-
-   .. code-block:: json
-
-      [
-        {
-          "id": 1,
-          "name": "My Slideshow",
-          "description": "A sample slideshow",
-          "created_at": "2024-01-01T12:00:00Z",
-          "slides": [...]
-        }
-      ]
-
-.. http:post:: /api/slideshows
-
-   Create a new slideshow
-
-   **Request:**
-
-   .. code-block:: json
-
-      {
-        "name": "New Slideshow",
-        "description": "Description here"
-      }
-
-.. http:get:: /api/slideshows/(int:id)
-
-   Get a specific slideshow
-
-.. http:put:: /api/slideshows/(int:id)
-
-   Update a slideshow
-
-.. http:delete:: /api/slideshows/(int:id)
-
-   Delete a slideshow
-
-Slide Endpoints
-~~~~~~~~~~~~~~~
-
-.. http:get:: /api/slideshows/(int:slideshow_id)/slides
-
-   Get all slides for a slideshow
-
-.. http:post:: /api/slideshows/(int:slideshow_id)/slides
-
-   Add a new slide to a slideshow
-
-   **Request:**
-
-   .. code-block:: json
-
-      {
-        "content_type": "image",
-        "content_url": "https://example.com/image.jpg",
-        "title": "Slide Title",
-        "duration": 5000,
-        "order": 1
-      }
-
-.. http:get:: /api/slides/(int:id)
-
-   Get a specific slide
-
-.. http:put:: /api/slides/(int:id)
-
-   Update a slide
-
-.. http:delete:: /api/slides/(int:id)
-
-   Delete a slide
-
-Command Line Interface
-----------------------
-
-The application includes several CLI commands.
-
-**Important**: First activate your Poetry environment in any new terminal session:
-
-.. code-block:: bash
-
-   eval $(poetry env activate)
-
-Database Management
-~~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   # Initialize database (creates admin user with default credentials)
-   FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
-   # Default credentials: admin / admin
-
-   # To reset the database, delete the database file and re-initialize
-   rm kiosk_show.db
-   FLASK_APP=kiosk_show_replacement.app poetry run flask cli init-db
-
-Development Server
-~~~~~~~~~~~~~~~~~~
-
-.. code-block:: bash
-
-   # Run development server
-   kiosk-show --debug
-
-   # Run on specific host/port
-   kiosk-show --host 0.0.0.0 --port 8080
+For programmatic management of slideshows, displays, and other resources,
+the application provides a complete REST API. See :doc:`api` for full
+API documentation including authentication, endpoints, and examples.
