@@ -29,36 +29,30 @@
                             <label for="username" class="form-label">
                                 <i class="fas fa-user me-1"></i>Username
                             </label>
-                            <input 
-                                type="text" 
-                                class="form-control" 
-                                id="username" 
-                                name="username" 
+                            <input
+                                type="text"
+                                class="form-control"
+                                id="username"
+                                name="username"
                                 required
                                 autofocus
-                                placeholder="Enter any username"
+                                placeholder="Username"
                                 value="{{ request.form.get('username', '') }}"
                             >
-                            <div class="form-text">
-                                Any username is accepted - new users will be created automatically.
-                            </div>
                         </div>
 
                         <div class="mb-3">
                             <label for="password" class="form-label">
                                 <i class="fas fa-lock me-1"></i>Password
                             </label>
-                            <input 
-                                type="password" 
-                                class="form-control" 
-                                id="password" 
-                                name="password" 
+                            <input
+                                type="password"
+                                class="form-control"
+                                id="password"
+                                name="password"
                                 required
-                                placeholder="Enter any password"
+                                placeholder="Password"
                             >
-                            <div class="form-text">
-                                Any password is accepted for development/testing purposes.
-                            </div>
                         </div>
 
                         <div class="d-grid">
@@ -67,12 +61,6 @@
                             </button>
                         </div>
                     </form>
-                </div>
-                <div class="card-footer text-center text-muted">
-                    <small>
-                        <i class="fas fa-info-circle me-1"></i>
-                        Development Mode: Permissive Authentication
-                    </small>
                 </div>
             </div>
         </div>
