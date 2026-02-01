@@ -38,9 +38,6 @@ poetry run -- nox -s type_check
 
 # Integration tests (React + Flask with Playwright)
 poetry run -- nox -s test-integration
-
-# E2E tests (Flask-rendered pages with Playwright)
-poetry run -- nox -s test-e2e
 ```
 
 ### Frontend (React/TypeScript)
@@ -157,7 +154,6 @@ npm run build
 ### Testing Structure (`tests/`)
 - **unit/**: Backend unit tests (pytest)
 - **integration/**: React frontend + Flask backend tests (Playwright)
-- **e2e/**: Flask server-rendered page tests (Playwright)
 
 ## Key Rules
 
@@ -177,9 +173,8 @@ npm run build
 |---------|---------|----------|
 | `test-3.14` | Backend unit tests | `tests/unit/` |
 | `test-integration` | React + Flask through browser | `tests/integration/` |
-| `test-e2e` | Flask templates through browser | `tests/e2e/` |
 
-Integration tests require the React admin interface; E2E tests are for traditional Flask pages.
+Integration tests require the React admin interface to be built (`npm run build` in frontend/).
 
 ### Test Database Isolation
 
@@ -187,7 +182,6 @@ Integration tests require the React admin interface; E2E tests are for tradition
 
 - **Unit tests**: Use a temporary SQLite database in pytest's temp directory
 - **Integration tests**: Use a separate temporary database with `DATABASE_URL` override
-- **E2E tests**: Use a separate temporary database
 
 All test databases are automatically created and destroyed during test runs. Your development database at `instance/kiosk_show_dev.db` is never touched by tests.
 

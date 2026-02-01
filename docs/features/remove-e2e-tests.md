@@ -113,4 +113,6 @@ Completely remove all e2e test infrastructure.
 
 ## Progress Log
 
-*(To be updated as implementation proceeds)*
+### 2026-02-01: Milestone 1 Complete
+- [x] **Task 1.1**: Added `TestSkeddaCalendarDisplay` class with 5 tests to `tests/integration/test_display_playback.py`
+- [x] **Task 1.2**: All 5 migrated tests pass (135 integration tests total)

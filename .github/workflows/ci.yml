@@ -1,7 +1,7 @@
 # CI Workflow for kiosk-show-replacement
 #
 # Runs on pull requests and manual dispatch.
-# Tests Python backend, TypeScript frontend, and browser-based integration/e2e tests.
+# Tests Python backend, TypeScript frontend, and browser-based integration tests.
 
 name: CI
 
@@ -160,54 +160,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results-integration
-          path: |
-            reports/
-            test-results/
-
-  # E2E tests (Flask server-rendered pages through browser)
-  test-e2e:
-    name: E2E Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python 3.14
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.14"
-
-      - name: Set up Node.js 25
-        uses: actions/setup-node@v4
-        with:
-          node-version: "25"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install tools
-        run: |
-          pip install --upgrade pip
-          pip install nox poetry
-
-      - name: Build frontend
-        working-directory: frontend
-        run: |
-          npm ci
-          npm run build
-
-      - name: Install Playwright browsers
-        run: |
-          pip install playwright
-          playwright install chromium --with-deps
-
-      - name: Run E2E tests
-        run: nox -s test-e2e
-
-      - name: Upload test artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-e2e
           path: |
             reports/
             test-results/

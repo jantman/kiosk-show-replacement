@@ -73,7 +73,7 @@ def resource():
     cleanup_resource(data)
 ```
 
-## Testing Session Distinctions
+## Testing
 
 ### test-integration Session
 - **Purpose**: Full-stack React frontend + Flask backend integration testing
@@ -87,22 +87,4 @@ def resource():
   - Real-time features (SSE) in React admin interface
   - Frontend-backend data synchronization
   - Complete user journeys (login → dashboard → management)
-
-### test-e2e Session  
-- **Purpose**: Flask server-rendered pages testing (traditional web)
-- **Technology**: Playwright browser automation with Flask server only
-- **Test Location**: `tests/e2e/`
-- **What it tests**: Traditional Flask Jinja2 templates and server-side functionality
-- **Server Setup**: Starts only Flask server with template rendering
-- **Use Cases**:
-  - Basic server access and template rendering
-  - Traditional Flask form submission
-  - Server-side authentication workflows
-  - Non-React page functionality
-  - Flask route navigation and error handling
-
-### Key Distinction Rule
-- **Integration tests** = React frontend + Flask backend integration
-- **E2E tests** = Flask backend only (traditional web pages)
-- **SSE functionality** belongs in integration tests (React admin interface feature)
-- **Basic server access** belongs in E2E tests (fundamental Flask functionality)
+  - Kiosk display page rendering (including Skedda calendars)

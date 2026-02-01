@@ -104,11 +104,8 @@ Then run the development commands:
    # Run integration tests
    nox -s test-integration
 
-   # Run end-to-end tests with Playwright
-   nox -s test-e2e
-
-   # Run all tests with coverage
-   nox -s test-all
+   # Run all tests
+   nox -s test-comprehensive
 
    # Build documentation
    nox -s docs
@@ -150,11 +147,10 @@ Configuration files:
 Testing
 -------
 
-The project uses pytest for testing with three types of tests:
+The project uses pytest for testing with two types of tests:
 
 1. **Unit Tests** (``tests/unit/``): Test individual functions and classes in isolation
 2. **Integration Tests** (``tests/integration/``): Full-stack browser tests of React frontend + Flask backend
-3. **End-to-End Tests** (``tests/e2e/``): Browser tests of Flask server-rendered pages
 
 **Important**: First activate your Poetry environment in any new terminal session:
 
@@ -246,91 +242,6 @@ Integration tests require a system-installed Chrome or Chromium browser and Node
 * ``/usr/bin/google-chrome`` (Alternative Chrome location)
 * ``/usr/bin/chromium`` (Chromium on Arch/Fedora)
 
-End-to-End Tests
-~~~~~~~~~~~~~~~~
-
-Located in ``tests/e2e/``, these test complete user workflows using Playwright browser automation with a live Flask server (backend-only, no React frontend).
-
-**What E2E Tests Cover:**
-
-* **Flask Server Testing**: Tests run against a live Flask server instance with traditional Jinja2 templates
-* **Browser Automation**: Use Playwright to control a real Chromium browser
-* **Server-Rendered Pages**: Test traditional Flask views and forms (non-React pages)
-* **Basic User Interactions**: Click buttons, fill forms, navigate pages like a real user
-* **Authentication Workflows**: Complete login/logout cycles using Flask's built-in auth
-* **Cross-page Navigation**: Verify navigation between different Flask template pages
-* **Visual Verification**: Screenshots and videos captured on test failures
-
-**Key Characteristics:**
-
-* Use Playwright to control a real browser (Chromium)
-* Test against a live Flask server with server-rendered templates
-* Focus on traditional Flask web pages (not the React admin interface)
-* Verify backend-only workflows and basic web functionality
-* Include visual feedback (screenshots/videos on failure)
-* Test browser behavior for server-rendered content
-
-**Examples:**
-
-* Basic server access and Flask template rendering
-* Traditional Flask form submission and validation
-* Server-side authentication and session management
-* Flask route navigation and error handling
-
-.. code-block:: bash
-
-   nox -s test-e2e
-
-**System Requirements for E2E Tests:**
-
-E2E tests require a system-installed Chrome or Chromium browser. The test framework 
-automatically detects and uses the first available browser from these common locations:
-
-* ``/usr/bin/google-chrome-stable`` (Google Chrome on most Linux distributions)
-* ``/usr/bin/chromium-browser`` (Chromium on Ubuntu/Debian)
-* ``/usr/bin/google-chrome`` (Alternative Chrome location)
-* ``/usr/bin/chromium`` (Chromium on Arch/Fedora)
-
-**Installing Chrome/Chromium:**
-
-.. code-block:: bash
-
-   # ArchLinux
-   sudo pacman -S google-chrome
-   # or
-   sudo pacman -S chromium
-   
-   # Ubuntu/Debian
-   sudo apt install google-chrome-stable
-   # or 
-   sudo apt install chromium-browser
-   
-   # Fedora
-   sudo dnf install google-chrome-stable
-   # or
-   sudo dnf install chromium
-
-**E2E Test Configuration:**
-
-E2E tests use Playwright with the following default settings:
-
-* **Browser**: Chromium (headless by default)
-* **Screenshots**: Captured only on test failures
-* **Videos**: Recorded and retained only on test failures
-* **Live Server**: Automatic Flask server startup for testing
-
-**Running E2E Tests in Headed Mode:**
-
-For development and debugging, you can run tests with a visible browser:
-
-.. code-block:: bash
-
-   # Set environment variable for headed mode
-   PLAYWRIGHT_HEADED=1 nox -s test-e2e
-   
-   # Or run specific tests
-   nox -s test-e2e -- --headed -k "test_login"
-
 **Debugging Integration Test Failures:**
 
 When integration tests fail, several debugging resources are automatically generated:
@@ -400,16 +311,15 @@ Test Type Summary
 
 * **Unit Tests** (``nox -s test``): Testing individual functions, classes, or small components in isolation. Fast and focused.
 * **Integration Tests** (``nox -s test-integration``): Testing the complete React + Flask application stack through a real browser. Use for validating user experiences and frontend-backend integration.
-* **E2E Tests** (``nox -s test-e2e``): Testing Flask server-rendered pages (non-React) through a browser. Use for basic server functionality and traditional web page testing.
 
-**Test execution speed:** Unit < E2E < Integration (Integration tests are slowest due to starting both servers)
+**Test execution speed:** Unit < Integration (Integration tests are slowest due to starting both servers)
 
 Troubleshooting Browser Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Playwright Browser Dependencies on Arch Linux**
 
-Playwright browser tests (both integration and E2E) may encounter issues on Arch Linux due to browser dependency conflicts. This section documents the successful solution.
+Playwright browser tests (integration tests) may encounter issues on Arch Linux due to browser dependency conflicts. This section documents the successful solution.
 
 **Problem:** Playwright fails with browser executable errors:
 
@@ -507,57 +417,17 @@ After configuration, verify browser tests work:
 **Success Indicators:**
 
 * No more "Executable doesn't exist" errors
-* Browser tests launch Chrome successfully  
+* Browser tests launch Chrome successfully
 * Tests can navigate to React frontend and Flask backend
 * Screenshots and videos are captured properly on test failures
 
 **What This Solution Provides:**
 
-* ✅ **Browser tests work on Arch Linux** 
+* ✅ **Browser tests work on Arch Linux**
 * ✅ **Uses stable, system-managed Chrome**
 * ✅ **No global system modifications required**
 * ✅ **Easy to maintain and update**
 * ✅ **Works with automatic browser updates**
-
-Testing Session Distinctions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-**test-integration Session**
-
-* **Purpose**: Full-stack React frontend + Flask backend integration testing
-* **Technology**: Playwright browser automation with dual server setup
-* **Test Location**: ``tests/integration/``
-* **What it tests**: Complete user workflows through React admin interface
-* **Server Setup**: Starts both Flask (backend) and Vite (frontend) servers
-* **Use Cases**:
-
-  - React component interaction with Flask APIs
-  - Authentication flows through React frontend
-  - Real-time features (SSE) in React admin interface
-  - Frontend-backend data synchronization
-  - Complete user journeys (login → dashboard → management)
-
-**test-e2e Session**
-
-* **Purpose**: Flask server-rendered pages testing (traditional web)
-* **Technology**: Playwright browser automation with Flask server only
-* **Test Location**: ``tests/e2e/``
-* **What it tests**: Traditional Flask Jinja2 templates and server-side functionality
-* **Server Setup**: Starts only Flask server with template rendering
-* **Use Cases**:
-
-  - Basic server access and template rendering
-  - Traditional Flask form submission
-  - Server-side authentication workflows
-  - Non-React page functionality
-  - Flask route navigation and error handling
-
-**Key Distinction Rules**
-
-* **Integration tests** = React frontend + Flask backend integration
-* **E2E tests** = Flask backend only (traditional web pages)
-* **SSE functionality** belongs in integration tests (React admin interface feature)
-* **Basic server access** belongs in E2E tests (fundamental Flask functionality)
 
 Project Structure
 -----------------
@@ -580,8 +450,7 @@ Project Structure
    │   └── utils/                    # Utility functions
    ├── tests/                        # Test suite
    │   ├── unit/                     # Unit tests
-   │   ├── integration/              # Integration tests
-   │   └── e2e/                      # End-to-end tests
+   │   └── integration/              # Integration tests
    ├── docs/                         # Documentation
    ├── scripts/                      # Utility scripts
    ├── noxfile.py                    # Development automation
