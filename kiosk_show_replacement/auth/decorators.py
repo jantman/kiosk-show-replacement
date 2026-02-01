@@ -11,7 +11,7 @@ This module provides decorators and utilities for:
 from functools import wraps
 from typing import Any, Callable, Optional, cast
 
-from flask import current_app, g, redirect, request, session, url_for
+from flask import current_app, g, redirect, request, session
 
 from ..app import db
 from ..models import User
