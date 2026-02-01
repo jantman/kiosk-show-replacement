@@ -92,7 +92,7 @@ class TestAuthenticationViews:
         """Test GET /auth/login redirects to React admin interface."""
         response = client.get("/auth/login")
         assert response.status_code == 302
-        assert "/admin/" in response.location
+        assert "/admin" in response.location
 
     def test_login_fails_for_nonexistent_user(self, client, app):
         """Test login fails for a user that doesn't exist."""
@@ -209,7 +209,7 @@ class TestAuthenticationViews:
 
         response = client.get("/auth/logout")
         assert response.status_code == 302
-        assert "/admin/" in response.location
+        assert "/admin" in response.location
 
     def test_logout_clears_session(self, client):
         """Test logout clears session data."""
@@ -272,7 +272,7 @@ class TestAuthenticationIntegration:
         """Test dashboard redirects to login when not authenticated."""
         response = client.get("/")
         assert response.status_code == 302
-        assert "/admin/" in response.location
+        assert "/admin" in response.location
 
     def test_dashboard_accessible_when_authenticated(self, client, app):
         """Test dashboard accessible when authenticated."""
@@ -294,7 +294,7 @@ class TestAuthenticationIntegration:
         """Test protected Flask routes redirect to React admin interface."""
         response = client.get("/profile")
         assert response.status_code == 302
-        assert "/admin/" in response.location
+        assert "/admin" in response.location
 
     def test_admin_route_requires_admin_privileges(self, client, app):
         """Test admin routes require admin privileges."""

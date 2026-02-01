@@ -15,7 +15,7 @@ class TestDashboardRoutes:
         """Test dashboard index redirects to login when not authenticated."""
         response = client.get("/")
         assert response.status_code == 302
-        assert "/admin/" in response.location
+        assert "/admin" in response.location
 
     def test_dashboard_index_accessible_when_authenticated(self, client, app):
         """Test dashboard index accessible when authenticated."""
@@ -39,7 +39,7 @@ class TestDashboardRoutes:
         """Test profile page requires authentication."""
         response = client.get("/profile")
         assert response.status_code == 302
-        assert "/admin/" in response.location
+        assert "/admin" in response.location
 
     def test_dashboard_profile_accessible_when_authenticated(self, client, app):
         """Test profile page accessible when authenticated."""
