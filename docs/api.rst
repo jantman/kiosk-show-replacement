@@ -14,7 +14,9 @@ Authentication
 
 **Session-based Authentication**: All protected routes use Flask sessions. Login via ``/auth/login`` (web) or ``/api/v1/auth/login`` (API).
 
-**Permissive Authentication**: Any username/password combination is accepted. Users are created automatically if they don't exist, and all users receive admin privileges.
+**User Management**: Users are created by administrators through the admin interface or API. Passwords are securely hashed using bcrypt. Users can be assigned admin privileges, which grants access to user management features.
+
+**Default Admin User**: On first run, a default admin user is created with username ``admin`` and password ``admin`` (or the value of ``KIOSK_ADMIN_PASSWORD`` environment variable). Change this password immediately in production.
 
 Standard Response Format
 ------------------------
@@ -435,8 +437,8 @@ API v1 Authentication
        "password": "string"
      }
 
-**Returns**: User object on success
-**Side Effects**: Creates user if not exists, establishes session
+**Returns**: User object on success, or 401 error if credentials are invalid
+**Side Effects**: Establishes session cookie on successful authentication
 
 ``GET /api/v1/auth/user``
 ~~~~~~~~~~~~~~~~~~~~~~~~~
