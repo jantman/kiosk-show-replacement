@@ -39,14 +39,14 @@ def index() -> Union[str, Response]:
     Main dashboard landing page.
 
     Displays system overview, recent activity, and navigation options.
-    Redirects to login if user is not authenticated.
+    Redirects to React admin interface if user is not authenticated.
 
     Returns:
         Union[str, Response]: Rendered template or redirect response
     """
     current_user = get_current_user()
     if not current_user:
-        return redirect(url_for("auth.login"))
+        return redirect("/admin/")
 
     # Get dashboard statistics
     try:

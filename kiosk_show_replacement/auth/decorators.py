@@ -31,7 +31,7 @@ def login_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not is_authenticated():
-            return redirect(url_for("auth.login", next=request.url))
+            return redirect("/admin/")
         return f(*args, **kwargs)
 
     return decorated_function
@@ -51,7 +51,7 @@ def admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         if not is_authenticated():
-            return redirect(url_for("auth.login", next=request.url))
+            return redirect("/admin/")
 
         if not is_admin():
             current_app.logger.warning(

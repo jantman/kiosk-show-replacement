@@ -88,11 +88,11 @@ class TestAuthenticationDecorators:
 class TestAuthenticationViews:
     """Test authentication views and login/logout functionality."""
 
-    def test_login_page_accessible(self, client):
-        """Test login page is accessible."""
+    def test_login_page_redirects_to_admin(self, client):
+        """Test GET /auth/login redirects to React admin interface."""
         response = client.get("/auth/login")
-        assert response.status_code == 200
-        assert b"Login" in response.data
+        assert response.status_code == 302
+        assert "/admin/" in response.location
 
     def test_login_fails_for_nonexistent_user(self, client, app):
         """Test login fails for a user that doesn't exist."""
@@ -200,16 +200,16 @@ class TestAuthenticationViews:
         assert response.status_code == 200
         assert b"Password is required" in response.data
 
-    def test_logout_redirects_to_login(self, client):
-        """Test logout redirects to login page."""
+    def test_logout_redirects_to_admin(self, client):
+        """Test logout redirects to React admin interface."""
         # First login
         with client.session_transaction() as sess:
             sess["user_id"] = 123
             sess["username"] = "testuser"
 
-        response = client.get("/auth/logout", follow_redirects=True)
-        assert response.status_code == 200
-        assert b"Login" in response.data
+        response = client.get("/auth/logout")
+        assert response.status_code == 302
+        assert "/admin/" in response.location
 
     def test_logout_clears_session(self, client):
         """Test logout clears session data."""
@@ -272,7 +272,7 @@ class TestAuthenticationIntegration:
         """Test dashboard redirects to login when not authenticated."""
         response = client.get("/")
         assert response.status_code == 302
-        assert "/auth/login" in response.location
+        assert "/admin/" in response.location
 
     def test_dashboard_accessible_when_authenticated(self, client, app):
         """Test dashboard accessible when authenticated."""
@@ -290,12 +290,11 @@ class TestAuthenticationIntegration:
         response = client.get("/")
         assert response.status_code == 200
 
-    def test_protected_route_preserves_next_parameter(self, client):
-        """Test login preserves next parameter for protected routes."""
+    def test_protected_route_redirects_to_admin(self, client):
+        """Test protected Flask routes redirect to React admin interface."""
         response = client.get("/profile")
         assert response.status_code == 302
-        assert "next=" in response.location
-        assert "/profile" in response.location
+        assert "/admin/" in response.location
 
     def test_admin_route_requires_admin_privileges(self, client, app):
         """Test admin routes require admin privileges."""

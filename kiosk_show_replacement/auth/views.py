@@ -44,80 +44,82 @@ def login() -> Any:
     """
     Handle user login with real authentication.
 
-    GET: Display login form
-    POST: Process login credentials (validates against database)
+    GET: Redirect to React admin interface (which handles login UI)
+    POST: Process login credentials (used by unit tests for session setup)
 
     Returns:
-        Response: Login form template or redirect to dashboard
+        Response: Redirect to /admin/ for GET, or process login for POST
     """
-    if request.method == "POST":
-        username = request.form.get("username", "").strip()
-        password = request.form.get("password", "")
+    # GET requests redirect to React login
+    if request.method == "GET":
+        return redirect("/admin/")
 
-        # Basic validation
-        if not username:
-            flash("Username is required", "error")
-            return render_template("auth/login.html")
+    # POST requests process login (for unit tests and backwards compatibility)
+    username = request.form.get("username", "").strip()
+    password = request.form.get("password", "")
 
-        if not password:
-            flash("Password is required", "error")
-            return render_template("auth/login.html")
+    # Basic validation
+    if not username:
+        flash("Username is required", "error")
+        return render_template("auth/login.html")
 
-        # Real authentication - validate credentials
-        try:
-            user = _authenticate_user(username, password)
-        except RuntimeError as e:
-            # Database initialization error
-            error_message = str(e)
-            flash(error_message, "error")
-            return render_template("auth/login.html")
+    if not password:
+        flash("Password is required", "error")
+        return render_template("auth/login.html")
 
-        if user is None:
-            # Authentication failed - invalid credentials
-            flash("Invalid username or password", "error")
-            return render_template("auth/login.html")
+    # Real authentication - validate credentials
+    try:
+        user = _authenticate_user(username, password)
+    except RuntimeError as e:
+        # Database initialization error
+        error_message = str(e)
+        flash(error_message, "error")
+        return render_template("auth/login.html")
 
-        if user == "inactive":
-            # User account is inactive
-            flash("Account is inactive. Please contact an administrator.", "error")
-            return render_template("auth/login.html")
+    if user is None:
+        # Authentication failed - invalid credentials
+        flash("Invalid username or password", "error")
+        return render_template("auth/login.html")
 
-        # At this point, user must be a User object (not None or "inactive")
-        # Type narrowing: cast to User for mypy
-        authenticated_user = cast(User, user)
+    if user == "inactive":
+        # User account is inactive
+        flash("Account is inactive. Please contact an administrator.", "error")
+        return render_template("auth/login.html")
 
-        # Authentication successful
-        authenticated_user.last_login_at = datetime.now(timezone.utc)
-        db.session.commit()
+    # At this point, user must be a User object (not None or "inactive")
+    # Type narrowing: cast to User for mypy
+    authenticated_user = cast(User, user)
 
-        # Set up session
-        session["user_id"] = authenticated_user.id
-        session["username"] = authenticated_user.username
-        session["is_admin"] = authenticated_user.is_admin
+    # Authentication successful
+    authenticated_user.last_login_at = datetime.now(timezone.utc)
+    db.session.commit()
 
-        current_app.logger.info(
-            "User login successful",
-            extra={
-                "user_id": authenticated_user.id,
-                "username": authenticated_user.username,
-                "action": "login",
-                "ip_address": request.remote_addr,
-            },
-        )
+    # Set up session
+    session["user_id"] = authenticated_user.id
+    session["username"] = authenticated_user.username
+    session["is_admin"] = authenticated_user.is_admin
 
-        flash(f"Welcome, {authenticated_user.username}!", "success")
+    current_app.logger.info(
+        "User login successful",
+        extra={
+            "user_id": authenticated_user.id,
+            "username": authenticated_user.username,
+            "action": "login",
+            "ip_address": request.remote_addr,
+        },
+    )
 
-        # Redirect to next page or dashboard
-        # Validate next_page to prevent open redirect attacks
-        next_page = request.args.get("next")
-        if next_page:
-            # Only allow relative URLs (starting with /) to prevent open redirects
-            # Also reject protocol-relative URLs (starting with //)
-            if next_page.startswith("/") and not next_page.startswith("//"):
-                return redirect(next_page)
-        return redirect(url_for("dashboard.index"))
+    flash(f"Welcome, {authenticated_user.username}!", "success")
 
-    return render_template("auth/login.html")
+    # Redirect to next page or dashboard
+    # Validate next_page to prevent open redirect attacks
+    next_page = request.args.get("next")
+    if next_page:
+        # Only allow relative URLs (starting with /) to prevent open redirects
+        # Also reject protocol-relative URLs (starting with //)
+        if next_page.startswith("/") and not next_page.startswith("//"):
+            return redirect(next_page)
+    return redirect(url_for("dashboard.index"))
 
 
 @bp.route("/logout")
@@ -146,7 +148,7 @@ def logout() -> Any:
         )
 
     flash("You have been logged out successfully.", "info")
-    return redirect(url_for("auth.login"))
+    return redirect("/admin/")
 
 
 @bp.route("/status")
