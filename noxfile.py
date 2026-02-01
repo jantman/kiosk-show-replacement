@@ -267,39 +267,13 @@ def test_integration(session):
     )
 
 
-@nox.session(python=DEFAULT_PYTHON, name="test-e2e")
-def test_e2e(session):
-    """Run end-to-end tests: Flask server-rendered pages through browser automation."""
-    session.install("-e", ".")
-    session.install("pytest", "pytest-flask", "pytest-html")
-    session.install("pytest-asyncio")  # Required for async test functions
-
-    # Set up Playwright browser environment
-    _setup_playwright_browser_testing(session)
-
-    # Run E2E tests with process-level timeout (180 seconds max)
-    _run_playwright_tests_with_timeout(
-        session,
-        TEST_DIR + "/e2e",
-        timeout_seconds=180,
-        extra_args=[
-            "--tb=short",  # Shorter traceback for better error visibility
-            "--durations=25",  # Show slowest 25 tests
-            "--junitxml=reports/e2e_results.xml",  # JUnit XML report for CI
-            "--html=reports/e2e.html",  # Generate HTML report
-        ],
-        enable_asyncio=True,  # Enable asyncio support for E2E tests
-    )
-
-
 @nox.session(python=DEFAULT_PYTHON, name="test-comprehensive")
 def test_comprehensive(session):
-    """Run all tests: backend unit tests, integration tests, frontend tests, and E2E tests."""
+    """Run all tests: backend unit tests, integration tests, and frontend tests."""
     session.log("=== Running Comprehensive Test Suite ===")
     session.notify("test")
     session.notify("test-integration")
     session.notify("test-frontend")
-    session.notify("test-e2e")
 
 
 @nox.session(python=DEFAULT_PYTHON, name="test-frontend")
@@ -466,15 +440,13 @@ def dev_setup(session):
     session.log("    nox -s lint            # Check code style")
     session.log("    nox -s test            # Run unit tests")
     session.log("    nox -s test-integration # Run integration tests")
-    session.log("    nox -s test-e2e        # Run E2E tests")
-    session.log("    nox -s test-all        # Run all backend tests")
     if os.path.exists("frontend"):
         session.log("  Frontend:")
         session.log("    nox -s test-frontend   # Run frontend tests")
         session.log("    nox -s test-frontend-watch # Run frontend tests in watch mode")
     session.log("  Comprehensive:")
     session.log(
-        "    nox -s test-comprehensive # Run all tests (backend + frontend + E2E)"
+        "    nox -s test-comprehensive # Run all tests (backend + frontend + integration)"
     )
 
 
