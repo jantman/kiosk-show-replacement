@@ -2679,3 +2679,375 @@ class TestDisplayPlayback:
                 f"/api/v1/slideshows/{slideshow_id}",
                 headers=auth_headers,
             )
+
+
+@pytest.mark.integration
+@pytest.mark.skipif(
+    os.getenv("SKIP_BROWSER_TESTS", "false").lower() == "true",
+    reason="Browser tests skipped",
+)
+class TestSkeddaCalendarDisplay:
+    """Test Skedda calendar display rendering on kiosk display page.
+
+    These tests verify that the Skedda calendar slide type correctly renders
+    calendar data on the kiosk display page, including the calendar grid,
+    events, space columns, and recurring event styling.
+    """
+
+    @pytest.fixture
+    def skedda_test_data(self, db_session, http_client, auth_headers):
+        """Create test data for Skedda calendar display tests.
+
+        Creates an ICalFeed, ICalEvents, Slideshow with Skedda item, and Display.
+
+        IMPORTANT: API calls and db_session operations must be carefully ordered
+        to avoid SQLite database locks. We create slideshow/display via API first,
+        then do all db_session work and commit in one transaction.
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from kiosk_show_replacement.models import (
+            Display,
+            ICalEvent,
+            ICalFeed,
+            Slideshow,
+            SlideshowItem,
+        )
+
+        # Use unique ID for this test run
+        unique_id = int(time.time() * 1000)
+
+        # Step 1: Create slideshow and display via API FIRST
+        # (no db_session transaction active yet to avoid locks)
+        slideshow_response = http_client.post(
+            "/api/v1/slideshows",
+            json={
+                "name": f"Skedda Test Slideshow {unique_id}",
+                "description": "Slideshow with Skedda calendar for testing",
+                "default_item_duration": 30,
+                "is_active": True,
+            },
+            headers=auth_headers,
+        )
+        assert slideshow_response.status_code in [200, 201], (
+            f"Failed to create slideshow: {slideshow_response.text}"
+        )
+        slideshow_data = slideshow_response.json().get(
+            "data", slideshow_response.json()
+        )
+        slideshow_id = slideshow_data["id"]
+
+        display_name = f"skedda-test-display-{unique_id}"
+        display_response = http_client.post(
+            "/api/v1/displays",
+            json={
+                "name": display_name,
+                "description": "Display for Skedda calendar testing",
+            },
+            headers=auth_headers,
+        )
+        assert display_response.status_code in [200, 201], (
+            f"Failed to create display: {display_response.text}"
+        )
+        display_data = display_response.json().get("data", display_response.json())
+        display_id = display_data["id"]
+
+        # Step 2: Now do all db_session work and commit immediately
+        # Create ICalFeed
+        feed = ICalFeed(
+            url=f"https://test.skedda.com/ical/test-feed-{unique_id}.ics",
+            last_fetched=datetime.now(timezone.utc),
+            last_error=None,
+        )
+        db_session.add(feed)
+        db_session.flush()
+
+        # Create test events for today (use UTC to match API behavior)
+        today = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        events = [
+            ICalEvent(
+                feed_id=feed.id,
+                uid=f"event-1-{unique_id}",
+                summary="Alice: Laser Cutting",
+                description="Laser workshop",
+                start_time=today + timedelta(hours=10),
+                end_time=today + timedelta(hours=12),
+                resources='["Glowforge Laser Cutter"]',
+                attendee_name="Alice",
+                attendee_email="alice@example.com",
+            ),
+            ICalEvent(
+                feed_id=feed.id,
+                uid=f"event-2-{unique_id}",
+                summary="Bob: CNC Project",
+                description="Custom parts",
+                start_time=today + timedelta(hours=14),
+                end_time=today + timedelta(hours=16),
+                resources='["CNC Milling Machine"]',
+                attendee_name="Bob",
+                attendee_email="bob@example.com",
+            ),
+            ICalEvent(
+                feed_id=feed.id,
+                uid=f"event-3-{unique_id}",
+                summary="Open Build Night",
+                description="Open Build Night",
+                start_time=today + timedelta(hours=18),
+                end_time=today + timedelta(hours=21),
+                resources='["Glowforge Laser Cutter", "CNC Milling Machine"]',
+                attendee_name=None,  # No attendee for recurring/group events
+                attendee_email=None,
+            ),
+        ]
+        for event in events:
+            db_session.add(event)
+
+        # Create skedda slideshow item linking slideshow to the feed
+        skedda_item = SlideshowItem(
+            slideshow_id=slideshow_id,
+            title="Equipment Calendar",
+            content_type="skedda",
+            ical_feed_id=feed.id,
+            ical_refresh_minutes=15,
+            order_index=0,
+            is_active=True,
+            display_duration=30,
+        )
+        db_session.add(skedda_item)
+
+        # Commit all db_session changes
+        db_session.commit()
+
+        # Step 3: Assign slideshow to display via API
+        # (db_session transaction is now complete)
+        assign_response = http_client.post(
+            f"/api/v1/displays/{display_name}/assign-slideshow",
+            json={"slideshow_id": slideshow_id},
+            headers=auth_headers,
+        )
+        assert assign_response.status_code == 200, (
+            f"Failed to assign slideshow: {assign_response.text}"
+        )
+
+        yield {
+            "feed": feed,
+            "events": events,
+            "slideshow_id": slideshow_id,
+            "slideshow_item": skedda_item,
+            "display_id": display_id,
+            "display_name": display_name,
+        }
+
+        # Cleanup
+        try:
+            http_client.delete(
+                f"/api/v1/displays/{display_id}",
+                headers=auth_headers,
+            )
+        except Exception:
+            pass
+
+        try:
+            http_client.delete(
+                f"/api/v1/slideshows/{slideshow_id}",
+                headers=auth_headers,
+            )
+        except Exception:
+            pass
+
+        # Clean up database records
+        try:
+            db_session.query(ICalEvent).filter(ICalEvent.feed_id == feed.id).delete()
+            db_session.query(ICalFeed).filter(ICalFeed.id == feed.id).delete()
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
+
+    def test_skedda_calendar_renders_grid(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        skedda_test_data: dict,
+    ):
+        """Test that Skedda calendar slide renders the calendar grid.
+
+        Verifies:
+        1. Calendar container is present
+        2. Date header is displayed
+        3. Space headers are shown
+        4. Time slots are rendered
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+        display_name = skedda_test_data["display_name"]
+
+        # Navigate to the display page
+        page.goto(f"{flask_url}/display/{display_name}")
+        page.wait_for_load_state("load")
+
+        # Verify the skedda calendar container appears
+        calendar = page.locator(".skedda-calendar")
+        expect(calendar).to_be_visible(timeout=10000)
+
+        # Verify the date header is present
+        date_header = page.locator(".skedda-date-header")
+        expect(date_header).to_be_visible()
+        date_text = date_header.inner_text()
+        assert len(date_text) > 0, "Date header should have text"
+
+        # Verify space headers are rendered
+        space_headers = page.locator(".skedda-space-header")
+        expect(space_headers.first).to_be_visible(timeout=5000)
+
+        # Verify time slots are rendered
+        time_slots = page.locator(".skedda-time-slot")
+        expect(time_slots.first).to_be_visible()
+
+    def test_skedda_calendar_displays_events(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        skedda_test_data: dict,
+    ):
+        """Test that Skedda calendar displays event blocks.
+
+        Verifies:
+        1. Event elements are rendered
+        2. Event person name is displayed
+        3. Event has text content
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+        display_name = skedda_test_data["display_name"]
+
+        # Navigate to the display page
+        page.goto(f"{flask_url}/display/{display_name}")
+        page.wait_for_load_state("load")
+
+        # Wait for calendar to load
+        calendar = page.locator(".skedda-calendar")
+        expect(calendar).to_be_visible(timeout=10000)
+
+        # Wait for events to be rendered
+        event_elements = page.locator(".skedda-event")
+        expect(event_elements.first).to_be_visible(timeout=10000)
+
+        # Verify at least one event is displayed
+        event_count = event_elements.count()
+        assert event_count >= 1, f"Expected at least 1 event, found {event_count}"
+
+        # Check that event content is present (person name or description)
+        event_person = page.locator(".skedda-event-person")
+        expect(event_person.first).to_be_visible()
+
+        # Verify event has text content
+        first_event_text = event_person.first.inner_text()
+        assert len(first_event_text) > 0, "Event should have person name or description"
+
+    def test_skedda_calendar_space_columns(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        skedda_test_data: dict,
+    ):
+        """Test that Skedda calendar displays correct space columns.
+
+        Verifies that space headers match the equipment/resources from events.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+        display_name = skedda_test_data["display_name"]
+
+        # Navigate to the display page
+        page.goto(f"{flask_url}/display/{display_name}")
+        page.wait_for_load_state("load")
+
+        # Wait for calendar to load
+        calendar = page.locator(".skedda-calendar")
+        expect(calendar).to_be_visible(timeout=10000)
+
+        # Get all space headers
+        space_headers = page.locator(".skedda-space-header")
+        expect(space_headers.first).to_be_visible(timeout=10000)
+
+        # Collect space names
+        header_count = space_headers.count()
+        space_names = []
+        for i in range(header_count):
+            space_names.append(space_headers.nth(i).inner_text())
+
+        # Should have at least 2 spaces (from our test events)
+        assert len(space_names) >= 2, f"Expected at least 2 spaces, found {space_names}"
+
+        # Check that expected spaces are present
+        all_text = " ".join(space_names)
+        assert (
+            "Glowforge" in all_text or "CNC" in all_text
+        ), f"Expected equipment names in headers, got: {space_names}"
+
+    def test_skedda_calendar_shows_recurring_events_differently(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        skedda_test_data: dict,
+    ):
+        """Test that recurring/group events (no person name) are styled differently.
+
+        The 'Open Build Night' event has no attendee_name, so it should have
+        the 'skedda-event-recurring' class for different styling.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+        display_name = skedda_test_data["display_name"]
+
+        # Navigate to the display page
+        page.goto(f"{flask_url}/display/{display_name}")
+        page.wait_for_load_state("load")
+
+        # Wait for calendar to load
+        calendar = page.locator(".skedda-calendar")
+        expect(calendar).to_be_visible(timeout=10000)
+
+        # Wait for events
+        events = page.locator(".skedda-event")
+        expect(events.first).to_be_visible(timeout=10000)
+
+        # Look for recurring event styling
+        recurring_events = page.locator(".skedda-event-recurring")
+
+        # Should have at least one recurring event (Open Build Night)
+        recurring_count = recurring_events.count()
+        assert (
+            recurring_count >= 1
+        ), "Expected at least one recurring event with different styling"
+
+    def test_skedda_calendar_loading_state(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        skedda_test_data: dict,
+    ):
+        """Test that loading state transitions to calendar successfully.
+
+        Verifies that the calendar loads and the loading indicator disappears.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+        display_name = skedda_test_data["display_name"]
+
+        # Navigate to the display page
+        page.goto(f"{flask_url}/display/{display_name}")
+
+        # The calendar should eventually appear
+        calendar = page.locator(".skedda-calendar")
+        expect(calendar).to_be_visible(timeout=10000)
+
+        # Verify calendar loaded successfully (loading element should be hidden)
+        loading = page.locator(".skedda-loading")
+        try:
+            expect(loading).to_be_hidden(timeout=5000)
+        except Exception:
+            # If loading is still visible, the calendar didn't render properly
+            assert False, "Calendar should have loaded - loading state still visible"
