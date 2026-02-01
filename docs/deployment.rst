@@ -290,6 +290,9 @@ Before deploying to production:
 
    * [ ] Generate a strong ``SECRET_KEY``
    * [ ] Set strong passwords for database and admin user
+   * [ ] **Change the default admin password** immediately after first login
+   * [ ] Create individual user accounts for each administrator
+   * [ ] Deactivate or change credentials for any default/test accounts
    * [ ] Review and restrict network access
    * [ ] Consider adding a reverse proxy (nginx, Caddy) with TLS
 

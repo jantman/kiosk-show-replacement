@@ -4,6 +4,9 @@ Unit tests for dashboard views and functionality.
 Tests dashboard routes, templates, and user interface components.
 """
 
+from kiosk_show_replacement.app import db
+from kiosk_show_replacement.models import User
+
 
 class TestDashboardRoutes:
     """Test dashboard route accessibility and responses."""
@@ -14,9 +17,16 @@ class TestDashboardRoutes:
         assert response.status_code == 302
         assert "/auth/login" in response.location
 
-    def test_dashboard_index_accessible_when_authenticated(self, client):
+    def test_dashboard_index_accessible_when_authenticated(self, client, app):
         """Test dashboard index accessible when authenticated."""
-        # Login first
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
+        # Login
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}
         )
@@ -31,9 +41,16 @@ class TestDashboardRoutes:
         assert response.status_code == 302
         assert "/auth/login" in response.location
 
-    def test_dashboard_profile_accessible_when_authenticated(self, client):
+    def test_dashboard_profile_accessible_when_authenticated(self, client, app):
         """Test profile page accessible when authenticated."""
-        # Login first
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
+        # Login
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}
         )
@@ -42,18 +59,39 @@ class TestDashboardRoutes:
         assert response.status_code == 200
         assert b"Profile" in response.data
 
-    def test_dashboard_settings_requires_admin(self, client):
-        """Test settings page is accessible since all users are admin."""
-        # Login as regular user (who gets admin privileges now)
-        client.post("/auth/login", data={"username": "user", "password": "password"})
+    def test_dashboard_settings_requires_admin(self, client, app):
+        """Test settings page requires admin privileges."""
+        # Create a non-admin user
+        with app.app_context():
+            user = User(username="regularuser", email="regular@example.com")
+            user.set_password("password")
+            user.is_admin = False
+            db.session.add(user)
+            db.session.commit()
+
+        # Login as non-admin user
+        client.post(
+            "/auth/login", data={"username": "regularuser", "password": "password"}
+        )
 
         response = client.get("/settings")
-        assert response.status_code == 200  # Should succeed since all users are admin
+        # Non-admin should be denied access
+        assert response.status_code in [302, 403]
 
-    def test_dashboard_settings_accessible_to_admin(self, client):
+    def test_dashboard_settings_accessible_to_admin(self, client, app):
         """Test settings page accessible to admin users."""
+        # Create admin user
+        with app.app_context():
+            user = User(username="adminuser", email="admin@example.com")
+            user.set_password("password")
+            user.is_admin = True
+            db.session.add(user)
+            db.session.commit()
+
         # Login as admin
-        client.post("/auth/login", data={"username": "admin", "password": "password"})
+        client.post(
+            "/auth/login", data={"username": "adminuser", "password": "password"}
+        )
 
         response = client.get("/settings")
         assert response.status_code == 200
@@ -116,8 +154,15 @@ class TestHealthEndpoint:
 class TestErrorHandling:
     """Test dashboard error handling and error pages."""
 
-    def test_404_error_page(self, client):
+    def test_404_error_page(self, client, app):
         """Test 404 error page is displayed properly."""
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         # Login first
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}
@@ -127,20 +172,38 @@ class TestErrorHandling:
         assert response.status_code == 404
         assert b"Not Found" in response.data or b"404" in response.data
 
-    def test_403_error_for_admin_routes(self, client):
-        """Test admin routes are accessible since all users are admin."""
-        # Login as regular user (who gets admin privileges now)
-        client.post("/auth/login", data={"username": "user", "password": "password"})
+    def test_403_error_for_admin_routes(self, client, app):
+        """Test admin routes return 403/redirect for non-admin users."""
+        # Create a non-admin user
+        with app.app_context():
+            user = User(username="regularuser", email="regular@example.com")
+            user.set_password("password")
+            user.is_admin = False
+            db.session.add(user)
+            db.session.commit()
+
+        # Login as regular user
+        client.post(
+            "/auth/login", data={"username": "regularuser", "password": "password"}
+        )
 
         response = client.get("/settings")
-        assert response.status_code == 200  # Should succeed since all users are admin
+        # Non-admin should be denied or redirected
+        assert response.status_code in [302, 403]
 
 
 class TestTemplateContext:
     """Test template context and user information availability."""
 
-    def test_current_user_available_in_templates(self, client):
+    def test_current_user_available_in_templates(self, client, app):
         """Test current_user is available in dashboard templates."""
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         # Login first
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}
@@ -152,10 +215,20 @@ class TestTemplateContext:
         # Check that user information is displayed
         assert b"testuser" in response.data
 
-    def test_admin_user_sees_admin_content(self, client):
+    def test_admin_user_sees_admin_content(self, client, app):
         """Test admin users see admin-specific content."""
+        # Create admin user
+        with app.app_context():
+            user = User(username="adminuser", email="admin@example.com")
+            user.set_password("password")
+            user.is_admin = True
+            db.session.add(user)
+            db.session.commit()
+
         # Login as admin
-        client.post("/auth/login", data={"username": "admin", "password": "password"})
+        client.post(
+            "/auth/login", data={"username": "adminuser", "password": "password"}
+        )
 
         response = client.get("/")
         assert response.status_code == 200
@@ -163,22 +236,39 @@ class TestTemplateContext:
         # Admin should see settings link or admin content
         assert b"Settings" in response.data or b"Admin" in response.data
 
-    def test_regular_user_does_not_see_admin_content(self, client):
-        """Test regular users now see admin content since all users are admin."""
-        # Login as regular user (who gets admin privileges now)
-        client.post("/auth/login", data={"username": "user", "password": "password"})
+    def test_regular_user_does_not_see_admin_content(self, client, app):
+        """Test regular users don't see admin-specific content."""
+        # Create non-admin user
+        with app.app_context():
+            user = User(username="regularuser", email="regular@example.com")
+            user.set_password("password")
+            user.is_admin = False
+            db.session.add(user)
+            db.session.commit()
+
+        # Login as regular user
+        client.post(
+            "/auth/login", data={"username": "regularuser", "password": "password"}
+        )
 
         response = client.get("/")
         assert response.status_code == 200
-        # Should see admin content since all users are admin now
-        # This test now just verifies the dashboard loads successfully
+        # Non-admin should not see admin links
+        # This verifies the dashboard loads successfully
 
 
 class TestDashboardSecurity:
     """Test dashboard security features."""
 
-    def test_logout_link_accessible(self, client):
+    def test_logout_link_accessible(self, client, app):
         """Test logout link is accessible in dashboard."""
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         # Login first
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}
@@ -188,8 +278,15 @@ class TestDashboardSecurity:
         assert response.status_code == 200
         assert b"Logout" in response.data or b"logout" in response.data
 
-    def test_session_persistence_across_requests(self, client):
+    def test_session_persistence_across_requests(self, client, app):
         """Test session persists across multiple requests."""
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         # Login
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}
@@ -202,8 +299,15 @@ class TestDashboardSecurity:
         assert response1.status_code == 200
         assert response2.status_code == 200
 
-    def test_logout_clears_authentication(self, client):
+    def test_logout_clears_authentication(self, client, app):
         """Test logout properly clears authentication."""
+        # Create user first
+        with app.app_context():
+            user = User(username="testuser", email="test@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         # Login
         client.post(
             "/auth/login", data={"username": "testuser", "password": "password"}

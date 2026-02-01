@@ -244,15 +244,27 @@ def sample_slideshow_with_items(app, sample_user):
 
 
 @pytest.fixture
-def auth_client(client):
+def auth_client(client, app):
     """Create authenticated test client."""
     import uuid
+
+    from kiosk_show_replacement.models import User
 
     # Use unique username to avoid conflicts with other fixtures
     unique_id = str(uuid.uuid4())[:8]
     username = f"auth_user_{unique_id}"
-    # Since we have permissive auth, any login works
-    client.post("/auth/login", data={"username": username, "password": "testpass"})
+    password = "testpass"
+
+    # Create a real user for authentication
+    with app.app_context():
+        user = User(username=username, email=f"auth_{unique_id}@example.com")
+        user.set_password(password)
+        user.is_admin = True  # Admin for full access during tests
+        db.session.add(user)
+        db.session.commit()
+
+    # Login with the created user
+    client.post("/auth/login", data={"username": username, "password": password})
     return client
 
 

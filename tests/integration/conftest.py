@@ -125,7 +125,7 @@ def test_database(project_root, tmp_path_factory):
 
     logger.info(f"Creating temporary test database at: {test_db_path}")
 
-    # Initialize database using the script
+    # Initialize database using the script with admin user
     env = os.environ.copy()
     env["DATABASE_URL"] = f"sqlite:///{test_db_path}"
     env["TESTING"] = "true"
@@ -137,7 +137,8 @@ def test_database(project_root, tmp_path_factory):
             "-c",
             (
                 f"cd {project_root} && eval $(poetry env activate) && "
-                "python scripts/init_db.py --sample-data"
+                "python scripts/init_db.py --sample-data "
+                "--admin-username admin --admin-password admin"
             ),
         ],
         env=env,
@@ -151,11 +152,58 @@ def test_database(project_root, tmp_path_factory):
 
     logger.info("✓ Test database initialized successfully")
 
+    # Create additional test users directly in the database
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    engine = create_engine(f"sqlite:///{test_db_path}")
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        from kiosk_show_replacement.models import User
+
+        # Create a regular (non-admin) test user
+        regular_user = User(
+            username="test_user",
+            email="test_user@example.com",
+            is_admin=False,
+            is_active=True,
+        )
+        regular_user.set_password("test_password")
+        session.add(regular_user)
+
+        # Create an inactive user for testing
+        inactive_user = User(
+            username="inactive_user",
+            email="inactive@example.com",
+            is_admin=False,
+            is_active=False,
+        )
+        inactive_user.set_password("test_password")
+        session.add(inactive_user)
+
+        session.commit()
+        logger.info("✓ Additional test users created successfully")
+    except Exception:
+        logger.exception("Failed to create additional test users")
+        session.rollback()
+        raise  # Fail fast - test database state must be guaranteed
+    finally:
+        session.close()
+        engine.dispose()
+
     yield {
         "db_path": str(test_db_path),
         "users": [
-            {"username": "integration_test_user", "password": "test_password"},
-            {"username": "backend_test_user", "password": "test_password"},
+            {"username": "admin", "password": "admin", "is_admin": True},
+            {"username": "test_user", "password": "test_password", "is_admin": False},
+            {
+                "username": "inactive_user",
+                "password": "test_password",
+                "is_admin": False,
+                "is_active": False,
+            },
         ],
     }
 
@@ -355,23 +403,45 @@ def http_client(servers):
 
 
 @pytest.fixture
-def admin_user(http_client):
+def admin_user(http_client, test_database, db_session, db_models):
     """Get admin user credentials and ensure user exists."""
-    # Use the test user created during database initialization
+    # Use the admin user created during database initialization
+    # Look up the user ID from the database
+    user = db_session.query(db_models["User"]).filter_by(username="admin").first()
     return {
-        "username": "integration_test_user",
-        "password": "test_password",
-        "id": 2,  # This user gets created by the authentication system during login
+        "username": "admin",
+        "password": "admin",
+        "is_admin": True,
+        "id": user.id if user else 1,
     }
 
 
 @pytest.fixture
-def regular_user(http_client):
-    """Get regular user credentials."""
+def regular_user(http_client, test_database, db_session, db_models):
+    """Get regular (non-admin) user credentials."""
+    # Look up the user ID from the database
+    user = db_session.query(db_models["User"]).filter_by(username="test_user").first()
     return {
-        "username": "backend_test_user",
+        "username": "test_user",
         "password": "test_password",
-        "id": 3,  # Different user ID from admin_user
+        "is_admin": False,
+        "id": user.id if user else 2,
+    }
+
+
+@pytest.fixture
+def inactive_user(http_client, test_database, db_session, db_models):
+    """Get inactive user credentials for testing blocked login."""
+    # Look up the user ID from the database
+    user = (
+        db_session.query(db_models["User"]).filter_by(username="inactive_user").first()
+    )
+    return {
+        "username": "inactive_user",
+        "password": "test_password",
+        "is_admin": False,
+        "is_active": False,
+        "id": user.id if user else 3,
     }
 
 
@@ -497,14 +567,14 @@ def authenticated_page(page: Page, servers: dict, test_database: dict):
     Provide a Playwright page that is already logged in to the admin interface.
 
     This fixture handles the login flow via the browser so tests can start
-    from an authenticated state.
+    from an authenticated state. Uses the admin user by default.
     """
     from playwright.sync_api import expect
 
     vite_url = servers["vite_url"]
 
-    # Use the first test user
-    user = test_database["users"][0]
+    # Use the admin user (first user in the list)
+    user = test_database["users"][0]  # admin user
     username = user["username"]
     password = user["password"]
 

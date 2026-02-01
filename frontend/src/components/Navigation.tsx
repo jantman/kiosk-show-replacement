@@ -24,6 +24,9 @@ const Navigation: React.FC = () => {
             <Nav.Link as={Link} to="/admin/displays">Displays</Nav.Link>
             <Nav.Link as={Link} to="/admin/assignment-history">Assignment History</Nav.Link>
             <Nav.Link as={Link} to="/admin/monitoring">System Monitoring</Nav.Link>
+            {user?.is_admin && (
+              <Nav.Link as={Link} to="/admin/users">User Management</Nav.Link>
+            )}
           </Nav>
           
           <Nav>
@@ -41,6 +44,10 @@ const Navigation: React.FC = () => {
                     </div>
                   </div>
                 </Dropdown.ItemText>
+                <Dropdown.Divider />
+                <Dropdown.Item as={Link} to="/admin/profile">
+                  Profile Settings
+                </Dropdown.Item>
                 <Dropdown.Divider />
                 <Dropdown.Item onClick={handleLogout}>
                   Sign Out

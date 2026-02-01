@@ -31,6 +31,7 @@ const mockUser = {
   username: 'testuser',
   email: 'test@example.com',
   is_admin: true,
+  is_active: true,
   created_at: '2023-01-01T00:00:00Z',
   last_login_at: '2023-01-01T00:00:00Z'
 };

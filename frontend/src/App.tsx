@@ -9,6 +9,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import AdminLayout from './components/AdminLayout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import UserManagement from './pages/UserManagement';
 import Slideshows from './pages/Slideshows';
 import SlideshowForm from './pages/SlideshowForm';
 import SlideshowDetail from './pages/SlideshowDetail';
@@ -16,6 +17,7 @@ import Displays from './pages/Displays';
 import DisplayDetail from './pages/DisplayDetail';
 import AssignmentHistory from './pages/AssignmentHistory';
 import SystemMonitoring from './pages/SystemMonitoring';
+import Profile from './pages/Profile';
 
 // Import Bootstrap CSS and Bootstrap Icons
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -60,6 +62,12 @@ const App: React.FC = () => {
 
                 {/* System Monitoring */}
                 <Route path="monitoring" element={<SystemMonitoring />} />
+
+                {/* Profile Settings */}
+                <Route path="profile" element={<Profile />} />
+
+                {/* User Management (Admin only) */}
+                <Route path="users" element={<UserManagement />} />
               </Route>
 
               {/* Default redirect */}

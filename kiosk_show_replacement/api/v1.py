@@ -68,6 +68,33 @@ def api_auth_required(f: Callable[..., Any]) -> Callable[..., Any]:
     return decorated_function
 
 
+def api_admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to require admin privileges for API endpoints.
+
+    Raises AuthenticationError if not authenticated,
+    returns 403 if authenticated but not admin or if account is inactive.
+
+    Note: We check the user record from the database (not session flags)
+    to ensure we have the current admin/active status.
+    """
+    from functools import wraps
+
+    @wraps(f)
+    def decorated_function(*args: Any, **kwargs: Any) -> Any:
+        user = get_current_user()
+        if not user:
+            raise AuthenticationError()
+        # Check active status from DB to catch recently deactivated users
+        if not user.is_active:
+            return api_error("Account is inactive", 403)
+        # Check admin status from DB to catch recently demoted users
+        if not user.is_admin:
+            return api_error("Admin privileges required", 403)
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
 # =============================================================================
 # Slideshow API Endpoints
 # =============================================================================
@@ -1835,118 +1862,73 @@ def api_login() -> Tuple[Response, int]:
     if not password:
         return api_error("Password is required", 400)
 
-    # Permissive authentication logic (same as web interface)
+    # Real authentication - validate credentials against database
     try:
         from datetime import datetime, timezone
 
-        # Check if user already exists
+        # Look up user by username
         user = User.query.filter_by(username=username).first()
 
-        if user:
-            # For existing users, accept any password but update their password hash
-            # In permissive mode, we accept any password but store the latest one
-            if not user.check_password(password):
-                user.set_password(password)
-                user.updated_at = datetime.now(timezone.utc)
-                db.session.commit()
+        if not user:
+            # User does not exist
+            current_app.logger.warning(
+                "API login failed: user not found",
+                extra={
+                    "username": username,
+                    "action": "api_login_user_not_found",
+                    "ip_address": request.remote_addr,
+                },
+            )
+            return api_error("Invalid username or password", 401)
 
-                current_app.logger.info(
-                    "API user password updated during login",
-                    extra={
-                        "user_id": user.id,
-                        "username": user.username,
-                        "action": "api_password_update",
-                    },
-                )
-
-            # Log successful login
-            user.last_login_at = datetime.now(timezone.utc)
-            db.session.commit()
-
-            # Set up session
-            session["user_id"] = user.id
-            session["username"] = user.username
-            session["is_admin"] = user.is_admin
-
-            current_app.logger.info(
-                "API user login successful",
+        # Check password
+        if not user.check_password(password):
+            current_app.logger.warning(
+                "API login failed: invalid password",
                 extra={
                     "user_id": user.id,
                     "username": user.username,
-                    "action": "api_login",
+                    "action": "api_login_invalid_password",
                     "ip_address": request.remote_addr,
                 },
             )
+            return api_error("Invalid username or password", 401)
 
-            return api_response(user.to_dict(), "Login successful")
-        else:
-            # Create new user (permissive authentication)
-            new_user = User(
-                username=username,
-                email=None,  # Email not required for permissive auth
-                is_admin=True,  # All users get admin privileges in permissive mode
-            )
-            new_user.set_password(password)
-
-            db.session.add(new_user)
-            db.session.commit()
-
-            # Log successful login
-            new_user.last_login_at = datetime.now(timezone.utc)
-            db.session.commit()
-
-            # Set up session
-            session["user_id"] = new_user.id
-            session["username"] = new_user.username
-            session["is_admin"] = new_user.is_admin
-
-            current_app.logger.info(
-                "API new user created and logged in",
+        # Check if user is active
+        if not user.is_active:
+            current_app.logger.warning(
+                "API login failed: user account is inactive",
                 extra={
-                    "user_id": new_user.id,
-                    "username": new_user.username,
-                    "action": "api_user_creation",
+                    "user_id": user.id,
+                    "username": user.username,
+                    "action": "api_login_inactive_user",
                     "ip_address": request.remote_addr,
                 },
             )
+            return api_error(
+                "Account is inactive. Please contact an administrator.", 403
+            )
 
-            return api_response(new_user.to_dict(), "User created and login successful")
+        # Authentication successful - update last login and set session
+        user.last_login_at = datetime.now(timezone.utc)
+        db.session.commit()
 
-    except ValueError as e:
-        # Handle validation errors (e.g., username too long, invalid email)
-        db.session.rollback()
-        current_app.logger.warning(
-            "API authentication failed due to validation error",
+        # Set up session
+        session["user_id"] = user.id
+        session["username"] = user.username
+        session["is_admin"] = user.is_admin
+
+        current_app.logger.info(
+            "API user login successful",
             extra={
-                "username": username,
-                "action": "api_validation_error",
-                "error": str(e),
+                "user_id": user.id,
+                "username": user.username,
+                "action": "api_login",
+                "ip_address": request.remote_addr,
             },
         )
-        return api_error(str(e), 400)
 
-    except IntegrityError:
-        # Handle race condition where user was created between check and insert
-        db.session.rollback()
-        current_app.logger.warning(
-            "User creation failed due to integrity error, retrying",
-            extra={
-                "username": username,
-                "action": "api_user_creation_retry",
-            },
-        )
-        # Try to get the user that was created by another request
-        user = User.query.filter_by(username=username).first()
-        if user and user.check_password(password):
-            # Set up session
-            session["user_id"] = user.id
-            session["username"] = user.username
-            session["is_admin"] = user.is_admin
-
-            return api_response(user.to_dict(), "Login successful")
-
-        # If we still can't login after IntegrityError, return an error
-        return api_error("Login failed. Please try again.", 500)
+        return api_response(user.to_dict(), "Login successful")
 
     except Exception as e:
         db.session.rollback()
@@ -1997,6 +1979,361 @@ def api_logout() -> Tuple[Response, int]:
 
     session.clear()
     return api_response(message="Successfully logged out")
+
+
+@api_v1_bp.route("/auth/profile", methods=["PUT"])
+@api_auth_required
+def api_update_profile() -> Tuple[Response, int]:
+    """Update current user's profile (email)."""
+    data = request.get_json()
+
+    if not data:
+        return api_error("No JSON data provided", 400)
+
+    current_user = get_current_user()
+    if not current_user:
+        return api_error("Authentication required", 401)
+
+    try:
+        # Update email if provided
+        new_email = data.get("email")
+        if new_email is not None:
+            new_email = new_email.strip() if new_email else None
+
+            # Check if email is already used by another user
+            if new_email:
+                existing_user = User.query.filter(
+                    User.email == new_email, User.id != current_user.id
+                ).first()
+                if existing_user:
+                    return api_error("Email already in use by another user", 409)
+
+            current_user.email = new_email
+            db.session.commit()
+
+            current_app.logger.info(
+                "User profile updated",
+                extra={
+                    "user_id": current_user.id,
+                    "username": current_user.username,
+                    "action": "profile_update",
+                },
+            )
+
+        return api_response(current_user.to_dict(), "Profile updated successfully")
+
+    except ValueError as e:
+        db.session.rollback()
+        return api_error(str(e), 400)
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            "Error updating profile",
+            extra={
+                "user_id": current_user.id,
+                "action": "profile_update_error",
+                "error": str(e),
+            },
+        )
+        return api_error("Failed to update profile", 500)
+
+
+@api_v1_bp.route("/auth/password", methods=["PUT"])
+@api_auth_required
+def api_change_password() -> Tuple[Response, int]:
+    """Change current user's password."""
+    data = request.get_json()
+
+    if not data:
+        return api_error("No JSON data provided", 400)
+
+    current_user = get_current_user()
+    if not current_user:
+        return api_error("Authentication required", 401)
+
+    current_password = data.get("current_password", "")
+    new_password = data.get("new_password", "")
+
+    # Validate input
+    if not current_password:
+        return api_error("Current password is required", 400)
+
+    if not new_password:
+        return api_error("New password is required", 400)
+
+    # Verify current password
+    if not current_user.check_password(current_password):
+        current_app.logger.warning(
+            "Password change failed: wrong current password",
+            extra={
+                "user_id": current_user.id,
+                "username": current_user.username,
+                "action": "password_change_failed",
+            },
+        )
+        return api_error("Current password is incorrect", 401)
+
+    try:
+        current_user.set_password(new_password)
+        db.session.commit()
+
+        current_app.logger.info(
+            "User password changed successfully",
+            extra={
+                "user_id": current_user.id,
+                "username": current_user.username,
+                "action": "password_change",
+            },
+        )
+
+        return api_response(message="Password changed successfully")
+
+    except ValueError as e:
+        db.session.rollback()
+        return api_error(str(e), 400)
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            "Error changing password",
+            extra={
+                "user_id": current_user.id,
+                "action": "password_change_error",
+                "error": str(e),
+            },
+        )
+        return api_error("Failed to change password", 500)
+
+
+# =============================================================================
+# Admin User Management API Endpoints
+# =============================================================================
+
+
+@api_v1_bp.route("/admin/users", methods=["GET"])
+@api_admin_required
+def list_users() -> Tuple[Response, int]:
+    """List all users (admin only)."""
+    users = User.query.order_by(User.username).all()
+    return api_response(
+        [user.to_dict() for user in users], "Users retrieved successfully"
+    )
+
+
+@api_v1_bp.route("/admin/users", methods=["POST"])
+@api_admin_required
+def create_user() -> Tuple[Response, int]:
+    """Create a new user (admin only). Returns a temporary password."""
+    from ..utils import generate_random_password
+
+    data = request.get_json()
+
+    if not data:
+        return api_error("No JSON data provided", 400)
+
+    username = data.get("username", "").strip()
+    email = data.get("email", "").strip() if data.get("email") else None
+    is_admin_flag = data.get("is_admin", False)
+
+    # Validate is_admin is a boolean if provided
+    if "is_admin" in data and not isinstance(is_admin_flag, bool):
+        return api_error("Field 'is_admin' must be a boolean", 400)
+
+    # Validate username
+    if not username:
+        return api_error("Username is required", 400)
+
+    # Check for duplicate username
+    existing_user = User.query.filter_by(username=username).first()
+    if existing_user:
+        return api_error("Username already exists", 409)
+
+    # Check for duplicate email if provided
+    if email:
+        existing_email = User.query.filter_by(email=email).first()
+        if existing_email:
+            return api_error("Email already in use", 409)
+
+    try:
+        # Generate temporary password
+        temp_password = generate_random_password(12)
+
+        # Create user
+        new_user = User(username=username, email=email, is_admin=is_admin_flag)
+        new_user.set_password(temp_password)
+
+        db.session.add(new_user)
+        db.session.commit()
+
+        current_app.logger.info(
+            "Admin created new user",
+            extra={
+                "admin_user_id": session.get("user_id"),
+                "new_user_id": new_user.id,
+                "new_username": new_user.username,
+                "action": "admin_create_user",
+            },
+        )
+
+        # Return user data with temporary password
+        response_data = new_user.to_dict()
+        response_data["temporary_password"] = temp_password
+
+        return api_response(response_data, "User created successfully", 201)
+
+    except ValueError as e:
+        db.session.rollback()
+        return api_error(str(e), 400)
+
+    except IntegrityError:
+        db.session.rollback()
+        return api_error("User creation failed - username or email already exists", 409)
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            "Error creating user",
+            extra={"action": "admin_create_user_error", "error": str(e)},
+        )
+        return api_error("Failed to create user", 500)
+
+
+@api_v1_bp.route("/admin/users/<int:user_id>", methods=["GET"])
+@api_admin_required
+def get_user(user_id: int) -> Tuple[Response, int]:
+    """Get a specific user's details (admin only)."""
+    user = db.session.get(User, user_id)
+    if not user:
+        return api_error("User not found", 404)
+
+    return api_response(user.to_dict(), "User retrieved successfully")
+
+
+@api_v1_bp.route("/admin/users/<int:user_id>", methods=["PUT"])
+@api_admin_required
+def update_user(user_id: int) -> Tuple[Response, int]:
+    """Update a user (admin only). Cannot change own is_admin or is_active."""
+    current_user = get_current_user()
+    assert current_user is not None
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return api_error("User not found", 404)
+
+    data = request.get_json()
+    if not data:
+        return api_error("No JSON data provided", 400)
+
+    try:
+        # Update email if provided
+        if "email" in data:
+            new_email = data["email"].strip() if data["email"] else None
+            if new_email:
+                existing = User.query.filter(
+                    User.email == new_email, User.id != user_id
+                ).first()
+                if existing:
+                    return api_error("Email already in use by another user", 409)
+            user.email = new_email
+
+        # Update is_admin if provided (but not for self)
+        if "is_admin" in data:
+            if user.id == current_user.id:
+                return api_error("Cannot change your own admin status", 403)
+            is_admin_value = data["is_admin"]
+            if is_admin_value is not None and not isinstance(is_admin_value, bool):
+                return api_error("Field 'is_admin' must be a boolean", 400)
+            if is_admin_value is not None:
+                user.is_admin = is_admin_value
+
+        # Update is_active if provided (but not for self)
+        if "is_active" in data:
+            if user.id == current_user.id:
+                return api_error("Cannot deactivate your own account", 403)
+            is_active_value = data["is_active"]
+            if is_active_value is not None and not isinstance(is_active_value, bool):
+                return api_error("Field 'is_active' must be a boolean", 400)
+            if is_active_value is not None:
+                user.is_active = is_active_value
+
+        db.session.commit()
+
+        current_app.logger.info(
+            "Admin updated user",
+            extra={
+                "admin_user_id": current_user.id,
+                "updated_user_id": user.id,
+                "updated_username": user.username,
+                "action": "admin_update_user",
+            },
+        )
+
+        return api_response(user.to_dict(), "User updated successfully")
+
+    except ValueError as e:
+        db.session.rollback()
+        return api_error(str(e), 400)
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            "Error updating user",
+            extra={
+                "user_id": user_id,
+                "action": "admin_update_user_error",
+                "error": str(e),
+            },
+        )
+        return api_error("Failed to update user", 500)
+
+
+@api_v1_bp.route("/admin/users/<int:user_id>/reset-password", methods=["POST"])
+@api_admin_required
+def reset_user_password(user_id: int) -> Tuple[Response, int]:
+    """Reset a user's password (admin only). Returns a new temporary password."""
+    from ..utils import generate_random_password
+
+    current_user = get_current_user()
+    assert current_user is not None
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return api_error("User not found", 404)
+
+    try:
+        # Generate new temporary password
+        temp_password = generate_random_password(12)
+
+        user.set_password(temp_password)
+        db.session.commit()
+
+        current_app.logger.info(
+            "Admin reset user password",
+            extra={
+                "admin_user_id": current_user.id,
+                "reset_user_id": user.id,
+                "reset_username": user.username,
+                "action": "admin_reset_password",
+            },
+        )
+
+        return api_response(
+            {"temporary_password": temp_password},
+            f"Password reset for user {user.username}",
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(
+            "Error resetting user password",
+            extra={
+                "user_id": user_id,
+                "action": "admin_reset_password_error",
+                "error": str(e),
+            },
+        )
+        return api_error("Failed to reset password", 500)
 
 
 # =============================================================================

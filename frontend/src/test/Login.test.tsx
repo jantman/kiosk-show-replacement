@@ -54,7 +54,7 @@ describe('Login', () => {
     // Default: login succeeds
     mockApiClient.login.mockResolvedValue({
       success: true,
-      data: { id: 1, username: 'testuser', is_admin: true, created_at: '2024-01-01T00:00:00Z' },
+      data: { id: 1, username: 'testuser', is_admin: true, is_active: true, created_at: '2024-01-01T00:00:00Z' },
     });
 
     // Default: getCurrentUser fails (not authenticated yet)
@@ -85,8 +85,8 @@ describe('Login', () => {
       expect(screen.getByRole('heading', { name: /kiosk show replacement/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByPlaceholderText(/enter any username/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/enter any password/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter your username/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/enter your password/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
@@ -101,11 +101,11 @@ describe('Login', () => {
 
     // Wait for health check to complete
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/enter any username/i)).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/enter your username/i)).toBeInTheDocument();
     });
 
-    const usernameInput = screen.getByPlaceholderText(/enter any username/i);
-    const passwordInput = screen.getByPlaceholderText(/enter any password/i);
+    const usernameInput = screen.getByPlaceholderText(/enter your username/i);
+    const passwordInput = screen.getByPlaceholderText(/enter your password/i);
     const submitButton = screen.getByRole('button', { name: /sign in/i });
 
     await user.type(usernameInput, 'testuser');

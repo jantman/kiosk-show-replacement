@@ -198,7 +198,7 @@ const Login: React.FC = () => {
                     name="username"
                     value={formData.username}
                     onChange={handleInputChange}
-                    placeholder="Enter any username"
+                    placeholder="Enter your username"
                     disabled={isSubmitting}
                     autoFocus
                   />
@@ -211,7 +211,7 @@ const Login: React.FC = () => {
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    placeholder="Enter any password"
+                    placeholder="Enter your password"
                     disabled={isSubmitting}
                   />
                 </Form.Group>
@@ -235,11 +235,6 @@ const Login: React.FC = () => {
                 </div>
               </Form>
 
-              <div className="text-center mt-3">
-                <small className="text-muted">
-                  Note: Any username and password combination is accepted
-                </small>
-              </div>
             </Card.Body>
           </Card>
         </Col>

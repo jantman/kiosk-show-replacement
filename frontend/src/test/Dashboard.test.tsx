@@ -24,11 +24,12 @@ vi.mock('../utils/apiClient', () => ({
     }),
     getCurrentUser: vi.fn().mockResolvedValue({
       success: true,
-      data: { 
-        id: 1, 
-        username: 'testuser', 
-        email: 'test@example.com', 
+      data: {
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
         is_admin: true,
+        is_active: true,
         created_at: '2023-01-01T00:00:00Z',
         last_login_at: '2023-01-01T00:00:00Z'
       },
@@ -58,11 +59,12 @@ const TestWrapper = ({ children }: { children: React.ReactNode }) => (
 describe('Dashboard', () => {
   beforeEach(() => {
     mockUseAuth.mockReturnValue({
-      user: { 
-        id: 1, 
-        username: 'testuser', 
-        email: 'test@example.com', 
+      user: {
+        id: 1,
+        username: 'testuser',
+        email: 'test@example.com',
         is_admin: true,
+        is_active: true,
         created_at: '2023-01-01T00:00:00Z',
         last_login_at: '2023-01-01T00:00:00Z'
       },
