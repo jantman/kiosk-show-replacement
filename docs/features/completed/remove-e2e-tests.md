@@ -116,3 +116,21 @@ Completely remove all e2e test infrastructure.
 ### 2026-02-01: Milestone 1 Complete
 - [x] **Task 1.1**: Added `TestSkeddaCalendarDisplay` class with 5 tests to `tests/integration/test_display_playback.py`
 - [x] **Task 1.2**: All 5 migrated tests pass (135 integration tests total)
+
+### 2026-02-01: Milestone 2 Complete
+- [x] **Task 2.1**: Deleted `tests/e2e/` directory (6 test files)
+- [x] **Task 2.2**: Removed `test-e2e` session from noxfile.py, updated test-comprehensive, updated dev-setup help
+- [x] **Task 2.3**: Removed `test-e2e` job from .github/workflows/ci.yml
+- [x] **Task 2.4**: Updated CLAUDE.md, docs/development.rst, .github/copilot-instructions.md
+- [x] **Task 2.5**: Verified no e2e references remain (except feature docs and node_modules)
+
+### 2026-02-01: Milestone 3 Complete
+- [x] **Task 3.1**: All nox sessions pass
+  - format: passed
+  - lint: passed (after removing unused imports)
+  - type_check: passed (0 issues)
+  - test-3.14: 589 passed
+  - test-integration: 135 passed
+- [x] **Task 3.2**: `nox -s test-e2e` returns "Sessions not found: test-e2e"
+- [x] **Task 3.3**: Documentation updated to reflect only unit and integration tests
+- [x] **Task 3.4**: Feature complete, moving to completed/
