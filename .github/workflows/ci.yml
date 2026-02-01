@@ -205,7 +205,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: false
+          push: true
+          sbom: true
           platforms: linux/amd64,linux/arm64
           labels: |
             org.opencontainers.image.title=kiosk-show-replacement
