@@ -2707,10 +2707,8 @@ class TestSkeddaCalendarDisplay:
         from datetime import datetime, timedelta, timezone
 
         from kiosk_show_replacement.models import (
-            Display,
             ICalEvent,
             ICalFeed,
-            Slideshow,
             SlideshowItem,
         )
 
