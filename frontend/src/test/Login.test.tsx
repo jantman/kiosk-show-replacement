@@ -54,7 +54,7 @@ describe('Login', () => {
     // Default: login succeeds
     mockApiClient.login.mockResolvedValue({
       success: true,
-      data: { id: 1, username: 'testuser', is_admin: true, created_at: '2024-01-01T00:00:00Z' },
+      data: { id: 1, username: 'testuser', is_admin: true, is_active: true, created_at: '2024-01-01T00:00:00Z' },
     });
 
     // Default: getCurrentUser fails (not authenticated yet)

@@ -7,11 +7,27 @@ and other common operations.
 
 import mimetypes
 import os
+import secrets
+import string
 from typing import Optional
 from urllib.parse import urlparse
 
 import requests
 from PIL import Image
+
+
+def generate_random_password(length: int = 8) -> str:
+    """
+    Generate a random password of the specified length.
+
+    Args:
+        length: The desired password length (default: 8)
+
+    Returns:
+        A random password string containing letters and digits.
+    """
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
 def is_valid_url(url: str) -> bool:

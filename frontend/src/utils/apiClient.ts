@@ -248,6 +248,24 @@ class ApiClient {
     return this.request<User>('/api/v1/auth/user');
   }
 
+  // Profile methods
+  async updateProfile(data: { email?: string }): Promise<ApiResponse<User>> {
+    return this.requestNoRetry<User>('/api/v1/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    return this.requestNoRetry<void>('/api/v1/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+  }
+
   // Slideshow methods
   async getSlideshows(): Promise<ApiResponse<Slideshow[]>> {
     return this.request<Slideshow[]>('/api/v1/slideshows');
@@ -469,6 +487,43 @@ class ApiClient {
 
   async getHealthLive(): Promise<ApiResponse<{ status: string }>> {
     return this.request('/health/live', { retry: false });
+  }
+
+  // Admin user management methods
+  async getUsers(): Promise<ApiResponse<User[]>> {
+    return this.request<User[]>('/api/v1/admin/users');
+  }
+
+  async getUser(id: number): Promise<ApiResponse<User>> {
+    return this.request<User>(`/api/v1/admin/users/${id}`);
+  }
+
+  async createUser(data: {
+    username: string;
+    email?: string;
+    is_admin?: boolean;
+  }): Promise<ApiResponse<User & { temporary_password: string }>> {
+    return this.requestNoRetry<User & { temporary_password: string }>('/api/v1/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUser(id: number, data: {
+    email?: string;
+    is_admin?: boolean;
+    is_active?: boolean;
+  }): Promise<ApiResponse<User>> {
+    return this.requestNoRetry<User>(`/api/v1/admin/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async resetUserPassword(id: number): Promise<ApiResponse<{ temporary_password: string }>> {
+    return this.requestNoRetry<{ temporary_password: string }>(`/api/v1/admin/users/${id}/reset-password`, {
+      method: 'POST',
+    });
   }
 }
 

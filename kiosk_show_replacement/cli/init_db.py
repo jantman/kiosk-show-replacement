@@ -118,7 +118,11 @@ def init_database(
 @click.option(
     "--admin-password", default="admin", help="Password for admin user (default: admin)"
 )
-@click.option("--admin-email", default=None, help="Email for admin user (optional)")
+@click.option(
+    "--admin-email",
+    default="admin@example.com",
+    help="Email for admin user (default: admin@example.com)",
+)
 @click.option("--backup", is_flag=True, help="Create backup before making changes")
 @click.option(
     "--backup-path", default=None, help="Path for backup file (default: auto-generated)"

@@ -12,8 +12,14 @@ export interface User {
   username: string;
   email?: string;
   is_admin: boolean;
+  is_active: boolean;
   created_at: string;
   last_login_at?: string;
+}
+
+// User with temporary password (returned from create/reset)
+export interface UserWithPassword extends User {
+  temporary_password: string;
 }
 
 // Display types
@@ -162,6 +168,16 @@ export interface SlideshowItemFormData {
   // Skedda-specific fields
   ical_url?: string;
   ical_refresh_minutes?: number;
+}
+
+// Profile form types
+export interface ProfileUpdateData {
+  email?: string;
+}
+
+export interface PasswordChangeData {
+  current_password: string;
+  new_password: string;
 }
 
 // Video URL validation response

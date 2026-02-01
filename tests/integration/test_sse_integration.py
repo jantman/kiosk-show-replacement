@@ -245,8 +245,8 @@ class TestSSEIntegration:
         # Authenticate first using the API login endpoint
         try:
             login_data = {
-                "username": "integration_test_user",
-                "password": "test_password",
+                "username": "admin",
+                "password": "admin",
             }
             login_response = session.post(
                 f"{flask_url}/api/v1/auth/login",
@@ -335,7 +335,7 @@ class TestSSEIntegration:
 
         # Authenticate first using the API login endpoint
         try:
-            login_data = {"username": "backend_test_user", "password": "test_password"}
+            login_data = {"username": "admin", "password": "admin"}
             login_response = session.post(
                 f"{flask_url}/api/v1/auth/login",
                 json=login_data,

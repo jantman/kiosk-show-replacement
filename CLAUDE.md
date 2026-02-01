@@ -133,6 +133,17 @@ npm run build
 
 ## Architecture
 
+## Authentication and User Management
+
+The application uses session-based authentication with password hashing:
+
+- **Default admin user**: `admin` / `admin` (username/password)
+- **Admin users** can create/edit/deactivate other users and reset passwords
+- **Users** can update their own email and password via Profile Settings
+- **Inactive users** cannot log in
+
+When creating a new user or resetting a password, a temporary password is generated and displayed once. The user should change it after first login.
+
 ### Backend Structure (`kiosk_show_replacement/`)
 - **app.py**: Flask application factory with `create_app()`
 - **api/**: RESTful API blueprints for slideshows, slides, displays

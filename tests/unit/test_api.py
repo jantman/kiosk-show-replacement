@@ -1697,75 +1697,99 @@ class TestAPIStatusEndpoint:
 class TestAPIAuthenticationEndpoints:
     """Test API authentication endpoints."""
 
-    def test_api_login_success_new_user(self, client, app):
-        """Test successful API login creates new user."""
+    def test_api_login_fails_for_nonexistent_user(self, client, app):
+        """Test API login returns 401 for non-existent user."""
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "nonexistent", "password": "password"},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data["success"] is False
+        assert "Invalid username or password" in data["error"]
+
+    def test_api_login_fails_for_wrong_password(self, client, app):
+        """Test API login returns 401 for wrong password."""
         with app.app_context():
-            # Ensure user doesn't exist
-            existing_user = User.query.filter_by(username="newuser").first()
-            assert existing_user is None
+            # Create existing user
+            user = User(username="existinguser", email="test@example.com")
+            user.set_password("correctpassword")
+            db.session.add(user)
+            db.session.commit()
 
-            # Test login with new credentials
-            response = client.post(
-                "/api/v1/auth/login",
-                json={"username": "newuser", "password": "newpass"},
-                content_type="application/json",
-            )
+        # Test login with wrong password
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "existinguser", "password": "wrongpassword"},
+            content_type="application/json",
+        )
 
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["success"] is True
-            assert data["message"] == "User created and login successful"
-            assert "data" in data
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data["success"] is False
+        assert "Invalid username or password" in data["error"]
 
-            user_data = data["data"]
-            assert user_data["username"] == "newuser"
-            assert user_data["is_admin"] is True
-            assert "id" in user_data
-            assert "created_at" in user_data
+    def test_api_login_fails_for_inactive_user(self, client, app):
+        """Test API login returns 403 for inactive user."""
+        with app.app_context():
+            # Create inactive user
+            user = User(username="inactiveuser", email="inactive@example.com")
+            user.set_password("password")
+            user.is_active = False
+            db.session.add(user)
+            db.session.commit()
 
-            # Verify user was created in database
-            created_user = User.query.filter_by(username="newuser").first()
-            assert created_user is not None
-            assert created_user.username == "newuser"
-            assert created_user.is_admin is True
-            assert created_user.check_password("newpass")
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "inactiveuser", "password": "password"},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data["success"] is False
+        assert "inactive" in data["error"].lower()
 
     def test_api_login_success_existing_user(self, client, app):
         """Test successful API login with existing user."""
         with app.app_context():
-            from kiosk_show_replacement.models import User, db
-
             # Create existing user
             user = User(username="existinguser", email="test@example.com")
-            user.set_password("oldpass")
+            user.set_password("password")
             user.is_admin = False
             db.session.add(user)
             db.session.commit()
             user_id = user.id
 
-            # Test login with existing user but different password
-            response = client.post(
-                "/api/v1/auth/login",
-                json={"username": "existinguser", "password": "newpass"},
-                content_type="application/json",
-            )
+        # Test login with correct password
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "existinguser", "password": "password"},
+            content_type="application/json",
+        )
 
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["success"] is True
-            assert data["message"] == "Login successful"
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["message"] == "Login successful"
 
-            user_data = data["data"]
-            assert user_data["username"] == "existinguser"
-            assert user_data["id"] == user_id
+        user_data = data["data"]
+        assert user_data["username"] == "existinguser"
+        assert user_data["id"] == user_id
+        assert user_data["is_admin"] is False
 
-            # Verify password was updated
-            updated_user = db.session.get(User, user_id)
-            assert updated_user.check_password("newpass")
-            assert not updated_user.check_password("oldpass")
-
-    def test_api_login_session_creation(self, client):
+    def test_api_login_session_creation(self, client, app):
         """Test API login creates proper session."""
+        with app.app_context():
+            # Create user
+            user = User(username="sessionuser", email="session@example.com")
+            user.set_password("sessionpass")
+            user.is_admin = True
+            db.session.add(user)
+            db.session.commit()
+
         response = client.post(
             "/api/v1/auth/login",
             json={"username": "sessionuser", "password": "sessionpass"},
@@ -1842,8 +1866,15 @@ class TestAPIAuthenticationEndpoints:
         assert data["success"] is False
         assert data["error"] == "Password is required"
 
-    def test_api_login_whitespace_username(self, client):
+    def test_api_login_whitespace_username(self, client, app):
         """Test API login trims whitespace from username."""
+        with app.app_context():
+            # Create user with trimmed name
+            user = User(username="trimuser", email="trim@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         response = client.post(
             "/api/v1/auth/login",
             json={"username": "  trimuser  ", "password": "password"},
@@ -1855,8 +1886,9 @@ class TestAPIAuthenticationEndpoints:
         assert data["success"] is True
         assert data["data"]["username"] == "trimuser"
 
-    def test_api_login_permissive_authentication(self, client, app):
-        """Test permissive authentication accepts any username/password combination."""
+    def test_api_login_real_authentication(self, client, app):
+        """Test real authentication rejects invalid credentials."""
+        # Test with non-existent users - should all fail
         test_cases = [
             ("admin", "admin"),
             ("user", "password123"),
@@ -1865,25 +1897,21 @@ class TestAPIAuthenticationEndpoints:
             ("special-user", "pass with spaces"),
         ]
 
+        for username, password in test_cases:
+            response = client.post(
+                "/api/v1/auth/login",
+                json={"username": username, "password": password},
+                content_type="application/json",
+            )
+
+            assert response.status_code == 401
+            data = response.get_json()
+            assert data["success"] is False
+            assert "Invalid username or password" in data["error"]
+
+    def test_api_login_requires_correct_password(self, client, app):
+        """Test that users must provide correct password to login."""
         with app.app_context():
-            for username, password in test_cases:
-                response = client.post(
-                    "/api/v1/auth/login",
-                    json={"username": username, "password": password},
-                    content_type="application/json",
-                )
-
-                assert response.status_code == 200
-                data = response.get_json()
-                assert data["success"] is True
-                assert data["data"]["username"] == username
-                assert data["data"]["is_admin"] is True
-
-    def test_api_login_password_update_for_existing_user(self, client, app):
-        """Test that existing users get their passwords updated during login."""
-        with app.app_context():
-            from kiosk_show_replacement.models import User, db
-
             # Create user with initial password
             user = User(username="updateuser", email="update@example.com")
             user.set_password("initial_password")
@@ -1891,28 +1919,26 @@ class TestAPIAuthenticationEndpoints:
             db.session.commit()
             user_id = user.id
 
-            # Verify initial password works
-            assert user.check_password("initial_password")
+        # Login with wrong password should fail
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "updateuser", "password": "wrong_password"},
+            content_type="application/json",
+        )
 
-            # Login with different password
-            response = client.post(
-                "/api/v1/auth/login",
-                json={"username": "updateuser", "password": "new_password"},
-                content_type="application/json",
-            )
+        assert response.status_code == 401
+        data = response.get_json()
+        assert data["success"] is False
 
-            assert response.status_code == 200
-
-            # Verify password was updated
-            updated_user = db.session.get(User, user_id)
-            assert updated_user.check_password("new_password")
-            assert not updated_user.check_password("initial_password")
+        # Verify password was NOT updated
+        with app.app_context():
+            stored_user = db.session.get(User, user_id)
+            assert stored_user.check_password("initial_password")
+            assert not stored_user.check_password("wrong_password")
 
     def test_api_login_last_login_timestamp_updated(self, client, app):
         """Test that last_login_at timestamp is updated on successful login."""
         with app.app_context():
-            from kiosk_show_replacement.models import User, db
-
             # Create user
             user = User(username="timestampuser", email="timestamp@example.com")
             user.set_password("password")
@@ -1923,16 +1949,17 @@ class TestAPIAuthenticationEndpoints:
 
             assert original_last_login is None
 
-            # Login
-            response = client.post(
-                "/api/v1/auth/login",
-                json={"username": "timestampuser", "password": "password"},
-                content_type="application/json",
-            )
+        # Login
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "timestampuser", "password": "password"},
+            content_type="application/json",
+        )
 
-            assert response.status_code == 200
+        assert response.status_code == 200
 
-            # Verify last_login_at was updated
+        # Verify last_login_at was updated
+        with app.app_context():
             updated_user = db.session.get(User, user_id)
             assert updated_user.last_login_at is not None
             # Check that last_login_at is recent (within the last 5 seconds)
@@ -2005,8 +2032,15 @@ class TestAPIAuthenticationEndpoints:
         assert data["success"] is False
         assert data["error"] == "Authentication required"
 
-    def test_api_login_integration_with_other_endpoints(self, client):
+    def test_api_login_integration_with_other_endpoints(self, client, app):
         """Test that API login enables access to other protected endpoints."""
+        # Create a user for this test
+        with app.app_context():
+            user = User(username="integrationuser", email="integration@example.com")
+            user.set_password("password")
+            db.session.add(user)
+            db.session.commit()
+
         # First, verify we can't access protected endpoint without auth
         response = client.get("/api/v1/slideshows")
         assert response.status_code == 401
@@ -2025,27 +2059,23 @@ class TestAPIAuthenticationEndpoints:
         data = response.get_json()
         assert data["success"] is True
 
-    def test_api_login_race_condition_handling(self, client, app):
-        """Test that race condition during user creation is handled gracefully."""
-        # This test simulates the scenario where two requests try to create
-        # the same user simultaneously
+    def test_api_login_with_existing_user(self, client, app):
+        """Test that login works with existing user and correct password."""
         with app.app_context():
-            from kiosk_show_replacement.models import User, db
-
-            # Create a user manually to simulate race condition
+            # Create a user manually
             user = User(username="raceuser", email="race@example.com")
             user.set_password("password")
             db.session.add(user)
             db.session.commit()
 
-            # The API login should still work even if user exists
-            response = client.post(
-                "/api/v1/auth/login",
-                json={"username": "raceuser", "password": "password"},
-                content_type="application/json",
-            )
+        # Login should work with correct password
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"username": "raceuser", "password": "password"},
+            content_type="application/json",
+        )
 
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["success"] is True
-            assert data["data"]["username"] == "raceuser"
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+        assert data["data"]["username"] == "raceuser"

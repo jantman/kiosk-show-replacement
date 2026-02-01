@@ -110,6 +110,26 @@ Terminal 2: React Frontend
 * **Backend API**: http://localhost:5000
 * **Frontend Dev Server**: http://localhost:3000
 
+User Management
+---------------
+
+After logging in as admin, you should:
+
+1. **Change the default admin password**: Go to Profile Settings (click username dropdown)
+2. **Create user accounts**: Go to User Management (admin only) to create accounts for other administrators
+
+**User Management Features (Admin Only):**
+
+* Create new users with auto-generated temporary passwords
+* Edit user email, admin status, and active status
+* Reset user passwords (generates new temporary password)
+* Deactivate users (prevents login without deleting)
+
+**Profile Settings (All Users):**
+
+* Update email address
+* Change password (requires current password)
+
 What's Next?
 ------------
 

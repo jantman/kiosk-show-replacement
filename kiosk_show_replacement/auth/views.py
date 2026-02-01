@@ -4,15 +4,14 @@ Authentication views for the Kiosk.show Replacement application.
 This module contains Flask routes for user authentication including:
 - Login and logout endpoints
 - Session management
-- User creation during login process
 - Authentication status checks
 
-Implements permissive authentication where any username/password combination
-is accepted, creating users dynamically as needed.
+Implements real authentication where users must exist in the database
+and provide correct credentials to log in.
 """
 
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Literal, Optional, Union, cast
 
 from flask import (
     Blueprint,
@@ -24,7 +23,6 @@ from flask import (
     session,
     url_for,
 )
-from sqlalchemy.exc import IntegrityError
 
 from ..app import db
 from ..models import User
@@ -44,10 +42,10 @@ def inject_current_user() -> dict[str, Optional[User]]:
 @bp.route("/login", methods=["GET", "POST"])
 def login() -> Any:
     """
-    Handle user login with permissive authentication.
+    Handle user login with real authentication.
 
     GET: Display login form
-    POST: Process login credentials (any username/password accepted)
+    POST: Process login credentials (validates against database)
 
     Returns:
         Response: Login form template or redirect to dashboard
@@ -65,44 +63,55 @@ def login() -> Any:
             flash("Password is required", "error")
             return render_template("auth/login.html")
 
-        # Permissive authentication - accept any valid username/password
+        # Real authentication - validate credentials
         try:
-            user = _get_or_create_user(username, password)
+            user = _authenticate_user(username, password)
         except RuntimeError as e:
             # Database initialization error
             error_message = str(e)
             flash(error_message, "error")
             return render_template("auth/login.html")
 
-        if user:
-            # Log successful login
-            user.last_login_at = datetime.now(timezone.utc)
-            db.session.commit()
+        if user is None:
+            # Authentication failed - invalid credentials
+            flash("Invalid username or password", "error")
+            return render_template("auth/login.html")
 
-            # Set up session
-            session["user_id"] = user.id
-            session["username"] = user.username
-            session["is_admin"] = user.is_admin
+        if user == "inactive":
+            # User account is inactive
+            flash("Account is inactive. Please contact an administrator.", "error")
+            return render_template("auth/login.html")
 
-            current_app.logger.info(
-                "User login successful",
-                extra={
-                    "user_id": user.id,
-                    "username": user.username,
-                    "action": "login",
-                    "ip_address": request.remote_addr,
-                },
-            )
+        # At this point, user must be a User object (not None or "inactive")
+        # Type narrowing: cast to User for mypy
+        authenticated_user = cast(User, user)
 
-            flash(f"Welcome, {user.username}!", "success")
+        # Authentication successful
+        authenticated_user.last_login_at = datetime.now(timezone.utc)
+        db.session.commit()
 
-            # Redirect to next page or dashboard
-            next_page = request.args.get("next")
-            if next_page:
-                return redirect(next_page)
-            return redirect(url_for("dashboard.index"))
-        else:
-            flash("Login failed. Please try again.", "error")
+        # Set up session
+        session["user_id"] = authenticated_user.id
+        session["username"] = authenticated_user.username
+        session["is_admin"] = authenticated_user.is_admin
+
+        current_app.logger.info(
+            "User login successful",
+            extra={
+                "user_id": authenticated_user.id,
+                "username": authenticated_user.username,
+                "action": "login",
+                "ip_address": request.remote_addr,
+            },
+        )
+
+        flash(f"Welcome, {authenticated_user.username}!", "success")
+
+        # Redirect to next page or dashboard
+        next_page = request.args.get("next")
+        if next_page:
+            return redirect(next_page)
+        return redirect(url_for("dashboard.index"))
 
     return render_template("auth/login.html")
 
@@ -160,86 +169,69 @@ def status() -> Dict[str, Any]:
     }
 
 
-def _get_or_create_user(username: str, password: str) -> Optional[User]:
+def _authenticate_user(
+    username: str, password: str
+) -> Union[User, Literal["inactive"], None]:
     """
-    Get existing user or create new user with permissive authentication.
+    Authenticate user against database credentials.
 
     Args:
         username: The username to authenticate
-        password: The password (accepted for any non-empty value)
+        password: The password to verify
 
     Returns:
-        User: The authenticated user object, or None if creation failed
+        User: The authenticated user object if credentials are valid
+        None: If user not found or password is incorrect
+        "inactive": If user exists but account is inactive
+
+    Raises:
+        RuntimeError: If database is not initialized
     """
     try:
-        # Check if user already exists
+        # Look up user by username
         user = cast(Optional[User], User.query.filter_by(username=username).first())
 
-        if user:
-            # For existing users, just update their password hash if needed
-            # In permissive mode, we accept any password but store the latest one
-            if not user.check_password(password):
-                user.set_password(password)
-                user.updated_at = datetime.now(timezone.utc)
-                db.session.commit()
-
-                current_app.logger.info(
-                    "User password updated during login",
-                    extra={
-                        "user_id": user.id,
-                        "username": user.username,
-                        "action": "password_update",
-                    },
-                )
-
-            return user
-        else:
-            # Create new user with provided credentials
-            # All users get admin privileges in permissive mode
-            new_user = User(
-                username=username,
-                email=None,  # Email not required for permissive auth
-                is_admin=True,
-            )
-            new_user.set_password(password)
-
-            db.session.add(new_user)
-            db.session.commit()
-
-            current_app.logger.info(
-                "New user created during login",
+        if not user:
+            # User does not exist
+            current_app.logger.warning(
+                "Login failed: user not found",
                 extra={
-                    "user_id": new_user.id,
-                    "username": new_user.username,
-                    "action": "user_creation",
+                    "username": username,
+                    "action": "login_user_not_found",
                     "ip_address": request.remote_addr,
                 },
             )
+            return None
 
-            return new_user
+        # Check password
+        if not user.check_password(password):
+            current_app.logger.warning(
+                "Login failed: invalid password",
+                extra={
+                    "user_id": user.id,
+                    "username": user.username,
+                    "action": "login_invalid_password",
+                    "ip_address": request.remote_addr,
+                },
+            )
+            return None
 
-    except IntegrityError as e:
-        # Handle race condition where user was created between check and insert
-        db.session.rollback()
+        # Check if user is active
+        if not user.is_active:
+            current_app.logger.warning(
+                "Login failed: user account is inactive",
+                extra={
+                    "user_id": user.id,
+                    "username": user.username,
+                    "action": "login_inactive_user",
+                    "ip_address": request.remote_addr,
+                },
+            )
+            return "inactive"
 
-        current_app.logger.warning(
-            "User creation failed due to integrity error, retrying",
-            extra={
-                "username": username,
-                "action": "user_creation_retry",
-                "error": str(e),
-            },
-        )
-
-        # Try to get the user that was created by another request
-        user = cast(Optional[User], User.query.filter_by(username=username).first())
-        if user and user.check_password(password):
-            return user
-
-        return None
+        return user
 
     except Exception as e:
-        db.session.rollback()
         error_str = str(e)
 
         # Detect database initialization issues
