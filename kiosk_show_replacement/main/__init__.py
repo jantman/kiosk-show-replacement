@@ -27,7 +27,7 @@ def index() -> Any:
     """
     # Always redirect to React admin interface
     # React handles authentication state and shows login if needed
-    return redirect("/admin/")
+    return redirect(url_for("serve_admin"))
 
 
 @bp.route("/dashboard")
