@@ -2840,14 +2840,16 @@ class TestSkeddaCalendarDisplay:
             "display_name": display_name,
         }
 
-        # Cleanup
+        # Cleanup - best effort, don't fail tests if cleanup fails
+        # (resources may already be deleted if test failed mid-way, and
+        # database isolation ensures leftover data won't affect other tests)
         try:
             http_client.delete(
                 f"/api/v1/displays/{display_id}",
                 headers=auth_headers,
             )
         except Exception:
-            pass
+            pass  # Ignore cleanup failures - see comment above
 
         try:
             http_client.delete(
@@ -2855,15 +2857,15 @@ class TestSkeddaCalendarDisplay:
                 headers=auth_headers,
             )
         except Exception:
-            pass
+            pass  # Ignore cleanup failures - see comment above
 
-        # Clean up database records
+        # Clean up database records - rollback on failure to release any locks
         try:
             db_session.query(ICalEvent).filter(ICalEvent.feed_id == feed.id).delete()
             db_session.query(ICalFeed).filter(ICalFeed.id == feed.id).delete()
             db_session.commit()
         except Exception:
-            db_session.rollback()
+            db_session.rollback()  # Release locks if cleanup query failed
 
     def test_skedda_calendar_renders_grid(
         self,
