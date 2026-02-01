@@ -52,7 +52,7 @@ def login() -> Any:
     """
     # GET requests redirect to React login
     if request.method == "GET":
-        return redirect("/admin/")
+        return redirect(url_for("serve_admin"))
 
     # POST requests process login (for unit tests and backwards compatibility)
     username = request.form.get("username", "").strip()
@@ -148,7 +148,7 @@ def logout() -> Any:
         )
 
     flash("You have been logged out successfully.", "info")
-    return redirect("/admin/")
+    return redirect(url_for("serve_admin"))
 
 
 @bp.route("/status")
