@@ -83,7 +83,7 @@ Finally, update `docs/index.rst` as needed for the above changes, and then ensur
 
 **Task 1.3:** Test workflow by verifying docs build locally with `nox -s docs`
 
-**Status:** Not started
+**Status:** Complete (0ae4a5c)
 
 ---
 
@@ -102,7 +102,7 @@ Finally, update `docs/index.rst` as needed for the above changes, and then ensur
 **Task 2.3:** Add brief Docker quick-start reference
 - Just enough to point users to full docs (1-2 sentences)
 
-**Status:** Not started
+**Status:** Complete (187945f)
 
 ---
 
@@ -122,7 +122,7 @@ Finally, update `docs/index.rst` as needed for the above changes, and then ensur
 **Task 3.3:** Ensure no other docs contain API documentation
 - Add reference links from usage.rst to api.rst where appropriate
 
-**Status:** Not started
+**Status:** Complete (e54413b) - API section in usage.rst will be removed in Milestone 5
 
 ---
 
@@ -147,7 +147,7 @@ Finally, update `docs/index.rst` as needed for the above changes, and then ensur
 
 **Task 4.5:** Update index.rst to remove references to deleted files
 
-**Status:** Not started
+**Status:** Complete (7f42b7b)
 
 ---
 
@@ -178,7 +178,7 @@ Finally, update `docs/index.rst` as needed for the above changes, and then ensur
 
 **Task 5.5:** Add cross-reference to api.rst for programmatic access
 
-**Status:** Not started
+**Status:** Complete (29f0ef7)
 
 ---
 
@@ -207,10 +207,15 @@ Finally, update `docs/index.rst` as needed for the above changes, and then ensur
 **Task 6.5:** Move feature file to completed/
 - Move `docs/features/docs-cleanup.md` to `docs/features/completed/`
 
-**Status:** Not started
+**Status:** Complete
 
 ---
 
 ## Progress Log
 
-*(To be updated as work progresses)*
+- **Milestone 1 Complete** (0ae4a5c): Added GitHub Pages deployment workflow to release.yml
+- **Milestone 2 Complete** (187945f): Simplified README.md with prominent documentation link
+- **Milestone 3 Complete** (e54413b): Updated api.rst authentication documentation
+- **Milestone 4 Complete** (7f42b7b): Removed getting-started.rst and installation.rst, migrated content
+- **Milestone 5 Complete** (29f0ef7): Updated usage.rst to focus on frontend usage only
+- **Milestone 6 Complete**: All nox sessions pass (format, lint, type_check, test-3.14, docs)
