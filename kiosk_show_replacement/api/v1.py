@@ -72,18 +72,23 @@ def api_admin_required(f: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to require admin privileges for API endpoints.
 
     Raises AuthenticationError if not authenticated,
-    returns 403 if authenticated but not admin.
+    returns 403 if authenticated but not admin or if account is inactive.
+
+    Note: We check the user record from the database (not session flags)
+    to ensure we have the current admin/active status.
     """
     from functools import wraps
-
-    from ..auth.decorators import is_admin
 
     @wraps(f)
     def decorated_function(*args: Any, **kwargs: Any) -> Any:
         user = get_current_user()
         if not user:
             raise AuthenticationError()
-        if not is_admin():
+        # Check active status from DB to catch recently deactivated users
+        if not user.is_active:
+            return api_error("Account is inactive", 403)
+        # Check admin status from DB to catch recently demoted users
+        if not user.is_admin:
             return api_error("Admin privileges required", 403)
         return f(*args, **kwargs)
 
@@ -2131,6 +2136,10 @@ def create_user() -> Tuple[Response, int]:
     email = data.get("email", "").strip() if data.get("email") else None
     is_admin_flag = data.get("is_admin", False)
 
+    # Validate is_admin is a boolean if provided
+    if "is_admin" in data and not isinstance(is_admin_flag, bool):
+        return api_error("Field 'is_admin' must be a boolean", 400)
+
     # Validate username
     if not username:
         return api_error("Username is required", 400)
@@ -2232,13 +2241,21 @@ def update_user(user_id: int) -> Tuple[Response, int]:
         if "is_admin" in data:
             if user.id == current_user.id:
                 return api_error("Cannot change your own admin status", 403)
-            user.is_admin = bool(data["is_admin"])
+            is_admin_value = data["is_admin"]
+            if is_admin_value is not None and not isinstance(is_admin_value, bool):
+                return api_error("Field 'is_admin' must be a boolean", 400)
+            if is_admin_value is not None:
+                user.is_admin = is_admin_value
 
         # Update is_active if provided (but not for self)
         if "is_active" in data:
             if user.id == current_user.id:
                 return api_error("Cannot deactivate your own account", 403)
-            user.is_active = bool(data["is_active"])
+            is_active_value = data["is_active"]
+            if is_active_value is not None and not isinstance(is_active_value, bool):
+                return api_error("Field 'is_active' must be a boolean", 400)
+            if is_active_value is not None:
+                user.is_active = is_active_value
 
         db.session.commit()
 

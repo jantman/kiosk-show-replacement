@@ -108,9 +108,13 @@ def login() -> Any:
         flash(f"Welcome, {authenticated_user.username}!", "success")
 
         # Redirect to next page or dashboard
+        # Validate next_page to prevent open redirect attacks
         next_page = request.args.get("next")
         if next_page:
-            return redirect(next_page)
+            # Only allow relative URLs (starting with /) to prevent open redirects
+            # Also reject protocol-relative URLs (starting with //)
+            if next_page.startswith("/") and not next_page.startswith("//"):
+                return redirect(next_page)
         return redirect(url_for("dashboard.index"))
 
     return render_template("auth/login.html")

@@ -185,9 +185,10 @@ def test_database(project_root, tmp_path_factory):
 
         session.commit()
         logger.info("✓ Additional test users created successfully")
-    except Exception as e:
-        logger.warning(f"Failed to create additional test users: {e}")
+    except Exception:
+        logger.exception("Failed to create additional test users")
         session.rollback()
+        raise  # Fail fast - test database state must be guaranteed
     finally:
         session.close()
         engine.dispose()

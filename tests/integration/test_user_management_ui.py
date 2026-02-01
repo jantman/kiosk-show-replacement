@@ -49,7 +49,6 @@ class TestUserManagementAccess:
         # Create a temporary non-admin user to test with
         # (test_user's password may have been changed by password reset tests)
         unique_username = f"non_admin_test_{int(time.time())}"
-        temp_password = "test_temp_password"
 
         # First, create the user as admin
         create_response = http_client.post(

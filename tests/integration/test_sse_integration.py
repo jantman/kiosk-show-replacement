@@ -229,7 +229,7 @@ class TestSSEIntegration:
                 logger.warning(f"Could not save screenshot: {screenshot_error}")
             raise
 
-    def test_sse_api_endpoints_accessible(self, servers):
+    def test_sse_api_endpoints_accessible(self, servers, test_database):
         """Test that SSE API endpoints are accessible from Flask backend."""
         flask_url = servers["flask_url"]
         logger.info(f"Testing SSE API endpoints at {flask_url}")
@@ -243,10 +243,12 @@ class TestSSEIntegration:
         session = requests.Session()
 
         # Authenticate first using the API login endpoint
+        # Use credentials from test_database fixture for consistency
+        admin_user = test_database["users"][0]
         try:
             login_data = {
-                "username": "admin",
-                "password": "admin",
+                "username": admin_user["username"],
+                "password": admin_user["password"],
             }
             login_response = session.post(
                 f"{flask_url}/api/v1/auth/login",

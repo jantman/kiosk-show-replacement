@@ -31,7 +31,7 @@ const Profile: React.FC = () => {
     setIsUpdatingProfile(true);
 
     try {
-      const response = await apiClient.updateProfile({ email: email || undefined });
+      const response = await apiClient.updateProfile({ email });
 
       if (response.success) {
         setProfileMessage({ type: 'success', text: 'Profile updated successfully.' });

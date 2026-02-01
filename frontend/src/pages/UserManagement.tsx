@@ -126,7 +126,7 @@ const UserManagement: React.FC = () => {
 
     try {
       const response = await apiClient.updateUser(editUser.id, {
-        email: editEmail || undefined,
+        email: editEmail,
         is_admin: editIsAdmin,
         is_active: editIsActive,
       });
@@ -182,6 +182,19 @@ const UserManagement: React.FC = () => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleString();
   };
+
+  // Check if user is admin - if not, show access denied
+  // This check is placed after all hooks to comply with React's rules of hooks
+  if (!currentUser?.is_admin) {
+    return (
+      <Container className="py-4">
+        <Alert variant="danger">
+          <Alert.Heading>Access Denied</Alert.Heading>
+          <p>You do not have permission to access user management. Admin privileges are required.</p>
+        </Alert>
+      </Container>
+    );
+  }
 
   if (isLoading) {
     return (
