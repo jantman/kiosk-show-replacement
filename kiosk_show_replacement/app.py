@@ -10,6 +10,7 @@ import re
 from typing import Any, Optional
 
 from flask import Flask, Response, abort, redirect, send_from_directory
+from markupsafe import Markup
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -183,6 +184,63 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     init_storage(app)
 
+    # Context processor for NewRelic browser monitoring
+    # When the NewRelic agent is active, this injects browser timing scripts
+    # into all templates. When inactive, returns empty strings.
+    @app.context_processor
+    def newrelic_browser_timing() -> dict[str, Markup]:
+        """Provide NewRelic browser timing scripts to templates."""
+        try:
+            import newrelic.agent  # type: ignore[import-untyped]
+
+            return {
+                "newrelic_header": Markup(newrelic.agent.get_browser_timing_header()),
+                "newrelic_footer": Markup(newrelic.agent.get_browser_timing_footer()),
+            }
+        except Exception:
+            return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
+
+    def _get_newrelic_browser_scripts() -> tuple[str, str]:
+        """Get NewRelic browser timing scripts for injection.
+
+        Returns:
+            Tuple of (header_script, footer_script). Empty strings if
+            NewRelic is not active.
+        """
+        try:
+            import newrelic.agent  # type: ignore[import-untyped]
+
+            return (
+                newrelic.agent.get_browser_timing_header(),
+                newrelic.agent.get_browser_timing_footer(),
+            )
+        except Exception:
+            return ("", "")
+
+    def _inject_newrelic_into_html(html: str) -> str:
+        """Inject NewRelic browser timing scripts into HTML.
+
+        Args:
+            html: The HTML content to inject scripts into.
+
+        Returns:
+            HTML with NewRelic scripts injected, or original HTML if
+            NewRelic is not active.
+        """
+        header, footer = _get_newrelic_browser_scripts()
+        if not header and not footer:
+            return html
+
+        # Inject header after <head> tag
+        if header:
+            html = html.replace("<head>", f"<head>\n    {header}", 1)
+
+        # Inject footer before </body> tag
+        if footer:
+            html = html.replace("</body>", f"    {footer}\n</body>", 1)
+
+        return html
+
     # Serve React frontend (for production build)
     @app.route("/admin", strict_slashes=False)
     @app.route("/admin/<path:path>")
@@ -202,7 +260,12 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             if path and os.path.exists(os.path.join(static_dir, path)):
                 return send_from_directory(static_dir, path)
             else:
-                return send_from_directory(static_dir, "index.html")
+                # For index.html, inject NewRelic browser scripts
+                index_path = os.path.join(static_dir, "index.html")
+                with open(index_path, "r") as f:
+                    html = f.read()
+                html = _inject_newrelic_into_html(html)
+                return Response(html, mimetype="text/html")
 
         # Fallback if build doesn't exist
         return (
