@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{ newrelic_header }}
     <title>{{ slideshow.name }} - Kiosk Display</title>
     
     <style>
@@ -695,5 +696,6 @@
             }
         });
     </script>
+    {{ newrelic_footer }}
 </body>
 </html>

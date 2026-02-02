@@ -5,15 +5,16 @@ This module contains the Flask application factory that creates and configures
 the Flask app instance with all necessary blueprints, extensions, and configuration.
 """
 
+import logging
 import os
 import re
 from typing import Any, Optional
 
 from flask import Flask, Response, abort, redirect, send_from_directory
-from markupsafe import Markup
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from markupsafe import Markup
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -187,17 +188,23 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     # Context processor for NewRelic browser monitoring
     # When the NewRelic agent is active, this injects browser timing scripts
     # into all templates. When inactive, returns empty strings.
+    logger = logging.getLogger(__name__)
+
     @app.context_processor
     def newrelic_browser_timing() -> dict[str, Markup]:
         """Provide NewRelic browser timing scripts to templates."""
         try:
-            import newrelic.agent  # type: ignore[import-untyped]
+            import newrelic.agent
 
             return {
                 "newrelic_header": Markup(newrelic.agent.get_browser_timing_header()),
                 "newrelic_footer": Markup(newrelic.agent.get_browser_timing_footer()),
             }
-        except Exception:
+        except ImportError:
+            # NewRelic not installed - this is expected in development
+            return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
+        except Exception as e:
+            logger.warning("NewRelic browser timing failed: %s", e)
             return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
 
     def _get_newrelic_browser_scripts() -> tuple[str, str]:
@@ -208,13 +215,17 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             NewRelic is not active.
         """
         try:
-            import newrelic.agent  # type: ignore[import-untyped]
+            import newrelic.agent
 
             return (
                 newrelic.agent.get_browser_timing_header(),
                 newrelic.agent.get_browser_timing_footer(),
             )
-        except Exception:
+        except ImportError:
+            # NewRelic not installed - this is expected in development
+            return ("", "")
+        except Exception as e:
+            logger.warning("NewRelic browser scripts failed: %s", e)
             return ("", "")
 
     def _inject_newrelic_into_html(html: str) -> str:
@@ -241,6 +252,9 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
         return html
 
+    # Cache for React admin index.html content
+    _admin_index_html_cache: dict[str, str] = {}
+
     # Serve React frontend (for production build)
     @app.route("/admin", strict_slashes=False)
     @app.route("/admin/<path:path>")
@@ -261,10 +275,14 @@ def create_app(config_name: Optional[str] = None) -> Flask:
                 return send_from_directory(static_dir, path)
             else:
                 # For index.html, inject NewRelic browser scripts
+                # Cache the base HTML to avoid re-reading on every request
                 index_path = os.path.join(static_dir, "index.html")
-                with open(index_path, "r") as f:
-                    html = f.read()
-                html = _inject_newrelic_into_html(html)
+                if "base" not in _admin_index_html_cache:
+                    with open(index_path, "r", encoding="utf-8") as f:
+                        _admin_index_html_cache["base"] = f.read()
+
+                # Inject NewRelic scripts (done per-request as scripts may vary)
+                html = _inject_newrelic_into_html(_admin_index_html_cache["base"])
                 return Response(html, mimetype="text/html")
 
         # Fallback if build doesn't exist
