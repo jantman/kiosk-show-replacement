@@ -171,12 +171,19 @@ environment variable:
 
 The production Docker Compose file automatically configures MariaDB.
 
-NewRelic APM Monitoring
-~~~~~~~~~~~~~~~~~~~~~~~
+NewRelic Monitoring
+~~~~~~~~~~~~~~~~~~~
 
-The application supports optional NewRelic APM monitoring for performance
-insights and error tracking. NewRelic is automatically enabled when the
-``NEW_RELIC_LICENSE_KEY`` environment variable is set.
+The application supports optional NewRelic monitoring for performance insights
+and error tracking. Both APM (backend) and Browser (frontend) monitoring are
+automatically enabled when the ``NEW_RELIC_LICENSE_KEY`` environment variable
+is set.
+
+**What's Included:**
+
+* **APM Monitoring** - Backend performance, database queries, external calls
+* **Browser Monitoring** - Frontend page load times, JavaScript errors, user sessions
+* **Distributed Tracing** - Automatic correlation between browser requests and backend transactions
 
 **Enabling NewRelic:**
 
@@ -197,18 +204,18 @@ insights and error tracking. NewRelic is automatically enabled when the
 
 **NewRelic Environment Variables:**
 
-================================== ==========================================
-Variable                           Description
-================================== ==========================================
-``NEW_RELIC_LICENSE_KEY``          Required. Your NewRelic license key.
-``NEW_RELIC_APP_NAME``             Application name in dashboard
-                                   (default: kiosk-show-replacement)
-``NEW_RELIC_ENVIRONMENT``          Environment tag (e.g., production, staging)
-``NEW_RELIC_LOG_LEVEL``            Agent log level: critical, error, warning,
-                                   info, debug (default: info)
-``NEW_RELIC_DISTRIBUTED_TRACING_ENABLED``
-                                   Enable distributed tracing (default: true)
-================================== ==========================================
+=========================================== ==========================================
+Variable                                    Description
+=========================================== ==========================================
+``NEW_RELIC_LICENSE_KEY``                   Required. Your NewRelic license key.
+``NEW_RELIC_APP_NAME``                      Application name in dashboard
+                                            (default: kiosk-show-replacement)
+``NEW_RELIC_ENVIRONMENT``                   Environment tag (e.g., production, staging)
+``NEW_RELIC_LOG_LEVEL``                     Agent log level: critical, error, warning,
+                                            info, debug (default: info)
+``NEW_RELIC_DISTRIBUTED_TRACING_ENABLED``   Enable distributed tracing (default: true)
+``NEW_RELIC_API_KEY``                       Optional. NewRelic User API key (if needed)
+=========================================== ==========================================
 
 **Verifying NewRelic is Active:**
 
@@ -219,6 +226,10 @@ Check the application logs for NewRelic activation:
    docker-compose -f docker-compose.prod.yml logs app | grep -i newrelic
 
 You should see "NewRelic monitoring enabled" if properly configured.
+
+To verify browser monitoring, view page source in your browser and look for
+the NewRelic browser agent script in the ``<head>`` section. The script is
+automatically injected into all HTML pages when the APM agent is active.
 
 Prometheus Metrics
 ~~~~~~~~~~~~~~~~~~

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{ newrelic_header }}
     <title>{{ slideshow.name }} - {{ display.name }}</title>
     
     <!-- DOMPurify for safe HTML sanitization in text slides -->
@@ -1649,5 +1650,6 @@
             if (sseClient) sseClient.disconnect();
         });
     </script>
+    {{ newrelic_footer }}
 </body>
 </html>

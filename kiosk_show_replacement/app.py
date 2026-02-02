@@ -5,6 +5,7 @@ This module contains the Flask application factory that creates and configures
 the Flask app instance with all necessary blueprints, extensions, and configuration.
 """
 
+import logging
 import os
 import re
 from typing import Any, Optional
@@ -13,6 +14,7 @@ from flask import Flask, Response, abort, redirect, send_from_directory
 from flask_cors import CORS
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+from markupsafe import Markup
 
 # Initialize extensions
 db = SQLAlchemy()
@@ -183,6 +185,76 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     init_storage(app)
 
+    # Context processor for NewRelic browser monitoring
+    # When the NewRelic agent is active, this injects browser timing scripts
+    # into all templates. When inactive, returns empty strings.
+    logger = logging.getLogger(__name__)
+
+    @app.context_processor
+    def newrelic_browser_timing() -> dict[str, Markup]:
+        """Provide NewRelic browser timing scripts to templates."""
+        try:
+            import newrelic.agent
+
+            return {
+                "newrelic_header": Markup(newrelic.agent.get_browser_timing_header()),
+                "newrelic_footer": Markup(newrelic.agent.get_browser_timing_footer()),
+            }
+        except ImportError:
+            # NewRelic not installed - this is expected in development
+            return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
+        except Exception as e:
+            logger.warning("NewRelic browser timing failed: %s", e)
+            return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
+
+    def _get_newrelic_browser_scripts() -> tuple[str, str]:
+        """Get NewRelic browser timing scripts for injection.
+
+        Returns:
+            Tuple of (header_script, footer_script). Empty strings if
+            NewRelic is not active.
+        """
+        try:
+            import newrelic.agent
+
+            return (
+                newrelic.agent.get_browser_timing_header(),
+                newrelic.agent.get_browser_timing_footer(),
+            )
+        except ImportError:
+            # NewRelic not installed - this is expected in development
+            return ("", "")
+        except Exception as e:
+            logger.warning("NewRelic browser scripts failed: %s", e)
+            return ("", "")
+
+    def _inject_newrelic_into_html(html: str) -> str:
+        """Inject NewRelic browser timing scripts into HTML.
+
+        Args:
+            html: The HTML content to inject scripts into.
+
+        Returns:
+            HTML with NewRelic scripts injected, or original HTML if
+            NewRelic is not active.
+        """
+        header, footer = _get_newrelic_browser_scripts()
+        if not header and not footer:
+            return html
+
+        # Inject header after <head> tag
+        if header:
+            html = html.replace("<head>", f"<head>\n    {header}", 1)
+
+        # Inject footer before </body> tag
+        if footer:
+            html = html.replace("</body>", f"    {footer}\n</body>", 1)
+
+        return html
+
+    # Cache for React admin index.html content
+    _admin_index_html_cache: dict[str, str] = {}
+
     # Serve React frontend (for production build)
     @app.route("/admin", strict_slashes=False)
     @app.route("/admin/<path:path>")
@@ -202,7 +274,16 @@ def create_app(config_name: Optional[str] = None) -> Flask:
             if path and os.path.exists(os.path.join(static_dir, path)):
                 return send_from_directory(static_dir, path)
             else:
-                return send_from_directory(static_dir, "index.html")
+                # For index.html, inject NewRelic browser scripts
+                # Cache the base HTML to avoid re-reading on every request
+                index_path = os.path.join(static_dir, "index.html")
+                if "base" not in _admin_index_html_cache:
+                    with open(index_path, "r", encoding="utf-8") as f:
+                        _admin_index_html_cache["base"] = f.read()
+
+                # Inject NewRelic scripts (done per-request as scripts may vary)
+                html = _inject_newrelic_into_html(_admin_index_html_cache["base"])
+                return Response(html, mimetype="text/html")
 
         # Fallback if build doesn't exist
         return (
