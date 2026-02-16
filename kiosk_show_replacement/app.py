@@ -203,6 +203,13 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     logger = logging.getLogger(__name__)
 
     @app.context_processor
+    def inject_app_version() -> dict[str, str]:
+        """Provide application version to all templates."""
+        from kiosk_show_replacement import __version__
+
+        return {"app_version": __version__}
+
+    @app.context_processor
     def newrelic_browser_timing() -> dict[str, Markup]:
         """Provide NewRelic browser timing scripts to templates."""
         try:

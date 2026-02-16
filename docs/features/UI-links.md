@@ -19,7 +19,7 @@ When this is complete we must use `poetry` to bump the patch version.
 - **Login page** (`frontend/src/pages/Login.tsx`): No footer, rendered outside AdminLayout.
 - **Version**: `0.3.0` in `kiosk_show_replacement/__init__.py` and `pyproject.toml`. Already exposed via `/health/ready` endpoint but requires DB to be healthy.
 
-### Milestone 1: Implementation (prefix: `UI Links - 1`)
+### Milestone 1: Implementation (prefix: `UI Links - 1`) - COMPLETE
 
 #### Task 1.1: Add version API endpoint
 - **File**: `kiosk_show_replacement/api/v1.py`
