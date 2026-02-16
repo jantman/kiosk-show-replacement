@@ -67,7 +67,9 @@ class TestAppFactory:
         data = response.get_json()
         # Status can be healthy or degraded depending on storage state
         assert data["status"] in ["healthy", "degraded"]
-        assert data["version"] == "0.1.0"
+        from kiosk_show_replacement import __version__
+
+        assert data["version"] == __version__
         assert data["checks"]["database"]["initialized"] is True
 
 

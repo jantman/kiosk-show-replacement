@@ -128,7 +128,9 @@ class TestHealthEndpoint:
         assert data["status"] in ["healthy", "degraded"]
         assert data["checks"]["database"]["status"] == "healthy"
         assert data["checks"]["database"]["initialized"] is True
-        assert data["version"] == "0.1.0"
+        from kiosk_show_replacement import __version__
+
+        assert data["version"] == __version__
 
     def test_health_endpoint_with_database_connection(self, app, client, sample_user):
         """Test health endpoint with working database connection."""
