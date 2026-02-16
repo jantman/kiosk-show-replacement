@@ -1,23 +1,55 @@
 import React, { useState, useEffect } from 'react';
 
+const VERSION_ENDPOINT = '/api/v1/version';
+
+const fetchVersionWithTimeout = async (timeoutMs = 5000): Promise<string | null> => {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(VERSION_ENDPOINT, { signal: controller.signal });
+    if (!response.ok) {
+      console.error(`Failed to fetch version: HTTP ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    if (data?.data?.version && typeof data.data.version === 'string') {
+      return data.data.version;
+    }
+
+    console.error('Unexpected version response shape:', data);
+    return null;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      console.error(`Version fetch timed out after ${timeoutMs}ms`);
+    } else {
+      console.error('Error fetching version:', error);
+    }
+    return null;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+};
+
 const Footer: React.FC = () => {
   const [version, setVersion] = useState<string>('');
 
   useEffect(() => {
-    const fetchVersion = async () => {
-      try {
-        const response = await fetch('/api/v1/version');
-        if (response.ok) {
-          const data = await response.json();
-          if (data?.data?.version) {
-            setVersion(data.data.version);
-          }
-        }
-      } catch {
-        // Silently fail - footer will just omit version
+    let isMounted = true;
+
+    const loadVersion = async (): Promise<void> => {
+      const fetchedVersion = await fetchVersionWithTimeout();
+      if (isMounted && fetchedVersion) {
+        setVersion(fetchedVersion);
       }
     };
-    fetchVersion();
+
+    void loadVersion();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (

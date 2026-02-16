@@ -164,11 +164,12 @@ class TestUILinks:
         display_data = display_response.json().get("data", display_response.json())
 
         # Assign slideshow to display
-        http_client.put(
+        assign_response = http_client.put(
             f"/api/v1/displays/{display_data['id']}",
             json={"current_slideshow_id": slideshow_id},
             headers=auth_headers,
         )
+        assert assign_response.status_code == 200
 
         # Navigate to the display slideshow view
         page.goto(f"{flask_url}/display/footer-test-display")

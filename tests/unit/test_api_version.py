@@ -2,7 +2,7 @@
 Unit tests for the version API endpoint.
 
 Tests that the version endpoint returns the correct version
-and does not require authentication.
+and works both with and without authentication.
 """
 
 from kiosk_show_replacement import __version__
@@ -20,12 +20,11 @@ class TestVersionAPI:
         assert data["success"] is True
         assert data["data"]["version"] == __version__
 
-    def test_version_endpoint_no_auth_required(self, client):
-        """Test that the version endpoint does not require authentication."""
-        # Make request without any session or auth
+    def test_version_endpoint_works_when_authenticated(self, client, authenticated_user):
+        """Test that the version endpoint also works for authenticated users."""
         response = client.get("/api/v1/version")
         assert response.status_code == 200
 
         data = response.get_json()
         assert data["success"] is True
-        assert "version" in data["data"]
+        assert data["data"]["version"] == __version__

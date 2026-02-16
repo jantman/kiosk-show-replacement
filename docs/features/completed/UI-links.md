@@ -59,7 +59,7 @@ When this is complete we must use `poetry` to bump the patch version.
 ### Milestone 2: Acceptance Criteria (prefix: `UI Links - 2`) - COMPLETE
 
 #### Task 2.1: Bump patch version
-- Run `poetry version patch` to bump to `0.4.0`
+- Run `poetry version patch` to bump to `0.3.1`
 - Update `kiosk_show_replacement/__init__.py` to match
 
 #### Task 2.2: Update documentation
