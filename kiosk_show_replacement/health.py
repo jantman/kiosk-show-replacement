@@ -28,13 +28,32 @@ def _get_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _get_database_type() -> str:
+    """Determine the database type from the configured URI.
+
+    Returns:
+        One of "sqlite", "mysql", "postgresql", or "unknown"
+    """
+    uri = current_app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    if uri.startswith("sqlite"):
+        return "sqlite"
+    elif uri.startswith("mysql"):
+        return "mysql"
+    elif uri.startswith("postgresql"):
+        return "postgresql"
+    return "unknown"
+
+
 def _check_database() -> Dict[str, Any]:
     """Check database connectivity, initialization status, and measure latency.
 
     Returns:
-        Dictionary with status, latency_ms, initialized flag, and optional error
+        Dictionary with status, database_type, latency_ms, initialized flag,
+        and optional error
     """
     from .app import db
+
+    database_type = _get_database_type()
 
     try:
         start = time.perf_counter()
@@ -45,8 +64,9 @@ def _check_database() -> Dict[str, Any]:
         # Check if the database is initialized (User table exists and has data)
         initialized = _check_database_initialized()
 
-        result = {
+        result: Dict[str, Any] = {
             "status": "healthy" if initialized else "not_initialized",
+            "database_type": database_type,
             "latency_ms": round(latency_ms, 2),
             "initialized": initialized,
         }
@@ -66,6 +86,7 @@ def _check_database() -> Dict[str, Any]:
         if "no such table" in error_str.lower():
             return {
                 "status": "not_initialized",
+                "database_type": database_type,
                 "initialized": False,
                 "error": "Database tables do not exist",
                 "message": (
@@ -76,6 +97,7 @@ def _check_database() -> Dict[str, Any]:
 
         return {
             "status": "unhealthy",
+            "database_type": database_type,
             "initialized": False,
             "error": error_str,
         }

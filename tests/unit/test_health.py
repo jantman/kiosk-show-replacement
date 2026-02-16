@@ -183,6 +183,56 @@ class TestLivenessProbe:
         assert elapsed < 0.1
 
 
+class TestDatabaseType:
+    """Tests for database_type in health check responses."""
+
+    def test_health_db_includes_database_type(self, app, client, sample_user):
+        """Test /health/db response includes database_type field."""
+        response = client.get("/health/db")
+        data = response.json
+        assert "database_type" in data
+        assert data["database_type"] == "sqlite"
+
+    def test_health_includes_database_type(self, app, client):
+        """Test /health response includes database_type in database check."""
+        response = client.get("/health")
+        data = response.json
+        db_check = data["checks"]["database"]
+        assert "database_type" in db_check
+        assert db_check["database_type"] == "sqlite"
+
+    def test_get_database_type_sqlite(self, app):
+        """Test _get_database_type returns 'sqlite' for SQLite URIs."""
+        from kiosk_show_replacement.health import _get_database_type
+
+        with app.app_context():
+            assert _get_database_type() == "sqlite"
+
+    def test_get_database_type_mysql(self, app):
+        """Test _get_database_type returns 'mysql' for MySQL URIs."""
+        from kiosk_show_replacement.health import _get_database_type
+
+        with app.app_context():
+            app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://u:p@h:3306/db"
+            assert _get_database_type() == "mysql"
+
+    def test_get_database_type_postgresql(self, app):
+        """Test _get_database_type returns 'postgresql' for PostgreSQL URIs."""
+        from kiosk_show_replacement.health import _get_database_type
+
+        with app.app_context():
+            app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://u:p@h:5432/db"
+            assert _get_database_type() == "postgresql"
+
+    def test_get_database_type_unknown(self, app):
+        """Test _get_database_type returns 'unknown' for unrecognized URIs."""
+        from kiosk_show_replacement.health import _get_database_type
+
+        with app.app_context():
+            app.config["SQLALCHEMY_DATABASE_URI"] = "oracle://u:p@h/db"
+            assert _get_database_type() == "unknown"
+
+
 class TestHealthCheckHelpers:
     """Tests for health check helper functions."""
 
