@@ -1839,6 +1839,14 @@ def api_status() -> Tuple[Response, int]:
     )
 
 
+@api_v1_bp.route("/version", methods=["GET"])
+def api_version() -> Tuple[Response, int]:
+    """Return the application version. No authentication required."""
+    from kiosk_show_replacement import __version__
+
+    return api_response({"version": __version__}, "Version retrieved successfully")
+
+
 # =============================================================================
 # Authentication API Endpoints
 # =============================================================================

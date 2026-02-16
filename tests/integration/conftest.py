@@ -511,6 +511,8 @@ def clean_test_data(db_session, db_models):
     # Clean up before test - remove all test data except admin user
     try:
         # Note: We keep user ID 2 (integration_test_user) for authentication
+        # Clean AssignmentHistory before Display (FK dependency)
+        db_session.query(db_models["AssignmentHistory"]).delete()
         db_session.query(db_models["Display"]).delete()
         db_session.query(db_models["DisplayConfigurationTemplate"]).filter(
             db_models["DisplayConfigurationTemplate"].id
@@ -526,6 +528,7 @@ def clean_test_data(db_session, db_models):
 
     # Also clean up after test for good measure
     try:
+        db_session.query(db_models["AssignmentHistory"]).delete()
         db_session.query(db_models["Display"]).delete()
         db_session.query(db_models["DisplayConfigurationTemplate"]).filter(
             db_models["DisplayConfigurationTemplate"].id

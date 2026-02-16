@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Container } from 'react-bootstrap';
 import Navigation from './Navigation';
+import Footer from './Footer';
 import LiveNotifications from './LiveNotifications';
 import { SSEProvider, useSSEContext } from '../hooks/useSSE';
 
@@ -41,6 +42,7 @@ const AdminLayoutContent: React.FC = () => {
         </div>
         <Outlet />
       </Container>
+      <Footer />
       <LiveNotifications />
     </div>
   );

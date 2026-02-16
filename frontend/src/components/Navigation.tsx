@@ -30,6 +30,14 @@ const Navigation: React.FC = () => {
           </Nav>
           
           <Nav>
+            <Nav.Link
+              href="https://jantman.github.io/kiosk-show-replacement/usage.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="me-2"
+            >
+              Help
+            </Nav.Link>
             <Dropdown align="end">
               <Dropdown.Toggle variant="outline-light" id="user-dropdown">
                 {user?.username || 'User'}
