@@ -6,6 +6,18 @@ set -e
 
 echo "=== Kiosk Show Replacement - Docker Entrypoint ==="
 
+# Construct DATABASE_URL from individual MYSQL_* variables if not already set
+if [ -z "${DATABASE_URL:-}" ] && [ -n "${MYSQL_HOST:-}" ]; then
+    MYSQL_PORT="${MYSQL_PORT:-3306}"
+    MYSQL_USER="${MYSQL_USER:?MYSQL_HOST is set but MYSQL_USER is not}"
+    MYSQL_PASSWORD="${MYSQL_PASSWORD:?MYSQL_HOST is set but MYSQL_PASSWORD is not}"
+    MYSQL_DATABASE="${MYSQL_DATABASE:?MYSQL_HOST is set but MYSQL_DATABASE is not}"
+    ENCODED_USER=$(python -c "from urllib.parse import quote_plus; import os; print(quote_plus(os.environ['MYSQL_USER']))")
+    ENCODED_PASSWORD=$(python -c "from urllib.parse import quote_plus; import os; print(quote_plus(os.environ['MYSQL_PASSWORD']))")
+    export DATABASE_URL="mysql+pymysql://${ENCODED_USER}:${ENCODED_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}"
+    echo "Constructed DATABASE_URL from MYSQL_* environment variables"
+fi
+
 # Set default environment variables if not provided
 export FLASK_ENV="${FLASK_ENV:-production}"
 export FLASK_APP="kiosk_show_replacement.app:create_app('${FLASK_ENV}')"

@@ -140,6 +140,8 @@ Variable                  Default
 ``APP_PORT``              5000
 ``MYSQL_DATABASE``        kiosk_show
 ``MYSQL_USER``            kiosk
+``MYSQL_HOST``            (none; enables MySQL auto-configuration)
+``MYSQL_PORT``            3306
 ``KIOSK_ADMIN_USERNAME``  admin
 ``KIOSK_ADMIN_EMAIL``     (none)
 ``GUNICORN_WORKERS``      2
@@ -148,8 +150,30 @@ Variable                  Default
 Database Configuration
 ~~~~~~~~~~~~~~~~~~~~~~
 
-The application supports multiple database backends via the ``DATABASE_URL``
-environment variable:
+The application supports multiple database backends. There are two ways to
+configure the database connection:
+
+**Option 1: Individual MYSQL_* variables (recommended for Docker)**
+
+Set the individual ``MYSQL_*`` environment variables and the application will
+automatically construct the ``DATABASE_URL`` connection string. This happens
+both in the Docker entrypoint script and in the Python configuration module.
+
+.. code-block:: bash
+
+   MYSQL_HOST=mariadb
+   MYSQL_USER=kiosk
+   MYSQL_PASSWORD=secretpassword
+   MYSQL_DATABASE=kiosk_show
+   MYSQL_PORT=3306          # optional, defaults to 3306
+
+When ``MYSQL_HOST`` is set and ``DATABASE_URL`` is not, the application
+constructs: ``mysql+pymysql://user:password@host:port/database``
+
+**Option 2: Direct DATABASE_URL**
+
+Set the ``DATABASE_URL`` environment variable directly to a full connection
+string. This takes precedence over individual ``MYSQL_*`` variables.
 
 **SQLite** (development/single-node):
 
@@ -170,6 +194,13 @@ environment variable:
    DATABASE_URL=postgresql://user:password@host:5432/database
 
 The production Docker Compose file automatically configures MariaDB.
+
+.. important::
+
+   In production mode, the application **will not start** if the database
+   resolves to SQLite. You must configure either ``DATABASE_URL`` or the
+   ``MYSQL_*`` variables. This prevents silent data loss from an ephemeral
+   SQLite database inside a container.
 
 NewRelic Monitoring
 ~~~~~~~~~~~~~~~~~~~
@@ -485,6 +516,38 @@ during initialization. If the data directory has overly permissive permissions
 
 **Prevention:** Always create the data directories with correct ownership before
 first run (see Quick Start step 4).
+
+Data disappearing after container restart
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If your data disappears after restarting the container, the application is
+likely using an ephemeral SQLite database inside the container instead of your
+configured MySQL/MariaDB database.
+
+**Symptoms:**
+
+* Data lost on container restart
+* MySQL database has no tables
+* Health check ``/health/db`` shows ``database_type: "sqlite"``
+
+**Cause:** The application only reads the ``DATABASE_URL`` environment variable
+for its connection string. If you set individual ``MYSQL_*`` variables but not
+``DATABASE_URL``, and are not using ``docker-compose.prod.yml`` (which constructs
+it automatically), the app falls back to SQLite.
+
+**Solution:**
+
+As of version 0.3.0, the application automatically constructs ``DATABASE_URL``
+from ``MYSQL_*`` variables. For older versions, either:
+
+1. Set ``DATABASE_URL`` explicitly, or
+2. Use ``docker-compose.prod.yml`` which constructs it for you
+
+You can verify which database is in use via the health endpoint:
+
+.. code-block:: bash
+
+   curl http://localhost:5000/health/db | jq .database_type
 
 Health check failing
 ~~~~~~~~~~~~~~~~~~~~

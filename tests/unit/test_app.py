@@ -5,6 +5,10 @@ Tests application creation, configuration loading,
 and basic application setup.
 """
 
+import importlib
+
+import pytest
+
 from kiosk_show_replacement.app import create_app, db
 
 
@@ -67,7 +71,9 @@ class TestAppFactory:
         data = response.get_json()
         # Status can be healthy or degraded depending on storage state
         assert data["status"] in ["healthy", "degraded"]
-        assert data["version"] == "0.1.0"
+        from kiosk_show_replacement import __version__
+
+        assert data["version"] == __version__
         assert data["checks"]["database"]["initialized"] is True
 
 
@@ -112,6 +118,35 @@ class TestAppConfiguration:
 
         assert app.config["SECRET_KEY"] == "test-secret-from-env"
         assert "test-from-env.db" in app.config["SQLALCHEMY_DATABASE_URI"]
+
+
+class TestDatabaseConfigValidation:
+    """Test database configuration validation in create_app()."""
+
+    def test_production_sqlite_raises_valueerror(self, monkeypatch):
+        """create_app('production') raises ValueError when no DB is configured."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.delenv("MYSQL_HOST", raising=False)
+        import kiosk_show_replacement.config as config_module
+
+        importlib.reload(config_module)
+
+        with pytest.raises(ValueError, match="Production.*SQLite"):
+            create_app("production")
+
+    def test_production_partial_mysql_raises_valueerror(self, monkeypatch):
+        """create_app('production') raises ValueError on partial MYSQL_* config."""
+        monkeypatch.delenv("DATABASE_URL", raising=False)
+        monkeypatch.setenv("MYSQL_HOST", "dbhost")
+        monkeypatch.delenv("MYSQL_USER", raising=False)
+        monkeypatch.setenv("MYSQL_PASSWORD", "pass")
+        monkeypatch.delenv("MYSQL_DATABASE", raising=False)
+        import kiosk_show_replacement.config as config_module
+
+        importlib.reload(config_module)
+
+        with pytest.raises(ValueError, match="MYSQL_USER"):
+            create_app("production")
 
 
 class TestAppExtensions:

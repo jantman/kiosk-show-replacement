@@ -62,6 +62,18 @@ def create_app(config_name: Optional[str] = None) -> Flask:
     app.config.from_object(config.get(config_name, config["default"]))
     app.config["ENV"] = config_name  # Store environment name for route handlers
 
+    # Validate database configuration
+    from .config import validate_database_config
+
+    db_issues = validate_database_config(
+        config_name, app.config.get("SQLALCHEMY_DATABASE_URI", "")
+    )
+    for level, message in db_issues:
+        if level == "error":
+            raise ValueError(f"Database configuration error: {message}")
+        else:
+            app.logger.warning(f"Database configuration warning: {message}")
+
     # Configure SQLAlchemy engine options for better connection management
     if config_name == "testing" or app.config.get("TESTING"):
         app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {

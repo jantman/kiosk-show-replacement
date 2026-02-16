@@ -23,7 +23,7 @@ testing, documentation, and deployment automation.
 # Import main application factory and database for convenience
 from .app import create_app, db
 
-__version__ = "0.1.0"
+__version__ = "0.3.0"
 __author__ = "Jason Antman"
 __email__ = "jason@jasonantman.com"
 __license__ = "MIT"
