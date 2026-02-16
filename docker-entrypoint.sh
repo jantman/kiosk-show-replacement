@@ -12,7 +12,9 @@ if [ -z "${DATABASE_URL:-}" ] && [ -n "${MYSQL_HOST:-}" ]; then
     MYSQL_USER="${MYSQL_USER:?MYSQL_HOST is set but MYSQL_USER is not}"
     MYSQL_PASSWORD="${MYSQL_PASSWORD:?MYSQL_HOST is set but MYSQL_PASSWORD is not}"
     MYSQL_DATABASE="${MYSQL_DATABASE:?MYSQL_HOST is set but MYSQL_DATABASE is not}"
-    export DATABASE_URL="mysql+pymysql://${MYSQL_USER}:${MYSQL_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}"
+    ENCODED_USER=$(python -c "from urllib.parse import quote_plus; import os; print(quote_plus(os.environ['MYSQL_USER']))")
+    ENCODED_PASSWORD=$(python -c "from urllib.parse import quote_plus; import os; print(quote_plus(os.environ['MYSQL_PASSWORD']))")
+    export DATABASE_URL="mysql+pymysql://${ENCODED_USER}:${ENCODED_PASSWORD}@${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}"
     echo "Constructed DATABASE_URL from MYSQL_* environment variables"
 fi
 
