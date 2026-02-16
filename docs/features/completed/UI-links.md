@@ -56,7 +56,7 @@ When this is complete we must use `poetry` to bump the patch version.
 
 #### Task 1.7: Run all tests, commit
 
-### Milestone 2: Acceptance Criteria (prefix: `UI Links - 2`)
+### Milestone 2: Acceptance Criteria (prefix: `UI Links - 2`) - COMPLETE
 
 #### Task 2.1: Bump patch version
 - Run `poetry version patch` to bump to `0.4.0`
