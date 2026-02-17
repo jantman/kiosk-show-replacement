@@ -20,7 +20,9 @@ class TestVersionAPI:
         assert data["success"] is True
         assert data["data"]["version"] == __version__
 
-    def test_version_endpoint_works_when_authenticated(self, client, authenticated_user):
+    def test_version_endpoint_works_when_authenticated(
+        self, client, authenticated_user
+    ):
         """Test that the version endpoint also works for authenticated users."""
         response = client.get("/api/v1/version")
         assert response.status_code == 200
