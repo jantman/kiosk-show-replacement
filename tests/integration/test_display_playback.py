@@ -2800,6 +2800,19 @@ class TestSkeddaCalendarDisplay:
                 attendee_name=None,  # No attendee for recurring/group events
                 attendee_email=None,
             ),
+            # Event on a DIFFERENT date with a unique space - verifies that
+            # all known spaces appear as columns even with no events today
+            ICalEvent(
+                feed_id=feed.id,
+                uid=f"event-4-{unique_id}",
+                summary="Charlie: 3D Printing",
+                description="Prototype parts",
+                start_time=today + timedelta(days=3, hours=10),
+                end_time=today + timedelta(days=3, hours=12),
+                resources='["3D Printer"]',
+                attendee_name="Charlie",
+                attendee_email="charlie@example.com",
+            ),
         ]
         for event in events:
             db_session.add(event)
@@ -3053,3 +3066,47 @@ class TestSkeddaCalendarDisplay:
         except Exception:
             # If loading is still visible, the calendar didn't render properly
             assert False, "Calendar should have loaded - loading state still visible"
+
+    def test_skedda_calendar_shows_all_spaces(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        skedda_test_data: dict,
+    ):
+        """Test that all known spaces appear as columns, even with no events today.
+
+        The fixture includes a '3D Printer' event on a future date with no events
+        today. The calendar should still show a '3D Printer' column.
+        """
+        page = enhanced_page
+        flask_url = servers["flask_url"]
+        display_name = skedda_test_data["display_name"]
+
+        # Navigate to the display page
+        page.goto(f"{flask_url}/display/{display_name}")
+        page.wait_for_load_state("load")
+
+        # Wait for calendar to load
+        calendar = page.locator(".skedda-calendar")
+        expect(calendar).to_be_visible(timeout=10000)
+
+        # Get all space headers
+        space_headers = page.locator(".skedda-space-header")
+        expect(space_headers.first).to_be_visible(timeout=10000)
+
+        # Collect space names
+        header_count = space_headers.count()
+        space_names = []
+        for i in range(header_count):
+            space_names.append(space_headers.nth(i).inner_text())
+
+        # Should have 3 spaces: Glowforge, CNC, and 3D Printer
+        assert (
+            len(space_names) == 3
+        ), f"Expected 3 space columns (including empty ones), found {space_names}"
+
+        all_text = " ".join(space_names)
+        assert "3D Printer" in all_text, (
+            f"Expected '3D Printer' column for space with no events today, "
+            f"got: {space_names}"
+        )

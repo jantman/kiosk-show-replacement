@@ -8,6 +8,7 @@ import pytest
 
 from kiosk_show_replacement.ical_service import (
     fetch_ics_from_url,
+    get_all_feed_spaces,
     get_events_for_date,
     get_or_create_feed,
     get_skedda_calendar_data,
@@ -489,6 +490,219 @@ class TestGetSkeddaCalendarData:
                 assert len(data["events"]) == 1
                 assert data["events"][0]["person_name"] == "John Doe"
                 assert data["events"][0]["description"] == "Project"
+
+
+class TestGetAllFeedSpaces:
+    """Tests for get_all_feed_spaces function."""
+
+    def test_returns_all_spaces_from_all_events(self, app) -> None:
+        """Returns unique spaces from all events in the feed."""
+        with app.app_context():
+            feed = ICalFeed(url="https://example.com/cal.ics")
+            db.session.add(feed)
+            db.session.commit()
+
+            # Event on Jan 28 with "Laser Cutter"
+            event1 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-1",
+                summary="Event 1",
+                start_time=datetime(2026, 1, 28, 12, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 14, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter"]),
+            )
+            # Event on Jan 29 with "CNC Machine"
+            event2 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-2",
+                summary="Event 2",
+                start_time=datetime(2026, 1, 29, 10, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 29, 12, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["CNC Machine"]),
+            )
+            db.session.add_all([event1, event2])
+            db.session.commit()
+
+            spaces = get_all_feed_spaces(feed)
+
+            assert spaces == ["CNC Machine", "Laser Cutter"]
+
+    def test_returns_empty_list_for_no_events(self, app) -> None:
+        """Returns empty list when feed has no events."""
+        with app.app_context():
+            feed = ICalFeed(url="https://example.com/cal.ics")
+            db.session.add(feed)
+            db.session.commit()
+
+            spaces = get_all_feed_spaces(feed)
+
+            assert spaces == []
+
+    def test_deduplicates_spaces(self, app) -> None:
+        """Deduplicates spaces appearing in multiple events."""
+        with app.app_context():
+            feed = ICalFeed(url="https://example.com/cal.ics")
+            db.session.add(feed)
+            db.session.commit()
+
+            event1 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-1",
+                summary="Event 1",
+                start_time=datetime(2026, 1, 28, 12, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 14, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter", "CNC Machine"]),
+            )
+            event2 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-2",
+                summary="Event 2",
+                start_time=datetime(2026, 1, 29, 10, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 29, 12, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter"]),
+            )
+            db.session.add_all([event1, event2])
+            db.session.commit()
+
+            spaces = get_all_feed_spaces(feed)
+
+            assert spaces == ["CNC Machine", "Laser Cutter"]
+
+    def test_skips_events_with_invalid_json(self, app) -> None:
+        """Skips events with invalid JSON in resources."""
+        with app.app_context():
+            feed = ICalFeed(url="https://example.com/cal.ics")
+            db.session.add(feed)
+            db.session.commit()
+
+            event1 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-1",
+                summary="Event 1",
+                start_time=datetime(2026, 1, 28, 12, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 14, 0, tzinfo=timezone.utc),
+                resources="not valid json",
+            )
+            event2 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-2",
+                summary="Event 2",
+                start_time=datetime(2026, 1, 29, 10, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 29, 12, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter"]),
+            )
+            db.session.add_all([event1, event2])
+            db.session.commit()
+
+            spaces = get_all_feed_spaces(feed)
+
+            assert spaces == ["Laser Cutter"]
+
+    def test_excludes_other_feeds(self, app) -> None:
+        """Only returns spaces from the specified feed."""
+        with app.app_context():
+            feed1 = ICalFeed(url="https://example.com/cal1.ics")
+            feed2 = ICalFeed(url="https://example.com/cal2.ics")
+            db.session.add_all([feed1, feed2])
+            db.session.commit()
+
+            event1 = ICalEvent(
+                feed_id=feed1.id,
+                uid="event-1",
+                summary="Event 1",
+                start_time=datetime(2026, 1, 28, 12, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 14, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter"]),
+            )
+            event2 = ICalEvent(
+                feed_id=feed2.id,
+                uid="event-2",
+                summary="Event 2",
+                start_time=datetime(2026, 1, 28, 10, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 12, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["3D Printer"]),
+            )
+            db.session.add_all([event1, event2])
+            db.session.commit()
+
+            spaces = get_all_feed_spaces(feed1)
+
+            assert spaces == ["Laser Cutter"]
+
+
+class TestGetSkeddaCalendarDataShowsAllSpaces:
+    """Tests that get_skedda_calendar_data returns all spaces from the feed."""
+
+    def test_includes_spaces_from_other_dates(self, app, sample_user) -> None:
+        """Spaces from events on other dates are included in the output."""
+        with app.app_context():
+            feed = ICalFeed(
+                url="https://example.com/cal.ics",
+                last_fetched=datetime.now(timezone.utc),
+            )
+            db.session.add(feed)
+            db.session.commit()
+
+            # Event on Jan 28 with "Laser Cutter"
+            event1 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-1",
+                summary="John Doe: Laser Project (Laser Cutter)",
+                start_time=datetime(2026, 1, 28, 12, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 28, 14, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["Laser Cutter"]),
+                attendee_name="John Doe",
+            )
+            # Event on Jan 29 (different date) with "CNC Machine"
+            event2 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-2",
+                summary="Jane Smith: CNC Work (CNC Machine)",
+                start_time=datetime(2026, 1, 29, 10, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 29, 12, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["CNC Machine"]),
+                attendee_name="Jane Smith",
+            )
+            # Event on Jan 30 with "3D Printer"
+            event3 = ICalEvent(
+                feed_id=feed.id,
+                uid="event-3",
+                summary="Bob: 3D Print (3D Printer)",
+                start_time=datetime(2026, 1, 30, 14, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 30, 16, 0, tzinfo=timezone.utc),
+                resources=json.dumps(["3D Printer"]),
+                attendee_name="Bob",
+            )
+            db.session.add_all([event1, event2, event3])
+
+            slideshow = Slideshow(name="Test", owner_id=sample_user.id)
+            db.session.add(slideshow)
+            db.session.commit()
+
+            slide = SlideshowItem(
+                slideshow_id=slideshow.id,
+                content_type="skedda",
+                title="Calendar",
+                ical_feed_id=feed.id,
+                ical_refresh_minutes=15,
+            )
+            db.session.add(slide)
+            db.session.commit()
+
+            with patch(
+                "kiosk_show_replacement.ical_service.refresh_feed_if_needed"
+            ) as mock_refresh:
+                mock_refresh.return_value = False
+
+                # Query Jan 28 - only has Laser Cutter event
+                data = get_skedda_calendar_data(slide, target_date=date(2026, 1, 28))
+
+                # All three spaces should appear (from all dates in the feed)
+                assert data["spaces"] == ["3D Printer", "CNC Machine", "Laser Cutter"]
+
+                # But only the Jan 28 event should be in the events list
+                assert len(data["events"]) == 1
+                assert data["events"][0]["space"] == "Laser Cutter"
 
 
 class TestRefreshAllFeeds:

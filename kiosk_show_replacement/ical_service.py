@@ -246,6 +246,31 @@ def get_events_for_date(feed: ICalFeed, target_date: date) -> list[ICalEvent]:
     return cast(list[ICalEvent], events)
 
 
+def get_all_feed_spaces(feed: ICalFeed) -> list[str]:
+    """Get all unique space/resource names from all events in a feed.
+
+    Args:
+        feed: ICalFeed instance
+
+    Returns:
+        Sorted list of unique space/resource names
+    """
+    events = ICalEvent.query.filter(
+        ICalEvent.feed_id == feed.id,
+        ICalEvent.resources.isnot(None),
+    ).all()
+
+    spaces_set: set[str] = set()
+    for event in events:
+        try:
+            resources = json.loads(event.resources) if event.resources else []
+            spaces_set.update(resources)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return sorted(spaces_set)
+
+
 def get_skedda_calendar_data(
     slide: SlideshowItem, target_date: Optional[date] = None
 ) -> dict[str, Any]:
@@ -306,21 +331,9 @@ def get_skedda_calendar_data(
     # Get events for the date
     events = get_events_for_date(feed, target_date)
 
-    # Collect unique spaces from all events
-    spaces_set: set[str] = set()
-    for event in events:
-        try:
-            resources = json.loads(event.resources) if event.resources else []
-            spaces_set.update(resources)
-        except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(
-                "Invalid resources JSON for event %s (uid=%s): %s",
-                event.id,
-                event.uid,
-                e,
-            )
-
-    spaces: list[str] = sorted(spaces_set)
+    # Collect all unique spaces from the entire feed (not just today's events)
+    # so that columns appear even for spaces with no bookings today
+    spaces: list[str] = get_all_feed_spaces(feed)
 
     # Generate time slots (30-minute intervals, 7 AM to 11 PM)
     time_slots = []
