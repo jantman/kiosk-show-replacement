@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Alert, Spinner, Row, Col } from 'react-bootstrap';
 import { useApi } from '../hooks/useApi';
-import { SlideshowItem } from '../types';
+import { SlideshowItem, Display } from '../types';
 
 interface SlideshowItemFormProps {
   slideshowId: number;
@@ -101,6 +101,9 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
   const [validatingVideoUrl, setValidatingVideoUrl] = useState(false);
   const [videoUrlValidated, setVideoUrlValidated] = useState(false);
   const [videoUrlError, setVideoUrlError] = useState<string | null>(null);
+  // Display selector for URL preview
+  const [displays, setDisplays] = useState<Display[]>([]);
+  const [selectedDisplayId, setSelectedDisplayId] = useState<number | null>(null);
 
   useEffect(() => {
     if (item) {
@@ -118,6 +121,43 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
       });
     }
   }, [item]);
+
+  // Fetch displays when content_type is 'url' (for preview display selector)
+  useEffect(() => {
+    if (formData.content_type === 'url') {
+      const fetchDisplays = async () => {
+        try {
+          const response = await apiCall('/api/v1/displays');
+          if (response.success && Array.isArray(response.data)) {
+            // Filter to non-archived displays with resolution data
+            const filtered = (response.data as Display[]).filter(
+              d => !d.is_archived && d.resolution_width && d.resolution_height
+            );
+            setDisplays(filtered);
+          }
+        } catch {
+          // Silently fail - display selector is optional
+        }
+      };
+      fetchDisplays();
+    } else {
+      setDisplays([]);
+      setSelectedDisplayId(null);
+    }
+  }, [formData.content_type]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Get effective dimensions for a display, accounting for rotation.
+   * When rotation is 90 or 270, width and height are swapped.
+   */
+  const getEffectiveDimensions = (display: Display): { width: number; height: number } => {
+    const w = display.resolution_width || 1920;
+    const h = display.resolution_height || 1080;
+    if (display.rotation === 90 || display.rotation === 270) {
+      return { width: h, height: w };
+    }
+    return { width: w, height: h };
+  };
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
@@ -474,9 +514,6 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   const value = parseInt(e.target.value);
                   // Treat 100 as null (no scaling)
                   handleInputChange('scale_factor', value === 100 ? null : value);
-                  // Reset preview state when zoom changes
-                  setPreviewLoading(true);
-                  setPreviewError(false);
                 }}
               />
               <div className="d-flex justify-content-between text-muted small">
@@ -492,74 +529,127 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
 
             {/* Preview iframe for URL slides */}
             {formData.content_url.trim() && (
-              <Form.Group className="mb-3">
-                <Form.Label>Preview</Form.Label>
-                <div
-                  className="border rounded position-relative"
-                  style={{
-                    width: '100%',
-                    maxWidth: '400px',
-                    aspectRatio: '16 / 9',
-                    overflow: 'hidden',
-                    background: '#f8f9fa'
-                  }}
-                  data-testid="url-preview-container"
-                >
-                  {previewLoading && !previewError && (
-                    <div
-                      className="position-absolute top-50 start-50 translate-middle text-muted"
-                      data-testid="preview-loading"
+              <>
+                {displays.length > 0 && (
+                  <Form.Group className="mb-3">
+                    <Form.Label htmlFor="preview_display">Preview Display</Form.Label>
+                    <Form.Select
+                      id="preview_display"
+                      value={selectedDisplayId ?? ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedDisplayId(val ? parseInt(val) : null);
+                      }}
+                      data-testid="preview-display-selector"
                     >
-                      <Spinner animation="border" size="sm" className="me-2" />
-                      Loading preview...
-                    </div>
-                  )}
-                  {previewError && (
-                    <div
-                      className="position-absolute top-50 start-50 translate-middle text-center text-muted"
-                      data-testid="preview-error"
-                    >
-                      <i className="bi bi-exclamation-triangle fs-4 d-block mb-1"></i>
-                      <small>Preview unavailable<br />(page may block embedding)</small>
-                    </div>
-                  )}
-                  {(() => {
-                    // Calculate iframe scaling to match display template behavior
-                    const scaleFactor = formData.scale_factor ?? 100;
-                    const scale = scaleFactor / 100;
-                    const inverseScale = 100 / scaleFactor;
+                      <option value="">Default (16:9)</option>
+                      {displays.map(d => {
+                        const eff = getEffectiveDimensions(d);
+                        const rotated = d.rotation === 90 || d.rotation === 270;
+                        const label = `${d.name}${d.location ? ` - ${d.location}` : ''} (${eff.width}x${eff.height}${rotated ? ', rotated' : ''})`;
+                        return (
+                          <option key={d.id} value={d.id}>{label}</option>
+                        );
+                      })}
+                    </Form.Select>
+                    {selectedDisplayId && (() => {
+                      const display = displays.find(d => d.id === selectedDisplayId);
+                      if (!display) return null;
+                      const eff = getEffectiveDimensions(display);
+                      return (
+                        <Form.Text className="text-muted" data-testid="preview-display-info">
+                          Resolution: {eff.width}x{eff.height}
+                          {(display.rotation === 90 || display.rotation === 270) && ' (rotated)'}
+                        </Form.Text>
+                      );
+                    })()}
+                  </Form.Group>
+                )}
 
-                    return (
-                      <iframe
-                        src={formData.content_url}
-                        title="URL Preview"
-                        style={{
-                          width: `${inverseScale * 100}%`,
-                          height: `${inverseScale * 100}%`,
-                          transform: `scale(${scale})`,
-                          transformOrigin: '0 0',
-                          border: 'none',
-                          opacity: previewLoading && !previewError ? 0 : 1,
-                          display: previewError ? 'none' : 'block'
-                        }}
-                        sandbox="allow-scripts allow-same-origin"
-                        onLoad={() => {
-                          setPreviewLoading(false);
-                          setPreviewError(false);
-                        }}
-                        onError={() => {
-                          setPreviewLoading(false);
-                          setPreviewError(true);
-                        }}
-                        data-testid="url-preview-iframe"
-                      />
-                    );
-                  })()}
-                </div>
-                <Form.Text className="text-muted">
-                  Preview shows how the zoomed webpage will appear on the display
-                </Form.Text>
-              </Form.Group>
+                <Form.Group className="mb-3">
+                  <Form.Label>Preview</Form.Label>
+                  <div
+                    className="border rounded position-relative"
+                    style={(() => {
+                      let aspectRatio = '16 / 9';
+                      if (selectedDisplayId) {
+                        const display = displays.find(d => d.id === selectedDisplayId);
+                        if (display) {
+                          const eff = getEffectiveDimensions(display);
+                          aspectRatio = `${eff.width} / ${eff.height}`;
+                        }
+                      }
+                      return {
+                        width: '100%',
+                        maxWidth: '400px',
+                        aspectRatio,
+                        overflow: 'hidden',
+                        background: '#f8f9fa'
+                      };
+                    })()}
+                    data-testid="url-preview-container"
+                  >
+                    {previewLoading && !previewError && (
+                      <div
+                        className="position-absolute top-50 start-50 translate-middle text-muted"
+                        data-testid="preview-loading"
+                      >
+                        <Spinner animation="border" size="sm" className="me-2" />
+                        Loading preview...
+                      </div>
+                    )}
+                    {previewError && (
+                      <div
+                        className="position-absolute top-50 start-50 translate-middle text-center text-muted"
+                        data-testid="preview-error"
+                      >
+                        <i className="bi bi-exclamation-triangle fs-4 d-block mb-1"></i>
+                        <small>Preview unavailable<br />(page may block embedding)</small>
+                      </div>
+                    )}
+                    {(() => {
+                      // Calculate iframe scaling to match display template behavior
+                      const scaleFactor = formData.scale_factor ?? 100;
+                      const scale = scaleFactor / 100;
+                      const inverseScale = 100 / scaleFactor;
+
+                      return (
+                        <iframe
+                          src={formData.content_url}
+                          title="URL Preview"
+                          style={{
+                            width: `${inverseScale * 100}%`,
+                            height: `${inverseScale * 100}%`,
+                            transform: `scale(${scale})`,
+                            transformOrigin: '0 0',
+                            border: 'none',
+                            opacity: previewLoading && !previewError ? 0 : 1,
+                            display: previewError ? 'none' : 'block'
+                          }}
+                          sandbox="allow-scripts allow-same-origin"
+                          onLoad={() => {
+                            setPreviewLoading(false);
+                            setPreviewError(false);
+                          }}
+                          onError={() => {
+                            setPreviewLoading(false);
+                            setPreviewError(true);
+                          }}
+                          data-testid="url-preview-iframe"
+                        />
+                      );
+                    })()}
+                  </div>
+                  <Form.Text className="text-muted">
+                    {selectedDisplayId ? (() => {
+                      const display = displays.find(d => d.id === selectedDisplayId);
+                      if (!display) return 'Preview shows how the zoomed webpage will appear on the display';
+                      const eff = getEffectiveDimensions(display);
+                      return `Preview shows how the zoomed webpage will appear on ${display.name} (${eff.width}x${eff.height})`;
+                    })() : 'Preview shows how the zoomed webpage will appear on the display'}
+                  </Form.Text>
+                </Form.Group>
+              </>
             )}
           </>
         );

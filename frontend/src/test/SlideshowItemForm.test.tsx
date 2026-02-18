@@ -95,6 +95,12 @@ describe('SlideshowItemForm', () => {
   });
 
   it('handles form submission for create', async () => {
+    // First call: displays fetch when switching to URL type
+    mockApiCall.mockResolvedValueOnce({
+      success: true,
+      data: []
+    });
+    // Second call: form submission
     mockApiCall.mockResolvedValueOnce({
       success: true,
       data: { ...mockItem }
@@ -116,7 +122,7 @@ describe('SlideshowItemForm', () => {
       target: { value: '15' }
     });
 
-    // For URL content type
+    // For URL content type (triggers displays fetch)
     fireEvent.change(screen.getByLabelText('Content Type'), {
       target: { value: 'url' }
     });
@@ -295,6 +301,56 @@ describe('SlideshowItemForm', () => {
 
     fireEvent.click(screen.getByText('Cancel'));
     expect(mockOnCancel).toHaveBeenCalled();
+  });
+
+  describe('URL Preview Zoom', () => {
+    it('does not show loading spinner after zoom slider change', () => {
+      // Mock the displays API call that fires when content_type is 'url'
+      mockApiCall.mockResolvedValue({
+        success: true,
+        data: []
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+
+      // Enter a URL to trigger preview
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Simulate iframe load to clear initial loading state
+      const iframe = document.querySelector('[data-testid="url-preview-iframe"]') as HTMLIFrameElement;
+      expect(iframe).not.toBeNull();
+      fireEvent.load(iframe);
+
+      // Verify loading spinner is NOT visible after iframe loaded
+      expect(screen.queryByTestId('preview-loading')).not.toBeInTheDocument();
+
+      // Now change the zoom slider
+      const slider = screen.getByLabelText(/Zoom:/);
+      fireEvent.change(slider, { target: { value: '50' } });
+
+      // The loading spinner should NOT appear after zoom change
+      // (Bug: setPreviewLoading(true) is called in zoom onChange, but iframe
+      // doesn't reload so onLoad never fires to clear it)
+      expect(screen.queryByTestId('preview-loading')).not.toBeInTheDocument();
+
+      // Iframe should still be visible (opacity: 1)
+      const iframeAfter = document.querySelector('[data-testid="url-preview-iframe"]') as HTMLIFrameElement;
+      expect(iframeAfter).not.toBeNull();
+      expect(iframeAfter.style.opacity).toBe('1');
+    });
   });
 
   describe('Video URL Validation', () => {
@@ -556,6 +612,266 @@ describe('SlideshowItemForm', () => {
           expect.anything()
         );
       });
+    });
+  });
+
+  describe('Display Preview Selector', () => {
+    const mockDisplays = [
+      {
+        id: 1,
+        name: 'Living Room',
+        location: 'Main Floor',
+        resolution_width: 1920,
+        resolution_height: 1080,
+        rotation: 0,
+        is_archived: false,
+        is_online: true,
+        created_at: '2023-01-01T00:00:00Z',
+        updated_at: '2023-01-01T00:00:00Z',
+      },
+      {
+        id: 2,
+        name: 'Lobby Kiosk',
+        location: 'Entrance',
+        resolution_width: 1920,
+        resolution_height: 1200,
+        rotation: 0,
+        is_archived: false,
+        is_online: true,
+        created_at: '2023-01-01T00:00:00Z',
+        updated_at: '2023-01-01T00:00:00Z',
+      },
+      {
+        id: 3,
+        name: 'Portrait Display',
+        location: 'Hallway',
+        resolution_width: 1920,
+        resolution_height: 1080,
+        rotation: 90,
+        is_archived: false,
+        is_online: true,
+        created_at: '2023-01-01T00:00:00Z',
+        updated_at: '2023-01-01T00:00:00Z',
+      },
+    ];
+
+    it('shows selector when URL type has a URL entered', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: mockDisplays
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+
+      // Enter a URL
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Wait for displays to load and selector to appear
+      await waitFor(() => {
+        expect(screen.getByTestId('preview-display-selector')).toBeInTheDocument();
+      });
+
+      // Verify default option exists
+      expect(screen.getByText('Default (16:9)')).toBeInTheDocument();
+
+      // Verify displays are listed
+      expect(screen.getByText(/Living Room/)).toBeInTheDocument();
+      expect(screen.getByText(/Lobby Kiosk/)).toBeInTheDocument();
+      expect(screen.getByText(/Portrait Display/)).toBeInTheDocument();
+    });
+
+    it('does not show selector when no URL entered', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: mockDisplays
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type but don't enter a URL
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+
+      // Wait for displays to load
+      await waitFor(() => {
+        expect(mockApiCall).toHaveBeenCalledWith('/api/v1/displays');
+      });
+
+      // Selector should not be visible because no URL is entered
+      expect(screen.queryByTestId('preview-display-selector')).not.toBeInTheDocument();
+    });
+
+    it('defaults to 16:9 aspect ratio', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: mockDisplays
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type and enter URL
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Wait for displays to load
+      await waitFor(() => {
+        expect(screen.getByTestId('preview-display-selector')).toBeInTheDocument();
+      });
+
+      // Check default aspect ratio
+      const container = screen.getByTestId('url-preview-container');
+      expect(container.style.aspectRatio).toBe('16 / 9');
+    });
+
+    it('changes aspect ratio when display selected', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: mockDisplays
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type and enter URL
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Wait for selector
+      await waitFor(() => {
+        expect(screen.getByTestId('preview-display-selector')).toBeInTheDocument();
+      });
+
+      // Select Lobby Kiosk (1920x1200)
+      fireEvent.change(screen.getByTestId('preview-display-selector'), {
+        target: { value: '2' }
+      });
+
+      // Verify aspect ratio changed
+      const container = screen.getByTestId('url-preview-container');
+      expect(container.style.aspectRatio).toBe('1920 / 1200');
+    });
+
+    it('swaps dimensions for 90-degree rotated display', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: mockDisplays
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type and enter URL
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Wait for selector
+      await waitFor(() => {
+        expect(screen.getByTestId('preview-display-selector')).toBeInTheDocument();
+      });
+
+      // Select Portrait Display (1920x1080 rotated 90 => 1080x1920)
+      fireEvent.change(screen.getByTestId('preview-display-selector'), {
+        target: { value: '3' }
+      });
+
+      // Verify aspect ratio uses swapped dimensions
+      const container = screen.getByTestId('url-preview-container');
+      expect(container.style.aspectRatio).toBe('1080 / 1920');
+
+      // Verify "rotated" label shown in option text
+      const option = screen.getByText(/Portrait Display.*rotated/);
+      expect(option).toBeInTheDocument();
+    });
+
+    it('reverts to 16:9 when Default re-selected', async () => {
+      mockApiCall.mockResolvedValueOnce({
+        success: true,
+        data: mockDisplays
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type and enter URL
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Wait for selector
+      await waitFor(() => {
+        expect(screen.getByTestId('preview-display-selector')).toBeInTheDocument();
+      });
+
+      // Select a display first
+      fireEvent.change(screen.getByTestId('preview-display-selector'), {
+        target: { value: '2' }
+      });
+
+      const container = screen.getByTestId('url-preview-container');
+      expect(container.style.aspectRatio).toBe('1920 / 1200');
+
+      // Select Default back
+      fireEvent.change(screen.getByTestId('preview-display-selector'), {
+        target: { value: '' }
+      });
+
+      expect(container.style.aspectRatio).toBe('16 / 9');
     });
   });
 });
