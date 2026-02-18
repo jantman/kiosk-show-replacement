@@ -474,9 +474,6 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   const value = parseInt(e.target.value);
                   // Treat 100 as null (no scaling)
                   handleInputChange('scale_factor', value === 100 ? null : value);
-                  // Reset preview state when zoom changes
-                  setPreviewLoading(true);
-                  setPreviewError(false);
                 }}
               />
               <div className="d-flex justify-content-between text-muted small">
