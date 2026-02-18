@@ -2245,6 +2245,171 @@ class TestSlideshowItems:
         page.locator("#url").fill("https://example.com")
         expect(preview_container).to_be_visible(timeout=5000)
 
+    def test_url_item_preview_display_selector(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        test_display: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test display selector dropdown in URL item preview.
+
+        Verifies that:
+        1. The display selector dropdown appears with the test display
+        2. Selecting a display changes the preview aspect ratio
+        3. Selecting 'Default' reverts to 16:9
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select URL type and enter a URL
+        page.locator("#content_type").select_option("url")
+        page.locator("#url").fill("https://example.com")
+
+        # Wait for preview container to appear
+        preview_container = page.locator("[data-testid='url-preview-container']")
+        expect(preview_container).to_be_visible(timeout=5000)
+
+        # Wait for display selector to appear (displays loaded from API)
+        display_selector = page.locator("[data-testid='preview-display-selector']")
+        expect(display_selector).to_be_visible(timeout=5000)
+
+        # Verify the test display appears in the dropdown
+        display_name = test_display["name"]
+        option = display_selector.locator(f"option:has-text('{display_name}')")
+        expect(option).to_be_visible()
+
+        # Verify default aspect ratio is 16/9
+        initial_style = preview_container.get_attribute("style") or ""
+        assert (
+            "16 / 9" in initial_style
+        ), f"Expected 16 / 9 aspect ratio initially, got: {initial_style}"
+
+        # Select the test display (1920x1080)
+        display_selector.select_option(str(test_display["id"]))
+        page.wait_for_timeout(300)
+
+        # Verify aspect ratio changed to 1920 / 1080
+        updated_style = preview_container.get_attribute("style") or ""
+        assert (
+            "1920 / 1080" in updated_style
+        ), f"Expected 1920 / 1080 aspect ratio, got: {updated_style}"
+
+        # Select Default back
+        display_selector.select_option("")
+        page.wait_for_timeout(300)
+
+        # Verify reverts to 16/9
+        reverted_style = preview_container.get_attribute("style") or ""
+        assert (
+            "16 / 9" in reverted_style
+        ), f"Expected 16 / 9 after revert, got: {reverted_style}"
+
+    def test_url_item_preview_display_selector_rotation(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test display selector with a rotated display.
+
+        Creates a display with rotation=90 and verifies the preview
+        container uses swapped dimensions (1080x1920 instead of 1920x1080).
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Create a rotated display via API
+        import time
+
+        rotated_display_name = f"rotated-display-{int(time.time() * 1000)}"
+        response = http_client.post(
+            "/api/v1/displays",
+            json={
+                "name": rotated_display_name,
+                "description": "Test rotated display",
+                "location": "Test Room",
+                "resolution_width": 1920,
+                "resolution_height": 1080,
+                "rotation": 90,
+            },
+            headers=auth_headers,
+        )
+        assert response.status_code in [
+            200,
+            201,
+        ], f"Failed to create rotated display: {response.text}"
+        rotated_display = response.json().get("data", response.json())
+        rotated_display_id = rotated_display["id"]
+
+        try:
+            # Login and navigate to slideshow detail page
+            self._login(page, vite_url, test_database)
+            page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+            page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+            # Click "Add Item" button
+            page.locator("button:has-text('Add Item')").click()
+
+            # Wait for modal
+            modal = page.locator(".modal")
+            expect(modal).to_be_visible(timeout=5000)
+
+            # Select URL type and enter a URL
+            page.locator("#content_type").select_option("url")
+            page.locator("#url").fill("https://example.com")
+
+            # Wait for display selector
+            display_selector = page.locator("[data-testid='preview-display-selector']")
+            expect(display_selector).to_be_visible(timeout=5000)
+
+            # Verify the rotated display shows in dropdown with "rotated" label
+            option = display_selector.locator(
+                f"option:has-text('{rotated_display_name}')"
+            )
+            expect(option).to_be_visible()
+            option_text = option.text_content() or ""
+            assert (
+                "rotated" in option_text
+            ), f"Expected 'rotated' in option text, got: {option_text}"
+
+            # Select the rotated display
+            display_selector.select_option(str(rotated_display_id))
+            page.wait_for_timeout(300)
+
+            # Verify aspect ratio uses swapped dimensions (1080 / 1920)
+            preview_container = page.locator("[data-testid='url-preview-container']")
+            container_style = preview_container.get_attribute("style") or ""
+            assert (
+                "1080 / 1920" in container_style
+            ), f"Expected 1080 / 1920 for 90° rotation, got: {container_style}"
+        finally:
+            # Cleanup: delete the rotated display
+            http_client.delete(
+                f"/api/v1/displays/{rotated_display_id}",
+                headers=auth_headers,
+            )
+
     def test_add_skedda_item_with_valid_url(
         self,
         enhanced_page: Page,
