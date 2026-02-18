@@ -536,6 +536,49 @@ class TestSlideshowItemAPI:
         inactive_item = next(i for i in data["data"] if i["id"] == items[0].id)
         assert inactive_item["is_active"] is False
 
+    def test_list_skedda_items_includes_ical_url(
+        self, app, client, authenticated_user, sample_slideshow
+    ):
+        """Test that listing items includes ical_url for skedda items.
+
+        Regression test: the list endpoint must include the ical_url field
+        from the related ICalFeed so the edit form can populate it.
+        """
+        with app.app_context():
+            feed = ICalFeed(url="https://app.skedda.com/ical/test-feed.ics")
+            db.session.add(feed)
+            db.session.flush()
+
+            item = SlideshowItem(
+                slideshow_id=sample_slideshow.id,
+                title="Skedda Calendar",
+                content_type="skedda",
+                ical_feed_id=feed.id,
+                ical_refresh_minutes=15,
+                order_index=0,
+            )
+            db.session.add(item)
+            db.session.commit()
+
+            response = client.get(f"/api/v1/slideshows/{sample_slideshow.id}/items")
+            assert response.status_code == 200
+
+            data = response.get_json()
+            assert data["success"] is True
+
+            # Find the skedda item among all items in the slideshow
+            skedda_items = [i for i in data["data"] if i["content_type"] == "skedda"]
+            assert len(skedda_items) == 1
+            skedda_item = skedda_items[0]
+            assert skedda_item["ical_feed_id"] == feed.id
+            assert skedda_item["ical_refresh_minutes"] == 15
+            assert (
+                "ical_url" in skedda_item
+            ), "ical_url must be present in list response for skedda items"
+            assert skedda_item["ical_url"] == (
+                "https://app.skedda.com/ical/test-feed.ics"
+            )
+
     def test_create_slideshow_item_success(
         self, client, authenticated_user, sample_slideshow
     ):
