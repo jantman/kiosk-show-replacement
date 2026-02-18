@@ -1077,8 +1077,9 @@ class TestSlideshowItems:
 
         # Upload a different file
         page.locator("#file_image").set_input_files(str(image_path_2))
+        # In edit mode, the badge shows "Current file:" instead of "File uploaded:"
         expect(
-            page.locator(".badge.bg-success:has-text('File uploaded')")
+            page.locator(".badge.bg-success:has-text('Current file:')")
         ).to_be_visible(timeout=10000)
 
         page.locator("button[type='submit']").click()
@@ -1095,6 +1096,66 @@ class TestSlideshowItems:
             f"content_file_path should have changed: "
             f"original='{original_file_path}', new='{new_file_path}'"
         )
+
+    def test_edit_file_upload_item_shows_current_file(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that editing a file upload item shows the current filename.
+
+        Regression test: when editing an existing image/video item that was
+        uploaded via file, the edit form should clearly show the current file
+        and make the upload field optional (not required).
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        image_path = ASSETS_DIR / "smallPhoto.jpg"
+        assert image_path.exists(), f"Test asset not found: {image_path}"
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Create an image item via file upload
+        page.locator("button:has-text('Add Item')").click()
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        page.locator("#title").fill("File Info Test Image")
+        page.locator("#content_type").select_option("image")
+        page.locator("#file_image").set_input_files(str(image_path))
+        expect(
+            page.locator(".badge.bg-success:has-text('File uploaded')")
+        ).to_be_visible(timeout=10000)
+        page.locator("button[type='submit']").click()
+        expect(modal).to_be_hidden(timeout=10000)
+
+        # Verify item was created
+        expect(page.locator("text=File Info Test Image")).to_be_visible(timeout=5000)
+
+        # Now edit the item - click the edit button
+        row = page.locator("tr:has-text('File Info Test Image')")
+        expect(row).to_be_visible(timeout=10000)
+        row.locator("button[title='Edit']").click()
+
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # The edit form should show "Current file:" text with the filename
+        current_file_info = modal.locator("text=Current file:")
+        expect(current_file_info).to_be_visible(timeout=5000)
+
+        # The upload label should indicate replacing is optional (not required)
+        upload_label = modal.locator("label:has-text('Replace')")
+        expect(upload_label).to_be_visible(timeout=2000)
 
     def test_delete_item_with_confirmation(
         self,

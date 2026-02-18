@@ -57,3 +57,11 @@ Per feature process rules, bug fixes begin with regression tests that initially 
 **Task 4.1**: Ensure all unit tests pass (`nox -s test-3.14`)
 **Task 4.2**: Ensure all integration tests pass (`nox -s test-integration`)
 **Task 4.3**: Move feature doc to `docs/features/completed/`
+
+## Completion Status
+
+All milestones completed:
+- Milestone 1: Regression tests added and verified to fail before fixes
+- Milestone 2: Backend fix applied - `list_slideshow_items()` now triggers lazy load of `ical_feed` for skedda items
+- Milestone 3: Frontend fix applied - edit form shows "Current file:" badge and "Replace (optional)" label for existing file uploads
+- Milestone 4: All 663 unit tests and 169 integration tests passing

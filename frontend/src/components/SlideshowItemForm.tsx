@@ -588,7 +588,19 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
         return (
           <div>
             <Form.Group className="mb-3">
-              <Form.Label htmlFor={`file_${formData.content_type}`}>Upload {formData.content_type} *</Form.Label>
+              {item && formData.content_file_path ? (
+                <>
+                  <div className="mb-2">
+                    <span className="badge bg-success">
+                      <i className="bi bi-check-lg me-1"></i>
+                      Current file: {formData.content_file_path}
+                    </span>
+                  </div>
+                  <Form.Label htmlFor={`file_${formData.content_type}`}>Replace {formData.content_type} (optional)</Form.Label>
+                </>
+              ) : (
+                <Form.Label htmlFor={`file_${formData.content_type}`}>Upload {formData.content_type} *</Form.Label>
+              )}
               <Form.Control
                 id={`file_${formData.content_type}`}
                 type="file"
@@ -612,7 +624,7 @@ const SlideshowItemForm: React.FC<SlideshowItemFormProps> = ({
                   Uploading...
                 </div>
               )}
-              {formData.content_file_path && (
+              {formData.content_file_path && !item && (
                 <div className="mt-2">
                   <span className="badge bg-success">
                     <i className="bi bi-check-lg me-1"></i>

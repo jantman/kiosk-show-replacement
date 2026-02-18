@@ -395,6 +395,12 @@ def list_slideshow_items(slideshow_id: int) -> Tuple[Response, int]:
             request.args.get("include_inactive", "false").lower() == "true"
         )
 
+        # Ensure ical_feed relationship is loaded for skedda items so
+        # to_dict() includes ical_url (same pattern as update endpoint).
+        for item in slideshow.items:
+            if item.content_type == "skedda" and item.ical_feed_id:
+                _ = item.ical_feed  # Trigger lazy load
+
         if include_inactive:
             items = [item.to_dict() for item in slideshow.items]
         else:
