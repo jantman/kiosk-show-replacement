@@ -2293,7 +2293,7 @@ class TestSlideshowItems:
         # Verify the test display appears in the dropdown
         display_name = test_display["name"]
         option = display_selector.locator(f"option:has-text('{display_name}')")
-        expect(option).to_be_visible()
+        expect(option).to_have_count(1)
 
         # Verify default aspect ratio is 16/9
         initial_style = preview_container.get_attribute("style") or ""
@@ -2387,7 +2387,7 @@ class TestSlideshowItems:
             option = display_selector.locator(
                 f"option:has-text('{rotated_display_name}')"
             )
-            expect(option).to_be_visible()
+            expect(option).to_have_count(1)
             option_text = option.text_content() or ""
             assert (
                 "rotated" in option_text
