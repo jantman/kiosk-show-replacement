@@ -297,6 +297,56 @@ describe('SlideshowItemForm', () => {
     expect(mockOnCancel).toHaveBeenCalled();
   });
 
+  describe('URL Preview Zoom', () => {
+    it('does not show loading spinner after zoom slider change', () => {
+      // Mock the displays API call that fires when content_type is 'url'
+      mockApiCall.mockResolvedValue({
+        success: true,
+        data: []
+      });
+
+      render(
+        <SlideshowItemForm
+          slideshowId={1}
+          onSave={mockOnSave}
+          onCancel={mockOnCancel}
+        />
+      );
+
+      // Select URL content type
+      fireEvent.change(screen.getByLabelText('Content Type'), {
+        target: { value: 'url' }
+      });
+
+      // Enter a URL to trigger preview
+      fireEvent.change(screen.getByLabelText('URL *'), {
+        target: { value: 'https://example.com' }
+      });
+
+      // Simulate iframe load to clear initial loading state
+      const iframe = document.querySelector('[data-testid="url-preview-iframe"]') as HTMLIFrameElement;
+      expect(iframe).not.toBeNull();
+      fireEvent.load(iframe);
+
+      // Verify loading spinner is NOT visible after iframe loaded
+      expect(screen.queryByTestId('preview-loading')).not.toBeInTheDocument();
+
+      // Now change the zoom slider
+      const slider = screen.getByLabelText(/Zoom:/);
+      fireEvent.change(slider, { target: { value: '50' } });
+
+      // The loading spinner should NOT appear after zoom change
+      // (Bug: setPreviewLoading(true) is called in zoom onChange, but iframe
+      // doesn't reload so onLoad never fires to clear it)
+      expect(screen.queryByTestId('preview-loading')).not.toBeInTheDocument();
+
+      // Iframe should still be visible (opacity: 1)
+      const iframeAfter = document.querySelector('[data-testid="url-preview-iframe"]') as HTMLIFrameElement;
+      expect(iframeAfter).not.toBeNull();
+      expect(iframeAfter.style.opacity).toBe('1');
+    });
+  });
+
   describe('Video URL Validation', () => {
     it('validates video URL on blur', async () => {
       // Use a controlled promise to ensure proper async timing

@@ -2128,6 +2128,74 @@ class TestSlideshowItems:
             "200%" in updated_style
         ), f"Expected 200% width/height at 50% zoom, got: {updated_style}"
 
+    def test_url_item_preview_zoom_change_no_permanent_spinner(
+        self,
+        enhanced_page: Page,
+        servers: dict,
+        test_database: dict,
+        test_slideshow: dict,
+        http_client,
+        auth_headers,
+    ):
+        """Test that changing zoom slider does not show a permanent spinner.
+
+        Regression test: When zoom slider is changed, setPreviewLoading(true) was
+        called but the iframe doesn't reload (only CSS transform changes), so
+        onLoad never fires to clear the spinner. The preview should remain visible
+        without a loading spinner after zoom changes.
+        """
+        page = enhanced_page
+        vite_url = servers["vite_url"]
+        slideshow_id = test_slideshow["id"]
+
+        # Login and navigate to slideshow detail page
+        self._login(page, vite_url, test_database)
+        page.goto(f"{vite_url}/admin/slideshows/{slideshow_id}")
+        page.wait_for_load_state("domcontentloaded", timeout=10000)
+
+        # Click "Add Item" button
+        page.locator("button:has-text('Add Item')").click()
+
+        # Wait for modal
+        modal = page.locator(".modal")
+        expect(modal).to_be_visible(timeout=5000)
+
+        # Select URL type and enter a URL
+        page.locator("#content_type").select_option("url")
+        page.locator("#url").fill("https://example.com")
+
+        # Wait for preview iframe to appear
+        preview_iframe = page.locator("[data-testid='url-preview-iframe']")
+        expect(preview_iframe).to_be_visible(timeout=5000)
+
+        # Wait for loading indicator to disappear (iframe loads)
+        loading_indicator = page.locator("[data-testid='preview-loading']")
+        loading_indicator.wait_for(state="hidden", timeout=10000)
+
+        # Verify iframe is visible with opacity 1
+        expect(preview_iframe).to_have_css("opacity", "1", timeout=5000)
+
+        # Change zoom slider to 50% using JavaScript
+        page.evaluate(
+            """() => {
+            const slider = document.querySelector('#scale_factor');
+            const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+                window.HTMLInputElement.prototype, 'value'
+            ).set;
+            nativeInputValueSetter.call(slider, '50');
+            slider.dispatchEvent(new Event('input', { bubbles: true }));
+        }"""
+        )
+
+        # Wait for React to re-render
+        page.wait_for_timeout(500)
+
+        # The loading spinner should NOT be visible after zoom change
+        expect(loading_indicator).not_to_be_visible()
+
+        # The iframe should still be visible with opacity 1
+        expect(preview_iframe).to_have_css("opacity", "1")
+
     def test_url_item_preview_not_visible_for_other_types(
         self,
         enhanced_page: Page,
