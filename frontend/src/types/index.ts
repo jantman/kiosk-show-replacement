@@ -40,6 +40,7 @@ export interface Display {
   heartbeat_interval?: number;
   rotation?: number;
   is_default?: boolean;
+  is_archived?: boolean;
   show_info_overlay?: boolean;
 }
 

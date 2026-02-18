@@ -95,6 +95,12 @@ describe('SlideshowItemForm', () => {
   });
 
   it('handles form submission for create', async () => {
+    // First call: displays fetch when switching to URL type
+    mockApiCall.mockResolvedValueOnce({
+      success: true,
+      data: []
+    });
+    // Second call: form submission
     mockApiCall.mockResolvedValueOnce({
       success: true,
       data: { ...mockItem }
@@ -116,7 +122,7 @@ describe('SlideshowItemForm', () => {
       target: { value: '15' }
     });
 
-    // For URL content type
+    // For URL content type (triggers displays fetch)
     fireEvent.change(screen.getByLabelText('Content Type'), {
       target: { value: 'url' }
     });
