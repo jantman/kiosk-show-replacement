@@ -116,6 +116,32 @@ END:VCALENDAR"""
         assert events[0]["attendee_name"] == "John Doe"
         assert events[0]["attendee_email"] == "john@example.com"
 
+    def test_parse_cancelled_events_filtered(self) -> None:
+        """Events with STATUS:CANCELLED are filtered out."""
+        ics_content = """BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//Test//EN
+BEGIN:VEVENT
+UID:active-event
+SUMMARY:Active Event
+DTSTART:20260128T120000Z
+DTEND:20260128T140000Z
+STATUS:CONFIRMED
+END:VEVENT
+BEGIN:VEVENT
+UID:cancelled-event
+SUMMARY:Cancelled Event
+DTSTART:20260128T150000Z
+DTEND:20260128T160000Z
+STATUS:CANCELLED
+END:VEVENT
+END:VCALENDAR"""
+
+        events = parse_ics_data(ics_content)
+
+        assert len(events) == 1
+        assert events[0]["uid"] == "active-event"
+
     def test_parse_event_skips_invalid(self) -> None:
         """Events missing required fields are skipped."""
         ics_content = """BEGIN:VCALENDAR

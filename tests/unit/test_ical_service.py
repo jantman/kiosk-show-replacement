@@ -352,7 +352,7 @@ class TestGetEventsForDate:
             db.session.add(event)
             db.session.commit()
 
-            events = get_events_for_date(feed, date(2026, 1, 28))
+            events = get_events_for_date(feed, date(2026, 1, 28), tz=timezone.utc)
 
             assert len(events) == 1
             assert events[0].uid == "event-1"
@@ -375,7 +375,7 @@ class TestGetEventsForDate:
             db.session.add(event)
             db.session.commit()
 
-            events = get_events_for_date(feed, date(2026, 1, 28))
+            events = get_events_for_date(feed, date(2026, 1, 28), tz=timezone.utc)
 
             assert len(events) == 0
 
@@ -397,9 +397,42 @@ class TestGetEventsForDate:
             db.session.add(event)
             db.session.commit()
 
-            events = get_events_for_date(feed, date(2026, 1, 28))
+            events = get_events_for_date(feed, date(2026, 1, 28), tz=timezone.utc)
 
             assert len(events) == 1
+
+    def test_events_near_midnight_utc_correct_in_local_tz(self, app) -> None:
+        """Events near midnight UTC are correctly assigned to local date.
+
+        An event at 10 PM EST (03:00 UTC next day) should appear on the
+        EST date, not the UTC date.
+        """
+        with app.app_context():
+            feed = ICalFeed(url="https://example.com/cal.ics")
+            db.session.add(feed)
+            db.session.commit()
+
+            # Event at 10 PM EST on Jan 28 = 03:00 UTC on Jan 29
+            est = timezone(timedelta(hours=-5))
+            event = ICalEvent(
+                feed_id=feed.id,
+                uid="late-night-event",
+                summary="Late Night Event",
+                start_time=datetime(2026, 1, 29, 3, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 1, 29, 5, 0, tzinfo=timezone.utc),
+            )
+            db.session.add(event)
+            db.session.commit()
+
+            # Querying Jan 28 in EST should include this event
+            events = get_events_for_date(feed, date(2026, 1, 28), tz=est)
+            assert len(events) == 1
+            assert events[0].uid == "late-night-event"
+
+            # Querying Jan 29 in EST should NOT include this event
+            # (it ends at midnight EST = 05:00 UTC)
+            events = get_events_for_date(feed, date(2026, 1, 29), tz=est)
+            assert len(events) == 0
 
 
 class TestGetSkeddaCalendarData:
@@ -442,7 +475,7 @@ class TestGetSkeddaCalendarData:
                 get_skedda_calendar_data(slide)
 
     def test_returns_formatted_data(self, app, sample_user) -> None:
-        """Returns properly formatted calendar data."""
+        """Returns properly formatted calendar data with local timezone conversion."""
         with app.app_context():
             # Create feed with event
             feed = ICalFeed(
@@ -452,6 +485,7 @@ class TestGetSkeddaCalendarData:
             db.session.add(feed)
             db.session.commit()
 
+            # Event at 17:00 UTC = 12:00 EST
             event = ICalEvent(
                 feed_id=feed.id,
                 uid="event-1",
@@ -477,9 +511,17 @@ class TestGetSkeddaCalendarData:
             db.session.add(slide)
             db.session.commit()
 
-            with patch(
-                "kiosk_show_replacement.ical_service.refresh_feed_if_needed"
-            ) as mock_refresh:
+            # Mock _get_local_tz to return EST (UTC-5) for predictable results
+            est = timezone(timedelta(hours=-5))
+            with (
+                patch(
+                    "kiosk_show_replacement.ical_service.refresh_feed_if_needed"
+                ) as mock_refresh,
+                patch(
+                    "kiosk_show_replacement.ical_service._get_local_tz",
+                    return_value=est,
+                ),
+            ):
                 mock_refresh.return_value = False
 
                 data = get_skedda_calendar_data(slide, target_date=date(2026, 1, 28))
@@ -490,6 +532,9 @@ class TestGetSkeddaCalendarData:
                 assert len(data["events"]) == 1
                 assert data["events"][0]["person_name"] == "John Doe"
                 assert data["events"][0]["description"] == "Project"
+                # 17:00 UTC should display as 12:00 EST
+                assert data["events"][0]["start_time"] == "12:00"
+                assert data["events"][0]["end_time"] == "14:00"
 
 
 class TestGetAllFeedSpaces:
@@ -689,9 +734,15 @@ class TestGetSkeddaCalendarDataShowsAllSpaces:
             db.session.add(slide)
             db.session.commit()
 
-            with patch(
-                "kiosk_show_replacement.ical_service.refresh_feed_if_needed"
-            ) as mock_refresh:
+            with (
+                patch(
+                    "kiosk_show_replacement.ical_service.refresh_feed_if_needed"
+                ) as mock_refresh,
+                patch(
+                    "kiosk_show_replacement.ical_service._get_local_tz",
+                    return_value=timezone.utc,
+                ),
+            ):
                 mock_refresh.return_value = False
 
                 # Query Jan 28 - only has Laser Cutter event

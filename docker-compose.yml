@@ -23,6 +23,7 @@ services:
       - DATABASE_URL=sqlite:////app/instance/kiosk_show.db
       - KIOSK_ADMIN_USERNAME=admin
       - KIOSK_ADMIN_PASSWORD=admin
+      - TZ=${TZ:-America/New_York}
     volumes:
       # Mount source code for development visibility
       - ./kiosk_show_replacement:/app/kiosk_show_replacement:ro

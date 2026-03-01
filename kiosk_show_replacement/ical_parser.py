@@ -63,6 +63,11 @@ def _parse_vevent(component: Any) -> Optional[dict[str, Any]]:
     Returns:
         Event dictionary or None if essential fields are missing
     """
+    # Skip canceled events
+    status = component.get("status")
+    if status and str(status).upper() == "CANCELLED":
+        return None
+
     # Required fields
     uid = component.get("uid")
     summary = component.get("summary")

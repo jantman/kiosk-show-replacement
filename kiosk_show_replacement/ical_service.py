@@ -8,7 +8,7 @@ formatting calendar data for frontend display.
 
 import json
 import logging
-from datetime import date, datetime, time, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone, tzinfo
 from typing import Any, Optional, cast
 
 import requests
@@ -215,19 +215,29 @@ def sync_feed_events(feed: ICalFeed, events: list[dict[str, Any]]) -> None:
             db.session.add(new_event)
 
 
-def get_events_for_date(feed: ICalFeed, target_date: date) -> list[ICalEvent]:
+def get_events_for_date(
+    feed: ICalFeed, target_date: date, tz: Optional[tzinfo] = None
+) -> list[ICalEvent]:
     """Get all events for a specific date from a feed.
 
     Args:
         feed: ICalFeed instance
         target_date: Date to query events for
+        tz: Timezone for interpreting the date boundaries. If None, uses the
+            system local timezone (set via TZ env var or /etc/localtime).
 
     Returns:
         List of ICalEvent instances for the given date
     """
-    # Create datetime range for the target date (in UTC)
-    day_start = datetime.combine(target_date, time.min).replace(tzinfo=timezone.utc)
-    day_end = datetime.combine(target_date, time.max).replace(tzinfo=timezone.utc)
+    if tz is None:
+        tz = _get_local_tz()
+
+    # Create datetime range for the target date in local timezone,
+    # then convert to UTC for the DB query
+    day_start = datetime.combine(target_date, time.min).replace(tzinfo=tz)
+    day_end = datetime.combine(target_date, time.max).replace(tzinfo=tz)
+    day_start = day_start.astimezone(timezone.utc)
+    day_end = day_end.astimezone(timezone.utc)
 
     # Query events that overlap with the target date
     # An event overlaps if: start_time < day_end AND end_time > day_start
@@ -281,7 +291,7 @@ def get_skedda_calendar_data(
 
     Args:
         slide: SlideshowItem with content_type='skedda'
-        target_date: Date to display (defaults to today in UTC)
+        target_date: Date to display (defaults to today in local timezone)
 
     Returns:
         Dictionary with formatted calendar data:
@@ -324,12 +334,15 @@ def get_skedda_calendar_data(
     # Refresh if needed
     refresh_feed_if_needed(feed, refresh_minutes)
 
-    # Use today if no date specified
-    if target_date is None:
-        target_date = datetime.now(timezone.utc).date()
+    # Determine local timezone for display
+    local_tz = _get_local_tz()
 
-    # Get events for the date
-    events = get_events_for_date(feed, target_date)
+    # Use today in local timezone if no date specified
+    if target_date is None:
+        target_date = datetime.now(local_tz).date()
+
+    # Get events for the date using local timezone boundaries
+    events = get_events_for_date(feed, target_date, tz=local_tz)
 
     # Collect all unique spaces from the entire feed (not just today's events)
     # so that columns appear even for spaces with no bookings today
@@ -368,9 +381,13 @@ def get_skedda_calendar_data(
         if not person_name and event.attendee_name:
             person_name = event.attendee_name
 
-        # Calculate slot positions
-        start_slot = _time_to_slot_index(event.start_time)
-        end_slot = _time_to_slot_index(event.end_time)
+        # Convert event times from UTC to local timezone for display
+        local_start = event.start_time.replace(tzinfo=timezone.utc).astimezone(local_tz)
+        local_end = event.end_time.replace(tzinfo=timezone.utc).astimezone(local_tz)
+
+        # Calculate slot positions using local times
+        start_slot = _time_to_slot_index(local_start)
+        end_slot = _time_to_slot_index(local_end)
         row_span = max(1, end_slot - start_slot)
 
         # Create an event entry for each space
@@ -383,8 +400,8 @@ def get_skedda_calendar_data(
                         "space": space,
                         "person_name": person_name or "",
                         "description": description or event.summary,
-                        "start_time": event.start_time.strftime("%H:%M"),
-                        "end_time": event.end_time.strftime("%H:%M"),
+                        "start_time": local_start.strftime("%H:%M"),
+                        "end_time": local_end.strftime("%H:%M"),
                         "start_slot": start_slot,
                         "row_span": row_span,
                     }
@@ -402,6 +419,21 @@ def get_skedda_calendar_data(
             else None
         ),
     }
+
+
+def _get_local_tz() -> tzinfo:
+    """Get the system local timezone.
+
+    This uses the system timezone as configured by the TZ environment variable
+    or /etc/localtime. In Docker, set TZ=America/New_York (or similar) in the
+    environment.
+
+    Returns:
+        A tzinfo instance representing the system local timezone.
+    """
+    local = datetime.now().astimezone().tzinfo
+    assert local is not None
+    return local
 
 
 def _time_to_slot_index(dt: datetime) -> int:

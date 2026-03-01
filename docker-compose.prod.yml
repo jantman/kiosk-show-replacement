@@ -33,6 +33,7 @@ services:
       - KIOSK_ADMIN_USERNAME=${KIOSK_ADMIN_USERNAME:-admin}
       - KIOSK_ADMIN_PASSWORD=${KIOSK_ADMIN_PASSWORD:?KIOSK_ADMIN_PASSWORD is required}
       - KIOSK_ADMIN_EMAIL=${KIOSK_ADMIN_EMAIL:-}
+      - TZ=${TZ:-America/New_York}
       # Gunicorn configuration
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-2}
     volumes:

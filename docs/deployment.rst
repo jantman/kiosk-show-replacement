@@ -138,6 +138,8 @@ Optional variables (with defaults):
 Variable                  Default
 ========================= ==========================================
 ``APP_PORT``              5000
+``TZ``                    America/New_York (IANA timezone for calendar
+                          display)
 ``MYSQL_DATABASE``        kiosk_show
 ``MYSQL_USER``            kiosk
 ``MYSQL_HOST``            (none; enables MySQL auto-configuration)
