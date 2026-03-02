@@ -2679,7 +2679,7 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
     Query parameters:
         date (optional): Date to display in YYYY-MM-DD format, defaults to today
     """
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     from ..ical_service import get_skedda_calendar_data
 
@@ -2742,16 +2742,16 @@ def get_display_skedda_data(display_name: str, item_id: int) -> Tuple[Response, 
             return api_error("Slideshow item is not active", 404)
 
         # Get optional date parameter
+        target_date = None
         date_str = request.args.get("date")
         if date_str:
             try:
                 target_date = datetime.strptime(date_str, "%Y-%m-%d").date()
             except ValueError:
                 return api_error("Invalid date format. Use YYYY-MM-DD", 400)
-        else:
-            target_date = datetime.now(timezone.utc).date()
 
         # Get the calendar data (pass the item, not just the feed_id)
+        # target_date=None lets get_skedda_calendar_data use local timezone
         calendar_data = get_skedda_calendar_data(item, target_date)
 
         return api_response(calendar_data, "Skedda calendar data retrieved")
