@@ -235,7 +235,7 @@ def create_app(config_name: Optional[str] = None) -> Flask:
         try:
             import newrelic.agent
 
-            return newrelic.agent.get_browser_timing_header()
+            return str(newrelic.agent.get_browser_timing_header())
         except ImportError:
             # NewRelic not installed - this is expected in development
             return ""
