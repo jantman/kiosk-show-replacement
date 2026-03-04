@@ -6,6 +6,7 @@ and basic application setup.
 """
 
 import importlib
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -169,3 +170,71 @@ class TestAppExtensions:
 
         # CORS headers should be present
         assert "Access-Control-Allow-Origin" in response.headers
+
+
+class TestNewRelicBrowserTiming:
+    """Test NewRelic browser timing script injection."""
+
+    @staticmethod
+    def _make_newrelic_mocks(return_value="<script>NREUM</script>"):
+        """Create properly wired newrelic module mocks."""
+        mock_agent = MagicMock()
+        mock_agent.get_browser_timing_header.return_value = return_value
+        mock_newrelic = MagicMock()
+        mock_newrelic.agent = mock_agent
+        return mock_newrelic, mock_agent
+
+    def test_context_processor_injects_script_when_available(self, client):
+        """Test that the context processor injects the browser script."""
+        fake_script = '<script type="text/javascript">NREUM.info={}</script>'
+        mock_newrelic, mock_agent = self._make_newrelic_mocks(fake_script)
+
+        with patch.dict(
+            "sys.modules", {"newrelic": mock_newrelic, "newrelic.agent": mock_agent}
+        ):
+            response = client.get("/display/nr-test-display")
+
+        assert response.status_code == 200
+        assert fake_script.encode() in response.data
+
+    def test_context_processor_returns_empty_when_newrelic_not_installed(self, client):
+        """Test that missing newrelic package returns empty markup."""
+        with patch.dict("sys.modules", {"newrelic": None, "newrelic.agent": None}):
+            response = client.get("/display/nr-test-display")
+
+        assert response.status_code == 200
+        assert b"NREUM" not in response.data
+
+    def test_context_processor_handles_exception_gracefully(self, client):
+        """Test that exceptions in get_browser_timing_header are handled."""
+        mock_newrelic, mock_agent = self._make_newrelic_mocks()
+        mock_agent.get_browser_timing_header.side_effect = RuntimeError("NR error")
+
+        with patch.dict(
+            "sys.modules", {"newrelic": mock_newrelic, "newrelic.agent": mock_agent}
+        ):
+            response = client.get("/display/nr-test-display")
+
+        assert response.status_code == 200
+        assert b"NREUM" not in response.data
+
+    def test_admin_html_injection_when_available(self, app, client):
+        """Test that NewRelic script is injected into admin SPA HTML."""
+        import os
+
+        fake_script = '<script type="text/javascript">NREUM.info={}</script>'
+
+        # Only test if the built admin frontend exists
+        static_dir = os.path.join(app.root_path, "static", "dist")
+        if not os.path.exists(os.path.join(static_dir, "index.html")):
+            pytest.skip("Admin frontend not built (npm run build required)")
+
+        mock_newrelic, mock_agent = self._make_newrelic_mocks(fake_script)
+
+        with patch.dict(
+            "sys.modules", {"newrelic": mock_newrelic, "newrelic.agent": mock_agent}
+        ):
+            response = client.get("/admin")
+
+        assert response.status_code == 200
+        assert fake_script.encode() in response.data
