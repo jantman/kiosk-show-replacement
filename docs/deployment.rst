@@ -237,18 +237,53 @@ is set.
 
 **NewRelic Environment Variables:**
 
+*Required:*
+
 =========================================== ==========================================
 Variable                                    Description
 =========================================== ==========================================
-``NEW_RELIC_LICENSE_KEY``                   Required. Your NewRelic license key.
+``NEW_RELIC_LICENSE_KEY``                   Your NewRelic license key.
 ``NEW_RELIC_APP_NAME``                      Application name in dashboard
                                             (default: kiosk-show-replacement)
+=========================================== ==========================================
+
+*Optional (general):*
+
+=========================================== ==========================================
+Variable                                    Description
+=========================================== ==========================================
 ``NEW_RELIC_ENVIRONMENT``                   Environment tag (e.g., production, staging)
 ``NEW_RELIC_LOG_LEVEL``                     Agent log level: critical, error, warning,
                                             info, debug (default: info)
-``NEW_RELIC_DISTRIBUTED_TRACING_ENABLED``   Enable distributed tracing (default: true)
-``NEW_RELIC_API_KEY``                       Optional. NewRelic User API key (if needed)
+``NEW_RELIC_API_KEY``                       NewRelic User API key (if needed)
 =========================================== ==========================================
+
+*Feature toggles (all default to true when not set):*
+
+.. note::
+
+   The NewRelic Python agent controls these features locally via environment
+   variables (or a config file). In the NewRelic UI, these appear as managed
+   "per server configuration." To enable them, set the corresponding
+   environment variable to ``true``.
+
+====================================================== ==========================================
+Variable                                               Description
+====================================================== ==========================================
+``NEW_RELIC_BROWSER_MONITORING_AUTO_INSTRUMENT``       Auto-inject the NewRelic Browser JavaScript
+                                                       agent into HTML pages for Real User
+                                                       Monitoring (page loads, JS errors, sessions)
+``NEW_RELIC_DISTRIBUTED_TRACING_ENABLED``              Correlate requests across services and
+                                                       between browser and backend transactions
+``NEW_RELIC_TRANSACTION_TRACER_ENABLED``               Capture deep information about slow
+                                                       transactions (response time, DB queries)
+``NEW_RELIC_SLOW_SQL_ENABLED``                         Capture details from long-running SQL
+                                                       database queries
+``NEW_RELIC_ERROR_COLLECTOR_ENABLED``                  Capture uncaught and logged exceptions
+                                                       for viewing in the NewRelic UI
+``NEW_RELIC_THREAD_PROFILER_ENABLED``                  Allow thread profiling sessions to be
+                                                       scheduled via the NewRelic UI
+====================================================== ==========================================
 
 **Verifying NewRelic is Active:**
 
