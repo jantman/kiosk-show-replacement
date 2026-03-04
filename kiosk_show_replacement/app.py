@@ -211,63 +211,54 @@ def create_app(config_name: Optional[str] = None) -> Flask:
 
     @app.context_processor
     def newrelic_browser_timing() -> dict[str, Markup]:
-        """Provide NewRelic browser timing scripts to templates."""
+        """Provide NewRelic browser timing script to templates."""
         try:
             import newrelic.agent
 
             return {
                 "newrelic_header": Markup(newrelic.agent.get_browser_timing_header()),
-                "newrelic_footer": Markup(newrelic.agent.get_browser_timing_footer()),
             }
         except ImportError:
             # NewRelic not installed - this is expected in development
-            return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
+            return {"newrelic_header": Markup("")}
         except Exception as e:
             logger.warning("NewRelic browser timing failed: %s", e)
-            return {"newrelic_header": Markup(""), "newrelic_footer": Markup("")}
+            return {"newrelic_header": Markup("")}
 
-    def _get_newrelic_browser_scripts() -> tuple[str, str]:
-        """Get NewRelic browser timing scripts for injection.
+    def _get_newrelic_browser_script() -> str:
+        """Get NewRelic browser timing script for injection.
 
         Returns:
-            Tuple of (header_script, footer_script). Empty strings if
+            The browser timing script string. Empty string if
             NewRelic is not active.
         """
         try:
             import newrelic.agent
 
-            return (
-                newrelic.agent.get_browser_timing_header(),
-                newrelic.agent.get_browser_timing_footer(),
-            )
+            return newrelic.agent.get_browser_timing_header()
         except ImportError:
             # NewRelic not installed - this is expected in development
-            return ("", "")
+            return ""
         except Exception as e:
-            logger.warning("NewRelic browser scripts failed: %s", e)
-            return ("", "")
+            logger.warning("NewRelic browser script failed: %s", e)
+            return ""
 
     def _inject_newrelic_into_html(html: str) -> str:
-        """Inject NewRelic browser timing scripts into HTML.
+        """Inject NewRelic browser timing script into HTML.
 
         Args:
-            html: The HTML content to inject scripts into.
+            html: The HTML content to inject the script into.
 
         Returns:
-            HTML with NewRelic scripts injected, or original HTML if
+            HTML with NewRelic script injected, or original HTML if
             NewRelic is not active.
         """
-        header, footer = _get_newrelic_browser_scripts()
-        if not header and not footer:
+        script = _get_newrelic_browser_script()
+        if not script:
             return html
 
-        # Inject header after <head> tag
-        if header:
-            html = html.replace("<head>", f"<head>\n    {header}", 1)
-
-        # Inject footer before </body> tag
-        if footer:
-            html = html.replace("</body>", f"    {footer}\n</body>", 1)
+        # Inject after <head> tag
+        html = html.replace("<head>", f"<head>\n    {script}", 1)
 
         return html
 
